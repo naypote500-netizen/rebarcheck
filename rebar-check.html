@@ -6456,7 +6456,7 @@ function renderVisibleRegion(){
   if(rx2-rx1<0.002 || ry2-ry1<0.002) return;
   // supersample ×1.5 + ใช้ devicePixelRatio เต็ม → คมกว่า 1:1 พิกเซลจอ (เหมือน FOXIT)
   var dpr=Math.min(window.devicePixelRatio||1, 3);
-  var SS=2.0, cap=(window.innerWidth||1024)<760 ? 3400 : 5200;   // ซูเปอร์แซมเปิลสูงขึ้น = คมขึ้น
+  var SS=2.0, cap=(window.innerWidth||1024)<760 ? 4000 : 5200;   // เพดานคมส่วนที่เห็น (มือถือดันขึ้นจาก 3400 แต่ยังปลอดภัยกับ iOS ~16MP)
   var targetW=Math.max(1000, Math.min(cap, Math.round((rx2-rx1)*sw*z*dpr*SS)));
   var sig=[rx1.toFixed(3),ry1.toFixed(3),rx2.toFixed(3),ry2.toFixed(3),targetW].join(",");
   if(doc.regionSig===sig){                            // ส่วนเดิม/ความละเอียดเดิม
@@ -6510,7 +6510,7 @@ function applyBestImage(){
     if(doc.bigUrl){ if(img.src!==doc.bigUrl) img.src=doc.bigUrl; }
     else if(!doc.bigRendering){
       doc.bigRendering=true;
-      var bigTarget=(window.innerWidth||1024)<760 ? 3200 : 6000;   // ภาพฐานความละเอียดสูง → คมถึง ~5-6 เท่าโดยไม่ต้องพึ่ง region
+      var bigTarget=(window.innerWidth||1024)<760 ? 4000 : 6000;   // ภาพฐานความละเอียดสูง (มือถือดันขึ้นจาก 3200)
       renderPdfToCanvas(doc.page, bigTarget).then(function(cv){
         var setu=function(u){ doc.bigRendering=false; doc.bigUrl=u;
           if(planSourceKey()===key){ var im=$(".plan-img"); if(im) im.src=u; }
@@ -6997,7 +6997,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 128 โหลดแล้ว — หน้าต่างเครื่องมือวาดลอย (ตอนซ่อนพาเนล/จอเต็ม)","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 129 โหลดแล้ว — เพิ่มความคมแปลนบนมือถือ (ดันเพดาน deep-zoom)","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();
