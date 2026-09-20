@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>SSTAAD RC — Concrete Building Workspace</title>
+<style>
+:root{
+  /* โทนน้ำเงินเข้มเป็นหลัก + ฟ้า teal เป็นสีรอง */
+  --navy:#0a1a47; --navy2:#132b6e; --navy3:#1c3f95; --tab:#081436;
+  --blue:#1e40af; --blue-d:#16307f; --blue-l:#3f63d6;
+  --teal:#19b6c9; --teal-d:#0e8fa0; --accent:#2f6df6;
+  --ink:#18233a; --dim:#657390; --line:#d8dfec; --line2:#c2cbe0;
+  --bg:#eceff6; --surface:#ffffff; --surface2:#f5f7fc;
+  --col:#c9a267; --beamx:#7c4fd6; --beamy:#12a2c7; --slab:#9fc2de; --ground:#33b877;
+  --ok:#22a565; --warn:#e8a13a; --shadow:0 6px 24px rgba(10,26,71,.16);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Segoe UI","Inter","Noto Sans Thai",system-ui,-apple-system,sans-serif;font-size:13px;
+  display:flex;flex-direction:column;overflow:hidden}
+button{font-family:inherit;cursor:pointer}
+.muted{color:var(--dim)}
+
+/* ---------- HEADER ---------- */
+.topbar{display:flex;align-items:center;gap:22px;padding:9px 20px;
+  background:linear-gradient(180deg,#183a92,#0a1a47);color:#eaf2f9;border-bottom:2px solid #16b0c4}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:46px;height:46px;border-radius:9px;background:linear-gradient(135deg,#2a53c4,#0c1f57);
+  display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.logo svg{width:30px;height:30px}
+.brand .bt1{font-size:20px;font-weight:800;letter-spacing:.5px;line-height:1}
+.brand .bt1 b{color:var(--teal)}
+.brand .bt2{font-size:9.5px;letter-spacing:2.5px;color:#9db6e6;margin-top:3px}
+.brand .bt3{font-size:7px;letter-spacing:1px;color:#6f86c0}
+.proj{line-height:1.5}
+.proj .p1{font-weight:700;font-size:14px}
+.proj .p2{color:#a7bce6;font-size:11.5px}
+.spacer{flex:1}
+.top-actions{display:flex;align-items:center;gap:8px}
+.tbtn{background:#1e3f8f;color:#e2ebff;border:1px solid #3a5cc0;border-radius:7px;padding:7px 13px;font-size:12px;font-weight:600}
+.tbtn:hover{background:#274bab}
+.tbtn.p{background:var(--teal);border-color:var(--teal-d);color:#04222a}
+.badge-wsd{background:#0c1c52;border:1px solid #3a5cc0;color:#7fe3f0;font-weight:700;font-size:11px;
+  padding:7px 12px;border-radius:7px;letter-spacing:.4px}
+.autosave{display:flex;align-items:center;gap:7px;color:#a7bce6;font-size:11px}
+.autosave input{width:42px;padding:4px 6px;border-radius:5px;border:1px solid #3a5cc0;background:#0c1c52;color:#e2ebff;text-align:center}
+.savedot{color:var(--teal);font-size:11px}
+
+/* ---------- TABBAR ---------- */
+.tabbar{display:flex;align-items:stretch;background:var(--tab);color:#9fb6cc;padding:0 8px}
+.tab{background:none;border:none;color:#8ba6bf;padding:12px 20px;font-size:13.5px;font-weight:600;
+  border-bottom:3px solid transparent;display:flex;gap:8px;align-items:baseline}
+.tab .num{color:#5f7f98;font-weight:800;font-size:12px}
+.tab:hover{color:#cfe0ef}
+.tab.active{color:#fff;border-bottom-color:var(--teal)}
+.tab.active .num{color:var(--teal)}
+.tabbar .spacer{flex:1}
+.viewinfo{display:flex;align-items:center;gap:10px;color:#9fb6cc;font-size:12px;padding-right:14px}
+.viewinfo b{color:#fff}
+.viewinfo .vtag{color:var(--teal);font-weight:800;letter-spacing:.5px}
+
+/* ---------- WORKSPACE ---------- */
+.workspace{flex:1;display:flex;min-height:0}
+aside{background:var(--surface);overflow-y:auto;flex:none}
+.left{width:262px;border-right:1px solid var(--line)}
+.right{width:308px;border-left:1px solid var(--line)}
+.center{flex:1;position:relative;min-width:0;background:#f2f5f9;display:flex;flex-direction:column}
+
+/* left tree */
+.side-head{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border-bottom:1px solid var(--line);
+  font-size:11px;letter-spacing:1.2px;font-weight:800;color:var(--dim)}
+.side-head .cnt{color:var(--teal);font-weight:800}
+.tree-title{padding:14px 15px 4px}
+.tree-title .tt1{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
+.tree-title .tt2{color:var(--dim);font-size:12px;margin-top:2px}
+.lvl{display:flex;align-items:center;gap:10px;padding:11px 15px;border-left:3px solid transparent;cursor:pointer}
+.lvl:hover{background:var(--surface2)}
+.lvl.active{background:#e9eefc;border-left-color:var(--blue)}
+.lvl .ic{width:16px;height:16px;color:var(--dim)}
+.lvl .nm{font-weight:600;flex:1}
+.lvl .z{color:var(--dim);font-variant-numeric:tabular-nums;font-size:12px}
+.lvl.active .nm{color:var(--blue-d)}
+.lvl.active .z{color:var(--blue)}
+.datum{padding:14px 15px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.datum label{font-size:11.5px;color:var(--dim);font-weight:600}
+.datum .row{display:flex;gap:8px;align-items:center;margin-top:6px}
+.datum input{width:64px;padding:6px 8px;border:1px solid var(--line2);border-radius:6px}
+.datum .go{background:var(--navy2);color:#fff;border:none;border-radius:6px;padding:7px 12px;font-weight:600}
+.datum .hint{font-size:10.5px;color:var(--dim);margin-top:8px;line-height:1.5}
+.selbox{padding:12px 15px}
+.selbox select{width:100%;padding:9px 10px;border:1px solid var(--line2);border-radius:7px;background:#fff}
+.objs{padding:4px 15px 20px}
+.obj-h{font-size:11px;letter-spacing:1px;font-weight:800;color:var(--dim);margin:12px 0 6px}
+.obj{display:flex;align-items:center;gap:9px;padding:7px 0;font-size:12.5px;border-bottom:1px dashed var(--line)}
+.obj .sw{width:12px;height:12px;border-radius:3px;flex:none}
+.obj .oc{margin-left:auto;color:var(--dim);font-weight:700}
+
+/* center: canvas topbar */
+.canvas-top{display:flex;align-items:center;gap:12px;padding:9px 12px;background:var(--surface);border-bottom:1px solid var(--line)}
+.ctool-toggle{display:flex;align-items:center;gap:9px;background:var(--navy2);color:#eaf2f9;border-radius:20px;padding:6px 8px 6px 14px;font-weight:800;font-size:11px;letter-spacing:1px}
+.ctool-toggle .sw{width:34px;height:18px;border-radius:20px;background:#0b2137;position:relative;border:1px solid #2a5578}
+.ctool-toggle .sw::after{content:"";position:absolute;top:1px;left:1px;width:14px;height:14px;border-radius:50%;background:var(--teal);transition:.15s}
+.ctool-toggle.off .sw::after{left:16px;background:#5f7f98}
+.mini{width:34px;height:32px;border:1px solid var(--line2);border-radius:7px;background:#fff;display:grid;place-items:center;color:var(--dim)}
+.mini:hover{background:var(--surface2)}
+.mini.on{background:var(--navy2);color:#fff;border-color:var(--navy2)}
+.mini svg{width:17px;height:17px}
+.run{margin-left:auto;background:linear-gradient(180deg,#e9eef3,#dbe3ec);color:#7b8699;border:1px solid var(--line2);
+  border-radius:8px;padding:9px 20px;font-weight:800;font-size:13px;display:flex;gap:7px;align-items:center}
+.run.ready{background:var(--teal);color:#04222a;border-color:var(--teal-d);box-shadow:0 3px 12px rgba(22,176,196,.4)}
+
+/* viewport */
+.viewwrap{flex:1;position:relative;min-height:0}
+#viewport{position:absolute;inset:0}
+#viewport canvas{display:block}
+
+/* floating canvas tools */
+.ctools{position:absolute;left:14px;top:14px;width:298px;max-height:calc(100% - 28px);overflow-y:auto;
+  background:var(--surface);border-radius:12px;box-shadow:var(--shadow);border:1px solid var(--line);z-index:6}
+.ctools-h{display:flex;justify-content:space-between;align-items:center;padding:12px 14px 8px}
+.ctools-h .t1{font-size:12px;font-weight:800;letter-spacing:1.5px;color:var(--navy2)}
+.ctools-h .t2{font-size:9.5px;letter-spacing:1.5px;color:var(--dim);margin-top:2px}
+.ctools-x{border:none;background:none;color:var(--dim);font-size:16px;padding:2px 6px;border-radius:6px}
+.ctools-x:hover{background:var(--surface2)}
+.ctools-b{padding:4px 14px 16px}
+.vgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:9px}
+.vbtn{border:1px solid var(--line2);border-radius:9px;background:#fff;padding:9px 4px 7px;display:flex;flex-direction:column;
+  align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--ink)}
+.vbtn:hover{background:var(--surface2);border-color:var(--teal)}
+.vbtn.on{background:var(--navy2);color:#fff;border-color:var(--navy2)}
+.vbtn .vi{width:20px;height:20px;display:grid;place-items:center;color:var(--teal)}
+.vbtn.on .vi{color:#fff}
+.vrow{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:11px}
+.tool4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:11px}
+.tool4 .vbtn .vi{color:var(--navy2)}
+.tool4 .vbtn.on .vi{color:#fff}
+.sec-h{font-size:11px;font-weight:800;color:var(--navy2);margin:6px 0 7px;display:flex;align-items:center;gap:6px;cursor:pointer}
+.sec-h::before{content:"▾";color:var(--teal)}
+.pdf-drop{border:1px dashed var(--line2);border-radius:8px;padding:9px;background:var(--surface2);font-size:11px}
+.pdf-drop input{width:100%;font-size:11px;margin-top:4px}
+.note{font-size:10.5px;color:var(--dim);line-height:1.55;margin-top:8px}
+.leg{display:flex;align-items:center;gap:8px;font-size:11.5px;padding:5px 0}
+.leg .ln{width:22px;height:4px;border-radius:2px}
+.leg .oc{margin-left:auto;color:var(--dim);font-weight:700}
+.kv{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+
+/* member tag popup */
+.mtag{position:absolute;right:80px;top:70px;background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  box-shadow:var(--shadow);padding:11px 14px;max-width:240px;z-index:5}
+.mtag .t1{font-weight:800;font-size:12.5px}
+.mtag .t2{color:var(--dim);font-size:11px;margin-top:3px;line-height:1.5}
+
+/* right vertical toolbar */
+.rtool{position:absolute;right:12px;top:12px;width:58px;background:var(--surface);border:1px solid var(--line);
+  border-radius:12px;box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column;gap:2px;z-index:6}
+.rbtn{border:none;background:none;border-radius:9px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-size:9px;font-weight:700;color:var(--dim)}
+.rbtn:hover{background:var(--surface2);color:var(--ink)}
+.rbtn.on{background:var(--navy2);color:#fff}
+.rbtn svg{width:19px;height:19px}
+.rsep{height:1px;background:var(--line);margin:4px 6px}
+
+/* axis gizmo */
+.gizmo{position:absolute;right:22px;bottom:18px;width:96px;height:96px;z-index:5;pointer-events:none}
+
+/* right properties */
+.rp-tabs{display:flex;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);z-index:2}
+.rp-tabs button{flex:1;border:none;background:none;padding:12px 6px;font-size:12.5px;font-weight:700;color:var(--dim);border-bottom:2px solid transparent}
+.rp-tabs button.active{color:var(--teal-d);border-bottom-color:var(--teal)}
+.rp-body{padding:16px}
+.rp-body h3{margin:0 0 4px;font-size:16px}
+.rp-body .sub{color:var(--dim);font-size:12px;line-height:1.6;margin-bottom:16px}
+.prop-card{border:1px solid var(--line);border-radius:10px;padding:12px 13px;margin-bottom:12px;background:var(--surface2)}
+.prop-card .ph{font-size:11px;letter-spacing:1px;font-weight:800;color:var(--dim);margin-bottom:9px}
+.prow{display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px;border-bottom:1px dashed var(--line)}
+.prow:last-child{border-bottom:none}
+.prow .v{font-weight:700;font-variant-numeric:tabular-nums}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;color:var(--dim);font-size:12px;line-height:1.9}
+.flow .st{background:#fff;border:1px solid var(--line2);border-radius:6px;padding:3px 9px;font-weight:700;color:var(--ink)}
+.flow .ar{color:var(--teal)}
+
+/* bottom bar */
+.bottombar{display:flex;align-items:center;gap:20px;padding:7px 16px;background:var(--surface);border-top:1px solid var(--line);font-size:11.5px}
+.bottombar .dot{color:var(--teal)}
+.bottombar label{display:flex;align-items:center;gap:6px;color:var(--ink)}
+.bottombar .units{margin-left:auto;color:var(--dim)}
+.bottombar .units b{color:var(--ink)}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:54px;transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;
+  background:var(--navy);color:#eaf2f9;padding:11px 20px;border-radius:10px;font-weight:600;box-shadow:var(--shadow);transition:.2s;z-index:50}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#c6d2df;border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:#aebccb}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="topbar">
+  <div class="brand">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#16b0c4" stroke-width="1.6"><path d="M4 21V7l6-4 6 4v14M4 21h16M8 21v-4h4v4M8 11h.01M12 11h.01M8 15h.01M12 15h.01" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 21V9l4 3v9" stroke="#3f7fb0"/></svg></div>
+    <div>
+      <div class="bt1">SSTAAD <b>RC</b></div>
+      <div class="bt2">CONCRETE BUILDING WORKSPACE</div>
+      <div class="bt3">Structural System Tools · for Automatic Analysis and Design</div>
+    </div>
+  </div>
+  <div class="proj">
+    <div class="p1">Project Name : <span id="projName">Test SSTAAD-RC</span></div>
+    <div class="p2">Engineer : Asst. Prof. Pongnathee Maneekul</div>
+    <div class="p2">Date : <span id="dateStr">—</span></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="top-actions">
+    <button class="tbtn" id="btnNew">โครงการใหม่ +</button>
+    <button class="tbtn" id="btnImport">นำเข้า JSON ↑</button>
+    <button class="tbtn" id="btnExport">ส่งออก JSON ↓</button>
+    <input type="file" id="jsonFile" accept="application/json,.json" hidden>
+  </div>
+  <div class="badge-wsd">WSD · LOW / MID RISE</div>
+  <button class="tbtn" style="background:none;border:none;color:#bcd6ea">SSTAAD 3D ↗</button>
+  <div class="autosave">Auto Save <input id="autosave" value="60"> วินาที<br></div>
+  <div class="autosave"><span class="savedot">●</span> บันทึกแล้ว <span id="savedAt">15:55:39</span></div>
+</header>
+
+<!-- ===== TABS ===== -->
+<div class="tabbar">
+  <button class="tab active" data-tab="model"><span class="num">01</span> Model &amp; Geometry</button>
+  <button class="tab" data-tab="loads"><span class="num">02</span> Loads</button>
+  <button class="tab" data-tab="analysis"><span class="num">03</span> Analysis &amp; Design</button>
+  <button class="tab" data-tab="opt"><span class="num">04</span> Optimization</button>
+  <div class="spacer"></div>
+  <div class="viewinfo"><span class="vtag">3D VIEW</span> <b>WHOLE BUILDING</b> / โมเดลทั้งอาคาร (Node: <b id="nodeCnt">162</b> · Element: <b id="elemCnt">338</b>)</div>
+</div>
+
+<!-- ===== WORKSPACE ===== -->
+<div class="workspace">
+
+  <!-- LEFT -->
+  <aside class="left">
+    <div class="side-head"><span>WORK TREE</span><span class="cnt">5 LEVELS</span></div>
+    <div class="tree-title">
+      <div class="tt1"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#183b5a" stroke-width="1.7"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg> RC Building</div>
+      <div class="tt2">19.0 × 8.8 m</div>
+    </div>
+    <div id="levelList"></div>
+    <div class="datum">
+      <label>ระดับพื้นชั้น G (m)</label>
+      <div class="row"><input id="datumG" value="0.5"><button class="go" id="applyDatum">ใช้ระดับ</button></div>
+      <div class="hint">Datum ระดับดินคงที่ +0.00 m · ชั้นเหนือ G จะเลื่อนตามเพื่อรักษาความสูงช่วงชั้น</div>
+    </div>
+    <div class="selbox">
+      <div class="obj-h" style="margin-top:2px">แปลนชั้น <span id="planLvl">3</span></div>
+      <select id="planMode"><option>อิสระ · กำหนดเอง</option><option>ตามกริดหลัก</option><option>ล็อกกับชั้นล่าง</option></select>
+    </div>
+    <div class="objs">
+      <div class="obj-h">ชั้น <span id="objLvl">3</span> · STRUCTURAL OBJECTS</div>
+      <div class="obj"><span class="sw" style="background:var(--beamx)"></span> คาน X<span class="oc">20</span></div>
+      <div class="obj"><span class="sw" style="background:var(--beamy)"></span> คาน Y<span class="oc">18</span></div>
+      <div class="obj"><span class="sw" style="background:var(--col)"></span> เสา<span class="oc">24</span></div>
+      <div class="obj"><span class="sw" style="background:var(--slab)"></span> พื้น (Slab)<span class="oc">15</span></div>
+    </div>
+  </aside>
+
+  <!-- CENTER -->
+  <main class="center">
+    <div class="canvas-top">
+      <button class="ctool-toggle" id="ctoolToggle">CANVAS TOOLS <span class="sw"></span> <span id="ctoolState">ON</span></button>
+      <button class="mini" id="mSelect" title="เลือก"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4l6 16 2-6 6-2z"/></svg></button>
+      <button class="mini" title="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3"/></svg></button>
+      <button class="mini" title="Redo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M15 14l5-5-5-5M20 9H9a5 5 0 0 0 0 10h3"/></svg></button>
+      <button class="mini on" id="mGrid" title="Grid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button>
+      <button class="mini" id="mSettings" title="ตั้งค่า"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.3 1a7 7 0 0 0-1.7-1L14.5 2h-5l-.4 2.5a7 7 0 0 0-1.7 1l-2.3-1-2 3.5L3.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.5 2.3-1a7 7 0 0 0 1.7 1l.4 2.5h5l.4-2.5a7 7 0 0 0 1.7-1l2.3 1 2-3.5-2-1.5c.1-.3.1-.7.1-1z"/></svg></button>
+      <button class="run ready" id="btnRun">▶ Run Model</button>
+    </div>
+
+    <div class="viewwrap">
+      <div id="viewport"></div>
+
+      <!-- floating canvas tools -->
+      <div class="ctools" id="ctools">
+        <div class="ctools-h">
+          <div><div class="t1">CANVAS TOOLS</div><div class="t2">VIEW · NAVIGATE · FLOOR · CLIP</div></div>
+          <button class="ctools-x" id="ctoolsClose">✕</button>
+        </div>
+        <div class="ctools-b">
+          <div class="vgrid">
+            <button class="vbtn on" data-view="iso"><span class="vi">◇</span>ISO</button>
+            <button class="vbtn" data-view="top"><span class="vi">▣</span>TOP</button>
+            <button class="vbtn" data-view="front"><span class="vi">△</span>FRONT</button>
+            <button class="vbtn" data-view="side"><span class="vi">▭</span>SIDE</button>
+            <button class="vbtn" data-view="clip"><span class="vi">▥</span>CLIP</button>
+          </div>
+          <div class="vrow">
+            <button class="vbtn" id="zoomIn"><span class="vi">+</span></button>
+            <button class="vbtn" id="zoomOut"><span class="vi">−</span></button>
+            <button class="vbtn on" id="orbitBtn"><span class="vi">✥</span></button>
+            <button class="vbtn" id="spinBtn"><span class="vi">↻</span></button>
+          </div>
+          <div class="tool4" style="grid-template-columns:repeat(4,1fr)">
+            <button class="vbtn" id="fitBtn"><span class="vi">⤢</span></button>
+            <button class="vbtn" data-obj="floor"><span class="vi">▦</span>FLOOR</button>
+            <button class="vbtn" data-obj="beam"><span class="vi">≡</span>BEAM</button>
+            <button class="vbtn" data-obj="slab"><span class="vi">▤</span>SLAB</button>
+          </div>
+          <div class="sec-h">แบบแปลน PDF · ชั้น <span id="pdfLvl" style="margin-left:2px">3</span></div>
+          <div class="pdf-drop">นำเข้า PDF<input type="file" accept="application/pdf,.pdf"></div>
+          <div class="note">แบบใช้เป็นพื้นหลังใน Plan · อ่านไฟล์ในเครื่อง · ยังไม่อ่านกริดหรือชื่อห้องอัตโนมัติ</div>
+          <div class="note"><b>Plan:</b> ลากกริด / คลิกระยะ · <b>Front/Side:</b> ลากกระดับพื้นทุกชั้นรวม G · Datum ดินคงที่ +0.00 m · Snap Z 0.50 m</div>
+          <div class="kv"><span>ชั้น 3 · +6.90 m</span><span>Zoom <b id="zoomPct">100%</b></span></div>
+          <div class="sec-h" style="margin-top:12px">MEMBER GROUP · 3D</div>
+          <div class="leg"><span class="ln" style="background:var(--beamx)"></span> คาน X · <span class="oc">20 / ชั้น</span></div>
+          <div class="leg"><span class="ln" style="background:var(--beamy)"></span> คาน Y · <span class="oc">18 / ชั้น</span></div>
+          <div class="leg"><span class="ln" style="background:var(--col);height:12px;width:10px;border-radius:2px"></span> เสา · <span class="oc">24 / ชั้น</span></div>
+          <div class="leg"><span class="ln" style="background:var(--ground)"></span> คานคานพื้นดิน (Tie) · <span class="oc">G</span></div>
+        </div>
+      </div>
+
+      <!-- member group tag -->
+      <div class="mtag" id="mtag">
+        <div class="t1">Member Group · 3D</div>
+        <div class="t2">ขนาดเบื้องต้นตามเกณฑ์โครงการ · ยังไม่ใช้ผ่าน FEM</div>
+      </div>
+
+      <!-- right vertical toolbar -->
+      <div class="rtool" id="rtool"></div>
+
+      <!-- axis gizmo -->
+      <svg class="gizmo" id="gizmo" viewBox="-50 -50 100 100"></svg>
+    </div>
+  </main>
+
+  <!-- RIGHT -->
+  <aside class="right">
+    <div class="rp-tabs">
+      <button class="active" data-rt="props">Properties</button>
+      <button data-rt="loads">Loads</button>
+      <button data-rt="analysis">Analysis</button>
+      <button data-rt="design">Design</button>
+    </div>
+    <div class="rp-body" id="rpBody"></div>
+  </aside>
+</div>
+
+<!-- ===== BOTTOM ===== -->
+<footer class="bottombar">
+  <span class="dot">●</span>
+  <span id="selStatus" class="muted">ยกเลิกการเลือกแล้ว</span>
+  <label><input type="checkbox" data-lbl="memberName"> Member Name</label>
+  <label><input type="checkbox" data-lbl="nodeNumber"> Node Number</label>
+  <label><input type="checkbox" data-lbl="memberNumber"> Member Number</label>
+  <label><input type="checkbox" data-lbl="groupName"> Group Name</label>
+  <span class="units">Units: ระยะ <b>m</b> | หุ้ม <b>mm</b> | แรง <b>kgf</b> | โมเมนต์ <b>kgf·m</b> | หน่วยแรง <b>ksc</b> | โหลด <b>kgf/m · kgf/m² · kgf/m³</b></span>
+</footer>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================
+   SSTAAD RC — เทมเพลต workspace (โครง UI + วิว 3D จริงด้วย Three.js)
+   ทุกอย่างเป็น mock/scaffold ให้ต่อยอด — ยังไม่มีเครื่องยนต์ FEM จริง
+   ============================================================ */
+"use strict";
+var $=function(s,r){return (r||document).querySelector(s);};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
+
+/* ---------- โมเดลอาคาร (พารามิเตอร์) ---------- */
+var MODEL={
+  name:"Test SSTAAD-RC",
+  spanX:3.8, spanY:2.933,      // ระยะช่วงเสา
+  nx:6, ny:4,                  // จำนวนเส้นกริด (6×4 = 24 เสา/ชั้น)
+  levels:[                     // ชื่อ + ระดับ (m)
+    {name:"ชั้น 1 / G", z:0.50}, {name:"ชั้น 2", z:3.70}, {name:"ชั้น 3", z:6.90},
+    {name:"ชั้น 4", z:10.10}, {name:"ชั้น 5 · ชั้นบนสุด", z:13.30}
+  ]
+};
+var state={ tab:"model", rtool:"groups", rp:"props", activeLevel:2, spin:false, ctools:true };
+
+/* ---------- Three.js ---------- */
+var scene,camera,renderer,root,slabByLevel=[],raf=null;
+var cam={theta:-0.9, phi:1.02, r:34, tx:0,ty:0,tz:6.5};   // spherical + target
+
+function initThree(){
+  var host=$("#viewport");
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0xeaf0f6);
+  var W=host.clientWidth||900,H=host.clientHeight||600;
+  camera=new THREE.PerspectiveCamera(38,W/H,0.1,2000);
+  camera.up.set(0,0,1);                    // Z-up (ระบบพิกัดวิศวกรรม)
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  renderer.setSize(W,H);
+  host.appendChild(renderer.domElement);
+
+  scene.add(new THREE.HemisphereLight(0xffffff,0xb9c6d6,0.95));
+  var dir=new THREE.DirectionalLight(0xffffff,0.55); dir.position.set(20,-30,40); scene.add(dir);
+  var dir2=new THREE.DirectionalLight(0xffffff,0.25); dir2.position.set(-25,20,15); scene.add(dir2);
+
+  buildBuilding();
+  addGround();
+  applyCam();
+  bindOrbit();
+  onResize();
+  window.addEventListener("resize",onResize);
+  loop();
+}
+
+function mat(hex,opts){ opts=opts||{}; return new THREE.MeshLambertMaterial(Object.assign({color:hex},opts)); }
+function box(w,d,h,material){ return new THREE.Mesh(new THREE.BoxGeometry(w,d,h),material); }
+
+function buildBuilding(){
+  if(root){ scene.remove(root); }
+  root=new THREE.Group(); scene.add(root);
+  slabByLevel=[];
+  var M=MODEL, nx=M.nx, ny=M.ny, sx=M.spanX, sy=M.spanY;
+  var Wx=(nx-1)*sx, Wy=(ny-1)*sy;
+  var xs=[],ys=[],i,j;
+  for(i=0;i<nx;i++) xs.push(-Wx/2 + i*sx);
+  for(j=0;j<ny;j++) ys.push(-Wy/2 + j*sy);
+  var topZ=M.levels[M.levels.length-1].z;
+
+  var colMat=mat(0xc9a267), bxMat=mat(0x7c4fd6), byMat=mat(0x12a2c7),
+      gMat=mat(0x33b877), slabMat=mat(0x9fc2de,{transparent:true,opacity:0.5,depthWrite:false});
+  var cs=0.34, bw=0.26, bh=0.5;
+
+  // เสา (จากฐาน z=0 ถึงชั้นบนสุด)
+  for(i=0;i<nx;i++)for(j=0;j<ny;j++){
+    var c=box(cs,cs,topZ,colMat); c.position.set(xs[i],ys[j],topZ/2); c.userData={t:"column"}; root.add(c);
+  }
+  // คาน + พื้น ต่อชั้น
+  M.levels.forEach(function(lv,li){
+    var z=lv.z, bmat=(li===0)?gMat:bxMat, bmatY=(li===0)?gMat:byMat;
+    // คาน X (ตามแนว X) — nx-1 ช่วง × ny เส้น
+    for(j=0;j<ny;j++)for(i=0;i<nx-1;i++){
+      var b=box(sx,bw,bh,bmat); b.position.set((xs[i]+xs[i+1])/2, ys[j], z); b.userData={t:"beamX",lv:li}; root.add(b);
+    }
+    // คาน Y — ny-1 ช่วง × nx เส้น
+    for(i=0;i<nx;i++)for(j=0;j<ny-1;j++){
+      var b2=box(bw,sy,bh,bmatY); b2.position.set(xs[i], (ys[j]+ys[j+1])/2, z); b2.userData={t:"beamY",lv:li}; root.add(b2);
+    }
+    // พื้น (Slab) — แผ่นบางคลุมทั้งชั้น
+    var sl=box(Wx+0.4, Wy+0.4, 0.16, slabMat); sl.position.set(0,0,z+bh/2+0.02); sl.userData={t:"slab",lv:li}; root.add(sl);
+    slabByLevel[li]=sl;
+  });
+  updateNodeElemCount();
+}
+function addGround(){
+  var g=new THREE.GridHelper(60,30,0xbfcbd8,0xd6dfe9);
+  g.rotation.x=Math.PI/2; g.position.z=0; scene.add(g);
+  root.userData.grid=g;
+}
+function updateNodeElemCount(){
+  var M=MODEL, nodesPerLvl=M.nx*M.ny, lv=M.levels.length;
+  var nodes=nodesPerLvl*(lv+1);   // +ฐาน
+  var cols=M.nx*M.ny;
+  var beams=((M.nx-1)*M.ny + (M.ny-1)*M.nx)*lv;
+  $("#nodeCnt").textContent=nodes;
+  $("#elemCnt").textContent=cols+beams;
+}
+
+/* ---------- กล้อง (orbit เองแบบเบา) ---------- */
+function applyCam(){
+  cam.phi=Math.max(0.15,Math.min(Math.PI-0.05,cam.phi));
+  cam.r=Math.max(10,Math.min(120,cam.r));
+  var st=Math.sin(cam.phi), x=cam.tx+cam.r*st*Math.cos(cam.theta),
+      y=cam.ty+cam.r*st*Math.sin(cam.theta), z=cam.tz+cam.r*Math.cos(cam.phi);
+  camera.position.set(x,y,z);
+  camera.lookAt(cam.tx,cam.ty,cam.tz);
+  var pct=Math.round(34/cam.r*100); $("#zoomPct").textContent=pct+"%";
+  drawGizmo();
+}
+function bindOrbit(){
+  var el=renderer.domElement, drag=null;
+  el.addEventListener("pointerdown",function(e){
+    drag={x:e.clientX,y:e.clientY,btn:e.button,theta:cam.theta,phi:cam.phi,tx:cam.tx,ty:cam.ty};
+    el.setPointerCapture(e.pointerId);
+  });
+  window.addEventListener("pointermove",function(e){
+    if(!drag) return;
+    var dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+    if(drag.btn===2 || e.shiftKey){        // pan
+      var k=cam.r*0.0016;
+      cam.tx=drag.tx - dx*k*Math.sin(cam.theta) + 0;
+      cam.ty=drag.ty + dx*k*Math.cos(cam.theta);
+      cam.tz=cam.tz;  // คงระดับ
+    }else{                                  // rotate
+      cam.theta=drag.theta - dx*0.008;
+      cam.phi=drag.phi - dy*0.008;
+    }
+    applyCam();
+  });
+  window.addEventListener("pointerup",function(){ drag=null; });
+  el.addEventListener("contextmenu",function(e){ e.preventDefault(); });
+  el.addEventListener("wheel",function(e){ e.preventDefault(); cam.r*=(e.deltaY>0?1.1:1/1.1); applyCam(); },{passive:false});
+}
+function setView(v){
+  if(v==="iso"){ cam.theta=-0.9; cam.phi=1.02; }
+  else if(v==="top"){ cam.theta=-Math.PI/2; cam.phi=0.16; }
+  else if(v==="front"){ cam.theta=-Math.PI/2; cam.phi=Math.PI/2; }
+  else if(v==="side"){ cam.theta=0; cam.phi=Math.PI/2; }
+  applyCam();
+}
+function fitView(){ cam.tx=0;cam.ty=0;cam.tz=6.5;cam.r=34; setView("iso"); }
+function onResize(){
+  var host=$("#viewport"); if(!host||!renderer) return;
+  var W=host.clientWidth,H=host.clientHeight;
+  camera.aspect=W/H; camera.updateProjectionMatrix(); renderer.setSize(W,H);
+}
+function loop(){
+  raf=requestAnimationFrame(loop);
+  if(state.spin){ cam.theta+=0.0035; applyCam(); }
+  renderer.render(scene,camera);
+}
+
+/* ---------- axis gizmo (มุมขวาล่าง) ---------- */
+function drawGizmo(){
+  var g=$("#gizmo"); if(!g) return;
+  function proj(vx,vy,vz){   // ใช้ทิศทางกล้องแบบคร่าว
+    var right=new THREE.Vector3(), up=new THREE.Vector3(), fwd=new THREE.Vector3();
+    camera.matrixWorld.extractBasis(right,up,fwd);
+    var v=new THREE.Vector3(vx,vy,vz);
+    return [v.dot(right)*34, -v.dot(up)*34];
+  }
+  var ax=[["X",1,0,0,"#e5484d"],["Y",0,1,0,"#2fb56a"],["Z",0,0,1,"#2f6df6"]];
+  var s='';
+  ax.forEach(function(a){ var p=proj(a[1],a[2],a[3]);
+    s+='<line x1="0" y1="0" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'" stroke="'+a[4]+'" stroke-width="2.4"/>'
+      +'<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="8" fill="'+a[4]+'"/>'
+      +'<text x="'+p[0].toFixed(1)+'" y="'+(p[1]+3.5).toFixed(1)+'" fill="#fff" font-size="9" font-weight="700" text-anchor="middle">'+a[0]+'</text>';
+  });
+  g.innerHTML='<circle cx="0" cy="0" r="4" fill="#334"/>'+s;
+}
+
+/* ---------- เลือกชั้น: ไฮไลท์พื้น + เลื่อนกล้องไปที่ระดับชั้น ---------- */
+function selectLevel(li){
+  state.activeLevel=li;
+  renderLevels();
+  var lv=MODEL.levels[li];
+  $("#planLvl").textContent=li+1; $("#objLvl").textContent=li+1; $("#pdfLvl").textContent=li+1;
+  slabByLevel.forEach(function(sl,k){ if(!sl) return;
+    sl.material.emissive=new THREE.Color(k===li?0x16b0c4:0x000000);
+    sl.material.opacity=(k===li?0.72:0.5);
+  });
+  cam.tz=lv.z; applyCam();
+}
+function renderLevels(){
+  var h='';
+  for(var i=MODEL.levels.length-1;i>=0;i--){
+    var lv=MODEL.levels[i], act=(i===state.activeLevel);
+    h+='<div class="lvl'+(act?" active":"")+'" data-lvl="'+i+'">'
+      +'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="11" width="18" height="4" rx="1"/><rect x="3" y="18" width="18" height="3" rx="1"/></svg>'
+      +'<span class="nm">'+lv.name+'</span><span class="z">+'+lv.z.toFixed(2)+' m</span></div>';
+  }
+  $("#levelList").innerHTML=h;
+  $$("#levelList .lvl").forEach(function(el){ el.onclick=function(){ selectLevel(+el.getAttribute("data-lvl")); }; });
+}
+
+/* ---------- แถบเครื่องมือแนวตั้งขวา ---------- */
+var RTOOLS=[
+  ["model","Model",'<path d="M4 21V8l8-5 8 5v13M4 21h16M9 21v-6h6v6"/>'],
+  ["loads","Loads",'<path d="M12 3v12M8 11l4 4 4-4M5 21h14"/>'],
+  ["axial","Axial",'<path d="M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4"/>'],
+  ["bmd","BMD",'<path d="M4 20V6M4 20h16M7 16c4 0 5-9 10-9"/>'],
+  ["sfd","SFD",'<path d="M4 20V6M4 20h16M7 8v8M12 6v10M17 10v6"/>'],
+  ["deflect","Deflect",'<path d="M4 8v12M4 20h16M4 12c5 6 11 6 16 0"/>'],
+  ["stress","Stress",'<path d="M4 20V4M4 20h16M8 16l3-6 3 4 3-8"/>'],
+  ["groups","Groups",'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>'],
+  ["sep"],
+  ["rx","RX",'<path d="M6 4v16M6 12h9a3 3 0 0 0 0-6H6M13 12l4 8"/>'],
+  ["ry","RY",'<path d="M6 4l6 8v8M18 4l-6 8"/>'],
+  ["rz","RZ",'<path d="M6 4h12l-12 16h12"/>']
+];
+function renderRTool(){
+  var h='';
+  RTOOLS.forEach(function(t){
+    if(t[0]==="sep"){ h+='<div class="rsep"></div>'; return; }
+    h+='<button class="rbtn'+(state.rtool===t[0]?" on":"")+'" data-rt="'+t[0]+'">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+t[2]+'</svg>'+t[1]+'</button>';
+  });
+  $("#rtool").innerHTML=h;
+  $$("#rtool .rbtn").forEach(function(b){ b.onclick=function(){ state.rtool=b.getAttribute("data-rt"); renderRTool(); toast(b.textContent.trim()+" · โหมดแสดงผล (mock)"); }; });
+}
+
+/* ---------- พาเนล Properties ขวา ---------- */
+function renderRP(){
+  var b=$("#rpBody");
+  if(state.rp==="props"){
+    b.innerHTML='<h3>Model properties</h3>'
+      +'<div class="sub">คลิกพื้น คาน หรือเสาบนโมเดล เพื่อแสดงคุณสมบัติขององค์ประกอบที่เลือก</div>'
+      +'<div class="prop-card"><div class="ph">ENGINEERING WORKFLOW</div>'
+      +'<div class="flow"><span class="st">Geometry</span><span class="ar">→</span><span class="st">Loads</span><span class="ar">→</span><span class="st">FEM</span><span class="ar">→</span><span class="st">WSD</span><span class="ar">→</span><span class="st">Cost</span></div></div>'
+      +'<div class="prop-card"><div class="ph">อาคาร</div>'
+      +'<div class="prow"><span>ขนาดผัง</span><span class="v">19.0 × 8.8 m</span></div>'
+      +'<div class="prow"><span>จำนวนชั้น</span><span class="v">5</span></div>'
+      +'<div class="prow"><span>ความสูงรวม</span><span class="v">+13.30 m</span></div>'
+      +'<div class="prow"><span>ระบบ</span><span class="v">RC Moment Frame</span></div></div>'
+      +'<div class="sub" style="margin-top:4px">รุ่นนี้แสดง Geometry เท่านั้น · ยังไม่มีผลวิเคราะห์หรือผลออกแบบ</div>';
+  }else if(state.rp==="loads"){
+    b.innerHTML='<h3>Loads</h3><div class="sub">กำหนดน้ำหนักบรรทุกตามมาตรฐาน แล้วรวมเป็น Load Combinations (WSD)</div>'
+      +'<div class="prop-card"><div class="ph">น้ำหนักบรรทุก</div>'
+      +'<div class="prow"><span>DL พื้น</span><span class="v">300 kgf/m²</span></div>'
+      +'<div class="prow"><span>LL พื้น</span><span class="v">200 kgf/m²</span></div>'
+      +'<div class="prow"><span>ผนัง</span><span class="v">180 kgf/m</span></div>'
+      +'<div class="prow"><span>Wind</span><span class="v">— (ยังไม่ตั้ง)</span></div></div>';
+  }else if(state.rp==="analysis"){
+    b.innerHTML='<h3>Analysis</h3><div class="sub">วิเคราะห์ด้วย FEM แล้วดู Axial / BMD / SFD / Deflection</div>'
+      +'<div class="prop-card"><div class="ph">สถานะ</div>'
+      +'<div class="prow"><span>FEM</span><span class="v" style="color:var(--warn)">ยังไม่รัน</span></div>'
+      +'<div class="prow"><span>Nodes</span><span class="v">'+$("#nodeCnt").textContent+'</span></div>'
+      +'<div class="prow"><span>Elements</span><span class="v">'+$("#elemCnt").textContent+'</span></div></div>'
+      +'<div class="sub">กด <b>▶ Run Model</b> เพื่อเริ่มวิเคราะห์ (เดโม)</div>';
+  }else{
+    b.innerHTML='<h3>Design (WSD)</h3><div class="sub">ออกแบบหน้าตัด ค.ส.ล. ตามหน่วยแรงใช้งาน แล้วสรุปเหล็กเสริม/ราคา</div>'
+      +'<div class="prop-card"><div class="ph">วัสดุ</div>'
+      +'<div class="prow"><span>f\'c</span><span class="v">240 ksc</span></div>'
+      +'<div class="prow"><span>fy</span><span class="v">4000 ksc</span></div>'
+      +'<div class="prow"><span>เกณฑ์</span><span class="v">WSD · Low/Mid rise</span></div></div>';
+  }
+}
+
+/* ---------- ป้ายกำกับ (checkbox แถบล่าง): แสดง node dots ---------- */
+var nodeDots=null;
+function toggleNodeDots(on){
+  if(on){
+    if(!nodeDots){
+      nodeDots=new THREE.Group();
+      var M=MODEL, Wx=(M.nx-1)*M.spanX, Wy=(M.ny-1)*M.spanY, g=new THREE.SphereGeometry(0.16,10,10),
+          mt=new THREE.MeshBasicMaterial({color:0x0e2439});
+      var zs=[0].concat(M.levels.map(function(l){return l.z;}));
+      for(var i=0;i<M.nx;i++)for(var j=0;j<M.ny;j++)for(var k=0;k<zs.length;k++){
+        var s=new THREE.Mesh(g,mt); s.position.set(-Wx/2+i*M.spanX,-Wy/2+j*M.spanY,zs[k]); nodeDots.add(s);
+      }
+      scene.add(nodeDots);
+    }
+    nodeDots.visible=true;
+  }else if(nodeDots){ nodeDots.visible=false; }
+}
+
+/* ---------- ทั่วไป ---------- */
+function toast(msg){ var t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(function(){ t.classList.remove("show"); },1900); }
+
+function bindUI(){
+  // แท็บบน
+  $$(".tab").forEach(function(t){ t.onclick=function(){ $$(".tab").forEach(function(x){x.classList.remove("active");}); t.classList.add("active"); state.tab=t.getAttribute("data-tab"); toast("แท็บ: "+t.textContent.replace(/^\d+\s*/,"")); }; });
+  // Properties tabs
+  $$(".rp-tabs button").forEach(function(b){ b.onclick=function(){ $$(".rp-tabs button").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); state.rp=b.getAttribute("data-rt"); renderRP(); }; });
+  // canvas view buttons
+  $$(".vbtn[data-view]").forEach(function(b){ b.onclick=function(){ var v=b.getAttribute("data-view"); if(v==="clip"){ toast("Clipping plane (mock)"); return; } $$(".vbtn[data-view]").forEach(function(x){x.classList.remove("on");}); b.classList.add("on"); setView(v); }; });
+  $("#zoomIn").onclick=function(){ cam.r/=1.15; applyCam(); };
+  $("#zoomOut").onclick=function(){ cam.r*=1.15; applyCam(); };
+  $("#fitBtn").onclick=fitView;
+  $("#spinBtn").onclick=function(){ state.spin=!state.spin; $("#spinBtn").classList.toggle("on",state.spin); };
+  $("#orbitBtn").onclick=function(){ toast("โหมดหมุน (ลากเมาส์ = หมุน · Shift/คลิกขวา = เลื่อน · ล้อ = ซูม)"); };
+  $$(".vbtn[data-obj]").forEach(function(b){ b.onclick=function(){ b.classList.toggle("on"); toast("เลเยอร์ "+b.textContent.trim()+" (mock)"); }; });
+  // canvas tools panel toggle
+  function setCTools(on){ state.ctools=on; $("#ctools").hidden=!on; $("#ctoolState").textContent=on?"ON":"OFF"; $("#ctoolToggle").classList.toggle("off",!on); }
+  $("#ctoolToggle").onclick=function(){ setCTools(!state.ctools); };
+  $("#ctoolsClose").onclick=function(){ setCTools(false); };
+  $("#mGrid").onclick=function(){ var g=root.userData.grid; g.visible=!g.visible; $("#mGrid").classList.toggle("on",g.visible); };
+  $("#mSelect").onclick=function(){ toast("โหมดเลือก (mock)"); };
+  $("#mSettings").onclick=function(){ toast("ตั้งค่า canvas (mock)"); };
+  // run
+  $("#btnRun").onclick=function(){ toast("กำลังวิเคราะห์ FEM… (เดโม)"); var r=$("#btnRun"); r.textContent="⏳ Running…"; setTimeout(function(){ r.textContent="▶ Run Model"; toast("วิเคราะห์เสร็จ (เดโม) — ดูผลได้ที่แท็บ Analysis"); },1400); };
+  // datum
+  $("#applyDatum").onclick=function(){ var g=parseFloat($("#datumG").value)||0.5, d=g-MODEL.levels[0].z; MODEL.levels.forEach(function(l){ l.z+=d; }); buildBuilding(); renderLevels(); selectLevel(state.activeLevel); toast("ปรับระดับพื้นชั้น G = "+g.toFixed(2)+" m"); };
+  // bottom checkboxes
+  $$(".bottombar input[data-lbl]").forEach(function(c){ c.onchange=function(){ var k=c.getAttribute("data-lbl");
+    if(k==="nodeNumber") toggleNodeDots(c.checked);
+    $("#selStatus").textContent=c.checked?("แสดง "+c.parentNode.textContent.trim()):"ยกเลิกการเลือกแล้ว";
+    if(k!=="nodeNumber") toast((c.checked?"แสดง ":"ซ่อน ")+c.parentNode.textContent.trim()+" (mock)");
+  }; });
+  // header actions
+  $("#btnNew").onclick=function(){ if(confirm("เริ่มโครงการใหม่? (เดโม — รีเซ็ตมุมมอง)")){ fitView(); toast("โครงการใหม่ (เดโม)"); } };
+  $("#btnExport").onclick=exportJSON;
+  $("#btnImport").onclick=function(){ $("#jsonFile").click(); };
+  $("#jsonFile").onchange=function(e){ var f=e.target.files[0]; if(!f) return; var r=new FileReader(); r.onload=function(){ try{ var o=JSON.parse(r.result); if(o&&o.levels){ MODEL.levels=o.levels; if(o.nx)MODEL.nx=o.nx; if(o.ny)MODEL.ny=o.ny; if(o.spanX)MODEL.spanX=o.spanX; if(o.spanY)MODEL.spanY=o.spanY; buildBuilding(); renderLevels(); selectLevel(Math.min(state.activeLevel,MODEL.levels.length-1)); toast("นำเข้า JSON แล้ว"); } else toast("ไฟล์ JSON ไม่ถูกรูปแบบ"); }catch(err){ toast("อ่าน JSON ไม่ได้"); } }; r.readAsText(f); e.target.value=""; };
+}
+function exportJSON(){
+  var data={ name:MODEL.name, nx:MODEL.nx, ny:MODEL.ny, spanX:MODEL.spanX, spanY:MODEL.spanY, levels:MODEL.levels };
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=(MODEL.name||"sstaad-rc")+".json"; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); },500); toast("ส่งออก JSON แล้ว");
+}
+
+/* ---------- start ---------- */
+function boot(){
+  var now=new Date();
+  $("#dateStr").textContent=now.toLocaleDateString("th-TH")+", "+now.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  $("#savedAt").textContent=now.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  renderLevels(); renderRTool(); renderRP(); bindUI();
+  if(!window.THREE){ $("#viewport").innerHTML='<div style="position:absolute;inset:0;display:grid;place-items:center;color:#6a7c8f;text-align:center;padding:30px">โหลด Three.js ไม่สำเร็จ<br><span style="font-size:11px">ต้องต่ออินเทอร์เน็ตเพื่อโหลดไลบรารี 3D (cdnjs) ครั้งแรก</span></div>'; return; }
+  initThree(); selectLevel(state.activeLevel);
+  try{ console.log("%c[SSTAAD RC] เทมเพลตพร้อม — วิว 3D จริง (Three.js) + โครง UI ใช้งานได้","color:#16b0c4;font-weight:700"); }catch(e){}
+}
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",boot); else boot();
+</script>
+</body>
+</html>

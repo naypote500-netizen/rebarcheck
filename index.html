@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>RebarCheck — ตรวจเหล็กเสริมก่อนเทคอนกรีต</title>
+<!-- โหลด CSS แบบกันแคชถาวร: ต่อท้าย ?t=เวลาปัจจุบัน ทุกครั้ง (ไม่ต้อง Ctrl+Shift+R อีก) -->
+<script>document.write('<link rel="stylesheet" href="style.css?t='+Date.now()+'">');</script>
+
+<!-- ===== Firebase (คลาวด์: login + ฐานข้อมูลกลาง) ===== -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  try{
+    firebase.initializeApp({
+      apiKey: "AIzaSyCivNb_2SkHAKNZ-7n7x9mQp-UALnLRIco",
+      authDomain: "rebarcheck.firebaseapp.com",
+      projectId: "rebarcheck",
+      storageBucket: "rebarcheck.firebasestorage.app",
+      messagingSenderId: "449534800730",
+      appId: "1:449534800730:web:d46bdae8d90b9b1ec1f963",
+      measurementId: "G-7RLPTFLLYZ"
+    });
+    window.fbAuth = firebase.auth();
+    window.fbDb   = firebase.firestore();
+    try{ window.fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); }catch(e){}
+  }catch(e){ console.warn("Firebase init failed — ใช้โหมดออฟไลน์ (localStorage) แทน", e); }
+</script>
+</head>
+<body>
+
+<header>
+  <div class="hd-wrap">
+    <button class="icon-btn plain" id="btnBack" hidden title="ย้อนกลับ"></button>
+    <div class="brand-mark" id="brandMark"></div>
+    <div class="hd-title" id="hdTitle">RebarCheck<small>ตรวจเหล็กเสริมก่อนเทคอนกรีต</small></div>
+    <div class="spacer"></div>
+    <button class="icon-btn plain" id="btnData" title="ข้อมูล / สำรอง"></button>
+    <button class="icon-btn plain" id="btnTheme" title="สลับโหมดสว่าง/มืด"></button>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<div class="overlay" id="overlay"><div class="sheet" id="sheet"></div></div>
+<div class="lightbox" id="lightbox">
+  <button class="icon-btn close" id="lbClose">ปิด ✕</button>
+  <img id="lbImg" alt="รูปถ่ายการตรวจ">
+</div>
+<div id="toast"></div>
+
+<!-- โหลด JS แบบกันแคชถาวร -->
+<script>document.write('<scr'+'ipt src="script.js?t='+Date.now()+'"><\/scr'+'ipt>');</script>
+</body>
+</html>

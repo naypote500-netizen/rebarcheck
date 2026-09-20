@@ -1,0 +1,11 @@
+# local / editor
+.claude/
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# backups / old prototypes (ไม่ต้องขึ้นเว็บ)
+rebar-check-v1-backup.html
