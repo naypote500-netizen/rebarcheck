@@ -6879,17 +6879,21 @@ function renderLoading(){
 }
 function renderLogin(){
   document.body.classList.add("auth-mode");
-  $("#app").innerHTML='<div class="auth-wrap"><div class="auth-card">'
+  var lastEmail=""; try{ lastEmail=localStorage.getItem("rc_lastEmail")||""; }catch(e){}
+  // ใช้ <form> จริง + autocomplete → เบราว์เซอร์เด้งถามเซฟรหัส และเติมอีเมล/รหัสให้อัตโนมัติครั้งต่อไป
+  $("#app").innerHTML='<div class="auth-wrap"><form class="auth-card" id="authForm" autocomplete="on">'
     +'<div class="auth-logo">'+hdSvg(HD.logo)+'</div>'
     +'<div class="auth-title">Rebar<b>Check</b></div>'
     +'<div class="auth-sub">เข้าสู่ระบบเพื่อใช้งาน</div>'
-    +'<label class="auth-f"><span>อีเมล</span><input type="email" id="authEmail" autocomplete="username" placeholder="you@email.com"></label>'
-    +'<label class="auth-f"><span>รหัสผ่าน</span><input type="password" id="authPass" autocomplete="current-password" placeholder="รหัสผ่าน"></label>'
+    +'<label class="auth-f"><span>อีเมล</span><input type="email" id="authEmail" name="email" autocomplete="username" value="'+esc(lastEmail)+'" placeholder="you@email.com"></label>'
+    +'<label class="auth-f"><span>รหัสผ่าน</span><input type="password" id="authPass" name="password" autocomplete="current-password" placeholder="รหัสผ่าน"></label>'
     +'<div class="auth-err" id="authErr"></div>'
-    +'<button class="btn auth-btn" data-act="authLogin">เข้าสู่ระบบ</button>'
+    +'<button type="submit" class="btn auth-btn">เข้าสู่ระบบ</button>'
     +'<div class="auth-note">บัญชีสร้างโดยผู้ดูแลระบบ · ยังไม่มีบัญชี? ติดต่อผู้ดูแล</div>'
-    +'</div></div>';
-  setTimeout(function(){ var e=$("#authEmail"); if(e) e.focus(); },60);
+    +'</form></div>';
+  var frm=$("#authForm");
+  if(frm) frm.addEventListener("submit",function(e){ e.preventDefault(); doAuth(false); });
+  setTimeout(function(){ var e=$(lastEmail?"#authPass":"#authEmail"); if(e) e.focus(); },60);
 }
 function _authErr(msg){ var e=$("#authErr"); if(e) e.textContent=msg; }
 function _authMsg(code){
@@ -6907,7 +6911,8 @@ function doAuth(signup){
   if(!pw || pw.length<6){ _authErr("รหัสผ่านอย่างน้อย 6 ตัว"); return; }
   _authErr("");
   var fn=signup ? fbAuth.createUserWithEmailAndPassword(em,pw) : fbAuth.signInWithEmailAndPassword(em,pw);
-  fn.catch(function(e){ _authErr(_authMsg(e&&e.code)); });
+  fn.then(function(){ try{ localStorage.setItem("rc_lastEmail", em); }catch(e){} })   // จำอีเมลไว้เติมครั้งหน้า
+    .catch(function(e){ _authErr(_authMsg(e&&e.code)); });
   // สำเร็จ → onAuthStateChanged จะพาเข้าแอปเอง
 }
 
@@ -6997,7 +7002,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 129 โหลดแล้ว — เพิ่มความคมแปลนบนมือถือ (ดันเพดาน deep-zoom)","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 130 โหลดแล้ว — หน้า login จำอีเมล + เบราว์เซอร์เซฟรหัสได้ (form + autocomplete)","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();
@@ -7021,10 +7026,7 @@ function init(){
   $("#overlay").addEventListener("click",function(e){ if(e.target.id==="overlay") closeSheet(); });
   document.addEventListener("keydown",function(e){
     if(e.key==="Escape"){ $("#lightbox").classList.remove("open"); closeSheet(); }
-    // Enter บนหน้า login = เข้าสู่ระบบ
-    if(e.key==="Enter" && CLOUD && !_fbUser && $("#authPass")){
-      e.preventDefault(); doAuth(false);
-    }
+    // (หน้า login ใช้ <form> จริงแล้ว → Enter จะ submit เอง ไม่ต้องดักที่นี่)
     // Ctrl/Cmd+S = บันทึกฟอร์มชิ้นส่วน
     if((e.ctrlKey||e.metaKey) && (e.key==="s"||e.key==="S") && state.screen==="memberForm"){
       e.preventDefault(); saveMemberForm(false);
