@@ -481,7 +481,7 @@ hr.sep{border:none;border-top:1px solid var(--border);margin:14px 0}
 .cat-stat{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
 
 /* เอดิเตอร์แปลนใช้พื้นที่กว้างกว่าหน้าอื่น เพื่อให้กรอบแปลนใหญ่ */
-body.editor-wide main{max-width:none;padding:12px 18px 40px}
+body.editor-wide main{max-width:none;padding:6px 18px 40px}
 body.editor-wide header .hd-wrap{max-width:none}
 
 /* โครงเอดิเตอร์: จอกว้าง = แปลน + เส้นแบ่งลากได้ + พาเนลขวา (ปรับกว้างได้), มือถือ = ซ้อน */
@@ -794,37 +794,38 @@ svg .plan-label{cursor:move}
 /* ============================================================
    RIBBON — แถบเครื่องมือบนสุดของเอดิเตอร์ (แนว Office/Revit)
    ============================================================ */
-.ribbon{border:1px solid var(--border);border-radius:14px;background:var(--surface);box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden}
+.ribbon{border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:var(--shadow);margin-bottom:8px;overflow:hidden}
 /* แถวแท็บ + สรุปสถานะ + ปุ่มพับพาเนล */
-.rbn-tabs{display:flex;align-items:center;gap:2px;padding:6px 10px 0;border-bottom:1px solid var(--border)}
-.rbn-tab{font:inherit;font-weight:700;font-size:.9rem;color:var(--text-dim);background:none;border:none;cursor:pointer;
-  padding:8px 15px 10px;border-radius:9px 9px 0 0;position:relative;white-space:nowrap;transition:color .15s,background .15s}
+.rbn-tabs{display:flex;align-items:center;gap:2px;padding:2px 8px 0;border-bottom:1px solid var(--border)}
+.rbn-tab{font:inherit;font-weight:700;font-size:.85rem;color:var(--text-dim);background:none;border:none;cursor:pointer;
+  padding:6px 13px 7px;border-radius:8px 8px 0 0;position:relative;white-space:nowrap;transition:color .15s,background .15s}
 .rbn-tab:hover{color:var(--text);background:var(--surface-2)}
 .rbn-tab[aria-selected="true"]{color:var(--brand)}
-.rbn-tab[aria-selected="true"]::after{content:"";position:absolute;left:11px;right:11px;bottom:-1px;height:2.5px;background:var(--brand);border-radius:3px}
+.rbn-tab[aria-selected="true"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2.5px;background:var(--brand);border-radius:3px}
 .rbn-tabs-sp{flex:1}
-.rbn-tabs .tb-stats{margin-right:6px}
-.rbn-collapse{align-self:center;padding:7px 11px!important;margin-bottom:4px}
+.rbn-tabs .tb-stats{margin-right:5px;gap:4px}
+.rbn-tabs .tb-chip{padding:4px 9px}
+.rbn-collapse{align-self:center;padding:5px 10px!important;margin-bottom:3px}
 .rbn-collapse.on{border-color:var(--brand);color:var(--brand)}
 /* แถวกลุ่มปุ่ม */
-.rbn-body{display:flex;align-items:stretch;gap:0;padding:9px 4px;overflow-x:auto}
-.rbn-grp{display:flex;flex-direction:column;justify-content:space-between;gap:7px;padding:0 12px;border-right:1px solid var(--border);flex:none}
+.rbn-body{display:flex;align-items:stretch;gap:0;padding:4px 4px;overflow-x:auto}
+.rbn-grp{display:flex;flex-direction:column;justify-content:space-between;gap:3px;padding:0 10px;border-right:1px solid var(--border);flex:none}
 .rbn-grp:last-child{border-right:none}
-.rbn-grp-row{display:flex;align-items:center;gap:6px;flex:1;min-height:52px}
-.rbn-grp-cap{text-align:center;font-size:.68rem;font-weight:600;color:var(--text-dim);letter-spacing:.2px}
-/* ปุ่มใหญ่ ไอคอนบน–ป้ายล่าง */
-.rbn-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:58px;padding:6px 10px;
-  border:1px solid transparent;border-radius:10px;background:none;cursor:pointer;color:var(--text);font:inherit;font-size:.72rem;font-weight:600;line-height:1.1;white-space:nowrap}
-.rbn-btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rbn-grp-row{display:flex;align-items:center;gap:5px;flex:1;min-height:42px}
+.rbn-grp-cap{text-align:center;font-size:.62rem;font-weight:600;color:var(--text-dim);letter-spacing:.2px}
+/* ปุ่ม ไอคอนบน–ป้ายล่าง (กระชับ) */
+.rbn-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:50px;padding:3px 9px;
+  border:1px solid transparent;border-radius:9px;background:none;cursor:pointer;color:var(--text);font:inherit;font-size:.68rem;font-weight:600;line-height:1.1;white-space:nowrap}
+.rbn-btn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .rbn-btn:hover{background:var(--surface-2);border-color:var(--border)}
 .rbn-btn.on{background:var(--brand-bg);border-color:color-mix(in srgb,var(--brand) 45%,var(--border));color:var(--brand)}
 /* segmented + select ในริบบอน */
-.rbn-seg{display:flex;gap:5px}
-.rbn-seg button{font:inherit;font-weight:700;font-size:.82rem;padding:9px 13px;cursor:pointer;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-dim);white-space:nowrap}
+.rbn-seg{display:flex;gap:4px}
+.rbn-seg button{font:inherit;font-weight:700;font-size:.78rem;padding:7px 11px;cursor:pointer;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-dim);white-space:nowrap}
 .rbn-seg button[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
 html[data-theme="dark"] .rbn-seg button[aria-pressed="true"]{color:#0a1220}
-.rbn-sel{min-width:158px}
-.rbn-grp .tb-menu>summary{margin:0}
+.rbn-sel{min-width:150px}
+.rbn-grp .tb-menu>summary{margin:0;padding-top:7px;padding-bottom:7px}
 
 /* จอแคบ: มินิเมนูชิ้นส่วน = ไอคอนล้วน (ครบทุกปุ่มไม่ต้องเลื่อน) + ปุ่มบนแถบเหลือไอคอน */
 @media(max-width:600px){
@@ -7160,7 +7161,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 137 โหลดแล้ว — แถบเครื่องมือใหม่แนวริบบอน (Office/Revit) บนเดสก์ท็อป","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 138 โหลดแล้ว — ริบบอนกระชับ/เตี้ยลง + ดันขึ้น ให้เห็นแปลนมากขึ้น","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();

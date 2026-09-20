@@ -5972,7 +5972,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 137 โหลดแล้ว — แถบเครื่องมือใหม่แนวริบบอน (Office/Revit) บนเดสก์ท็อป","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 138 โหลดแล้ว — ริบบอนกระชับ/เตี้ยลง + ดันขึ้น ให้เห็นแปลนมากขึ้น","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();
