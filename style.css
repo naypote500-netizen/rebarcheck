@@ -1082,6 +1082,25 @@ body.auth-mode header{display:none}
 .ftl-b:hover{border-color:var(--brand)}
 .ftl-b.on{border-color:var(--brand);background:var(--brand-bg);color:var(--brand)}
 .ftl-sel{margin:0}
+/* หน้าต่างลอยสไตล์กรอบ */
+.plan-floatstyle{position:absolute;z-index:10;width:230px;border-radius:14px;overflow:hidden;
+  border:1px solid var(--border-strong);background:color-mix(in srgb,var(--surface) 95%, transparent);
+  backdrop-filter:saturate(150%) blur(8px);-webkit-backdrop-filter:saturate(150%) blur(8px);box-shadow:var(--shadow-md)}
+.fts-head{display:flex;align-items:center;gap:6px;padding:8px 8px 8px 10px;font-size:.82rem;font-weight:800;
+  color:var(--text);background:var(--surface-2);border-bottom:1px solid var(--border);cursor:move;user-select:none;touch-action:none}
+.fts-body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:9px}
+.fts-row{display:flex;align-items:center;gap:8px}
+.fts-slider{display:flex;flex-direction:column;gap:2px}
+.fts-slider span{font-size:.68rem;font-weight:600;color:var(--text-dim);line-height:1}
+.fts-slider input[type=range]{width:100%;margin:0;accent-color:var(--brand)}
+.fts-swatches{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.fts-swatches .swatch{width:20px;height:20px;border-radius:5px;flex:none}
+/* ปุ่มเปิดหน้าต่างลอยสไตล์กรอบ (ในริบบอน) */
+.rbn-style-toggle{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1.5px solid var(--border);border-radius:10px;
+  background:var(--surface);cursor:pointer;transition:border-color .13s,background .13s;color:var(--text-dim)}
+.rbn-style-toggle:hover{border-color:var(--brand)}
+.rbn-style-toggle.on{border-color:var(--brand);background:var(--brand-bg);color:var(--brand)}
+
 .plan-showtools{position:absolute;left:14px;top:14px;z-index:9;display:inline-flex;align-items:center;gap:6px;
   padding:9px 13px;border-radius:11px;border:1px solid var(--border-strong);color:var(--brand);font-weight:700;font-size:.86rem;cursor:pointer;
   background:color-mix(in srgb,var(--surface) 93%, transparent);backdrop-filter:saturate(150%) blur(8px);-webkit-backdrop-filter:saturate(150%) blur(8px);box-shadow:var(--shadow-md)}

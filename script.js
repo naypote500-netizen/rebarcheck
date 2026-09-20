@@ -2914,6 +2914,7 @@ var state = {
   tool:"select",         // เครื่องมือ: select | draw
   drawShape:"rect",      // รูปทรงที่จะวาด (พื้นที่): rect | oval | poly
   showLegend:false, legendPos:null,   // ตารางสีบนแปลน (Legend)
+  floatStyleOpen:false, floatStylePos:null,  // หน้าต่างลอยสไตล์กรอบ
   rightTab:"palette",    // แท็บพาเนลขวา: palette | spec | inspect
   selMemberId:null,      // ชิ้นส่วนที่เลือกบนแปลน
   colorMode:"plain",     // ลงสีตาม: status | plain — ค่าเริ่มต้น = สีประจำประเภท
@@ -3189,6 +3190,8 @@ document.addEventListener("click",function(e){
     case "toggleRp": state.rpCollapsed=!state.rpCollapsed; render(); break;
     case "hideFloatTools": state.floatToolsHidden=true; render(); break;
     case "showFloatTools": state.floatToolsHidden=false; render(); break;
+    case "toggleFloatStyle": state.floatStyleOpen=!state.floatStyleOpen; render(); break;
+    case "closeFloatStyle": state.floatStyleOpen=false; render(); break;
     case "exportPdf": exportPlanPDF(); break;
     case "addPlan": {          // เพิ่มแปลนใหม่ → ตั้ง active เป็น id ใหม่ แล้วเปิดหน้าต่างเลือกไฟล์
       var fA=getFloor(state.floorId); if(!fA.planList) fA.planList=[];
@@ -3670,6 +3673,34 @@ function floatToolsHtml(){
     +     '<select id="drawTypeSelF" class="rp-select">'+TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPE_EN[t]||TYPES[t].label)+'</option>'; }).join("")+'</select></div>'
     + '</div></div>';
 }
+/** หน้าต่างลอยสไตล์กรอบ (สี/ความเข้ม/ความหนาเส้น/สีใช้บ่อย) — วางบนแปลน */
+function floatStyleHtml(){
+  var type=state.catType;
+  if(!state.floatStyleOpen || drawKind(type)!=="rect") return "";
+  var selM=getMember(state.selMemberId);
+  var selRect=(selM&&isBox(selM.plan))?selM:null;
+  var sc=selRect?(selRect.plan.fill||"#f59e0b"):state.fillColor;
+  var sa=selRect?(selRect.plan.fillA!=null?selRect.plan.fillA:0.28):state.fillAlpha;
+  var sww=selRect?(selRect.plan.strokeW!=null?selRect.plan.strokeW:10):state.strokeW;
+  var pos=state.floatStylePos||{x:14,y:60};
+  var title=selRect?'สไตล์ · '+esc(selRect.code):'สไตล์กรอบ';
+  return '<div class="plan-floatstyle" id="floatStyle" style="left:'+pos.x+'px;top:'+pos.y+'px">'
+    + '<div class="fts-head" id="floatStyleDrag">'
+    +   '<svg class="ftl-grip" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>'
+    +   title
+    +   '<button class="ftl-x" data-act="closeFloatStyle" title="ปิด">✕</button>'
+    + '</div>'
+    + '<div class="fts-body">'
+    +   '<div class="fts-row">'
+    +     '<input type="color" id="drawColor" value="'+esc(sc)+'" class="rbn-color" title="สีกรอบ">'
+    +     '<div id="drawSwatch" class="rbn-swatch" style="background:'+esc(sc)+';opacity:'+sa+'"></div>'
+    +   '</div>'
+    +   '<div class="fts-slider"><span>ความเข้ม</span><input type="range" id="drawAlpha" min="0" max="100" value="'+Math.round(sa*100)+'"></div>'
+    +   '<div class="fts-slider"><span>เส้นกรอบ</span><input type="range" id="drawStroke" min="0" max="30" value="'+Math.round(sww)+'"></div>'
+    +   '<div class="fts-swatches">'+PRESET_COLORS.slice(0,8).map(function(c){ return '<button class="swatch'+(sc.toLowerCase()===c?" on":"")+'" data-swatch="'+c+'" title="'+c+'" style="background:'+c+'"></button>'; }).join("")+'</div>'
+    + '</div></div>';
+}
+
 function planStageHtml(){
   var f=getFloor(state.floorId), type=state.catType;
   var plan=getFloorPlan(f);
@@ -3703,7 +3734,7 @@ function planStageHtml(){
        +   '<svg class="plan-overlay" id="planOverlay" viewBox="0 0 '+VW+' '+VH+'" '
        +     'data-vw="'+VW+'" data-vh="'+VH+'" preserveAspectRatio="none">'+shapes+'</svg>'
        + selbar
-       /* เครื่องมือวาดย้ายไปอยู่บนริบบอน (แถบบน) แล้ว — ไม่ต้องมีหน้าต่างลอยซ้ำ */
+       + floatStyleHtml()
        + (state.showLegend ? legendHtml(members) : '')
        + (members.length===0 && !drawing ? '<div class="plan-hint">'+(state.unified?'ยังไม่มีชิ้นส่วนในแปลน — เลือกชนิดแล้วกด “วาด” ลากบนแปลน':'ยังไม่มี'+esc(TYPES[type].label)+'ในแปลน — กด “วาด'+esc(TYPES[type].label)+'” แล้วลากบนแปลน')+'</div>' : '')
        + '</div>';
@@ -4254,18 +4285,15 @@ function planRibbonHtml(type, planMenu, sm, selM){
       +rbtn(isD("poly"),"setShape",'data-shape="poly"',ICpoly,'หลายเหลี่ยม')
       +rbtn(isD("oval"),"setShape",'data-shape="oval"',ICoval,'วงรี'));
     body+=grp('ตัวช่วย', rbtn(!!state.snap,"toggleSnap",'',ICsnap,'สแนบเส้น'));
-    // สไตล์กรอบ (สี/ความเข้ม/ความหนาเส้น) — ปรับชิ้นที่เลือก หรือค่าเริ่มของกรอบที่จะวาดใหม่
+    // ปุ่มเปิดหน้าต่างลอยสไตล์กรอบ (สี/ความเข้ม/ความหนาเส้น)
     if(drawKind(type)==="rect"){
       var selRect=(selM&&isBox(selM.plan))?selM:null;
       var sc=selRect?(selRect.plan.fill||"#f59e0b"):state.fillColor;
-      var sa=selRect?(selRect.plan.fillA!=null?selRect.plan.fillA:0.28):state.fillAlpha;
-      var sww=selRect?(selRect.plan.strokeW!=null?selRect.plan.strokeW:10):state.strokeW;
-      var styleInner='<input type="color" id="drawColor" value="'+esc(sc)+'" class="rbn-color" title="สีกรอบ">'
-        +'<div id="drawSwatch" class="rbn-swatch" style="background:'+esc(sc)+';opacity:'+sa+';display:none"></div>'
-        +'<div class="rbn-mini"><span>ความเข้ม</span><input type="range" id="drawAlpha" min="0" max="100" value="'+Math.round(sa*100)+'"></div>'
-        +'<div class="rbn-mini"><span>เส้นกรอบ</span><input type="range" id="drawStroke" min="0" max="30" value="'+Math.round(sww)+'"></div>'
-        +'<div class="rbn-swatches">'+PRESET_COLORS.slice(0,8).map(function(c){ return '<button class="swatch'+(sc.toLowerCase()===c?" on":"")+'" data-swatch="'+c+'" title="'+c+'" style="background:'+c+'"></button>'; }).join("")+'</div>';
-      body+=grp(selRect?'สไตล์ · '+esc(selRect.code):'สไตล์กรอบ', styleInner);
+      var styleBtnInner='<div class="rbn-swatch" style="background:'+esc(sc)+';opacity:'+(selRect?(selRect.plan.fillA!=null?selRect.plan.fillA:0.28):state.fillAlpha)+';width:28px;height:28px;border-radius:6px"></div>';
+      body+=grp('สไตล์กรอบ', '<button class="rbn-style-toggle'+(state.floatStyleOpen?" on":"")+'" data-act="toggleFloatStyle" title="ตั้งค่าสไตล์กรอบ">'
+        +styleBtnInner
+        +'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a7 7 0 0 0 0-14H4"/><path d="M7.5 3 4 6.5 7.5 10"/></svg>'
+        +'</button>');
     }
   }else{ // view
     body+=grp('ลงสีตาม','<div class="rbn-seg">'
@@ -4456,6 +4484,21 @@ function bindPlanEditor(){
         ftw.style.left=x+"px"; ftw.style.top=y+"px"; state.floatToolsPos={x:Math.round(x),y:Math.round(y)}; }
       function upF(){ ftd.removeEventListener("pointermove",mvF); ftd.removeEventListener("pointerup",upF); }
       ftd.addEventListener("pointermove",mvF); ftd.addEventListener("pointerup",upF);
+    });
+  }
+
+  // หน้าต่างลอยสไตล์กรอบ: ลากย้ายได้
+  var fsd=$("#floatStyleDrag"), fsw=$("#floatStyle"), fsStage=$("#planStage");
+  if(fsd && fsw && fsStage){
+    fsd.addEventListener("pointerdown",function(ev){
+      if(ev.target.closest(".ftl-x")) return;
+      ev.preventDefault(); var r=fsStage.getBoundingClientRect(), wr=fsw.getBoundingClientRect();
+      var ox=ev.clientX-wr.left, oy=ev.clientY-wr.top;
+      try{ fsd.setPointerCapture(ev.pointerId); }catch(e){}
+      function mvS(e2){ var x=Math.max(0,Math.min(r.width-60, e2.clientX-r.left-ox)), y=Math.max(0,Math.min(r.height-40, e2.clientY-r.top-oy));
+        fsw.style.left=x+"px"; fsw.style.top=y+"px"; state.floatStylePos={x:Math.round(x),y:Math.round(y)}; }
+      function upS(){ fsd.removeEventListener("pointermove",mvS); fsd.removeEventListener("pointerup",upS); }
+      fsd.addEventListener("pointermove",mvS); fsd.addEventListener("pointerup",upS);
     });
   }
 
