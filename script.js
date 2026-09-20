@@ -5747,16 +5747,15 @@ function renderLoading(){
 }
 function renderLogin(){
   document.body.classList.add("auth-mode");
-  var signup=(state._authMode==="signup");
   $("#app").innerHTML='<div class="auth-wrap"><div class="auth-card">'
     +'<div class="auth-logo">'+hdSvg(HD.logo)+'</div>'
     +'<div class="auth-title">Rebar<b>Check</b></div>'
-    +'<div class="auth-sub">'+(signup?"สร้างบัญชีใหม่":"เข้าสู่ระบบเพื่อใช้งาน")+'</div>'
+    +'<div class="auth-sub">เข้าสู่ระบบเพื่อใช้งาน</div>'
     +'<label class="auth-f"><span>อีเมล</span><input type="email" id="authEmail" autocomplete="username" placeholder="you@email.com"></label>'
-    +'<label class="auth-f"><span>รหัสผ่าน</span><input type="password" id="authPass" autocomplete="'+(signup?"new-password":"current-password")+'" placeholder="อย่างน้อย 6 ตัว"></label>'
+    +'<label class="auth-f"><span>รหัสผ่าน</span><input type="password" id="authPass" autocomplete="current-password" placeholder="รหัสผ่าน"></label>'
     +'<div class="auth-err" id="authErr"></div>'
-    +'<button class="btn auth-btn" data-act="'+(signup?"authSignup":"authLogin")+'">'+(signup?"สมัครสมาชิก":"เข้าสู่ระบบ")+'</button>'
-    +'<div class="auth-alt">'+(signup?"มีบัญชีแล้ว? ":"ยังไม่มีบัญชี? ")+'<a data-act="authToggle">'+(signup?"เข้าสู่ระบบ":"สมัครสมาชิก")+'</a></div>'
+    +'<button class="btn auth-btn" data-act="authLogin">เข้าสู่ระบบ</button>'
+    +'<div class="auth-note">บัญชีสร้างโดยผู้ดูแลระบบ · ยังไม่มีบัญชี? ติดต่อผู้ดูแล</div>'
     +'</div></div>';
   setTimeout(function(){ var e=$("#authEmail"); if(e) e.focus(); },60);
 }
@@ -5866,7 +5865,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 126 โหลดแล้ว — PDF: บีบหัว/legend ให้แปลนใหญ่ขึ้นเต็มหน้า","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 127 โหลดแล้ว — เหลือแค่ล็อกอิน (ผู้ดูแลสร้างบัญชีเอง ไม่มีสมัครสาธารณะ)","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();
@@ -5890,9 +5889,9 @@ function init(){
   $("#overlay").addEventListener("click",function(e){ if(e.target.id==="overlay") closeSheet(); });
   document.addEventListener("keydown",function(e){
     if(e.key==="Escape"){ $("#lightbox").classList.remove("open"); closeSheet(); }
-    // Enter บนหน้า login = เข้าสู่ระบบ/สมัคร
+    // Enter บนหน้า login = เข้าสู่ระบบ
     if(e.key==="Enter" && CLOUD && !_fbUser && $("#authPass")){
-      e.preventDefault(); doAuth(state._authMode==="signup");
+      e.preventDefault(); doAuth(false);
     }
     // Ctrl/Cmd+S = บันทึกฟอร์มชิ้นส่วน
     if((e.ctrlKey||e.metaKey) && (e.key==="s"||e.key==="S") && state.screen==="memberForm"){
