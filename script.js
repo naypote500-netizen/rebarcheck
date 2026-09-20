@@ -3674,7 +3674,14 @@ function planStageHtml(){
        + (state.rpCollapsed ? (state.floatToolsHidden ? '<button class="plan-showtools" data-act="showFloatTools"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> เครื่องมือ</button>' : floatToolsHtml()) : '')
        + (state.showLegend ? legendHtml(members) : '')
        + (members.length===0 && !drawing ? '<div class="plan-hint">'+(state.unified?'ยังไม่มีชิ้นส่วนในแปลน — เลือกชนิดแล้วกด “วาด” ลากบนแปลน':'ยังไม่มี'+esc(TYPES[type].label)+'ในแปลน — กด “วาด'+esc(TYPES[type].label)+'” แล้วลากบนแปลน')+'</div>' : '')
+       + '<div class="plan-dbg" id="planDbg">debug…</div>'
        + '</div>';
+}
+/** ตัวบอกสถานะเรนเดอร์ความคม (ดีบั๊ก) */
+function _planDbg(status){
+  var e=document.getElementById("planDbg"); if(!e) return;
+  var mob=(window.innerWidth||1024)<760, dpr=Math.round((window.devicePixelRatio||1)*10)/10;
+  e.textContent="v132 · "+(mob?"MOBILE":"desktop")+" · dpr="+dpr+" · w="+(window.innerWidth||0)+" · z="+((state.zoom||1).toFixed(2))+" · "+(status||"—");
 }
 /** ตารางสี (Legend) บนแปลน — จัดกลุ่มคานตามสีกรอบ → "สีนี้ = คานเบอร์ไหน" */
 function legendHtml(members){
@@ -5358,12 +5365,12 @@ function renderVisibleRegion(){
   var key=planSourceKey(), doc=PLAN_DOCS[key];
   var det=$("#planDetail"), st=$("#planStage");
   if(!det||!st) return;
-  if(!doc || doc.kind!=="pdf" || !doc.page){ det.style.display="none"; if(state.zoom>1.05) planTip("แปลนนี้ไม่ใช่ PDF เวกเตอร์ — ซูมได้เท่าความละเอียดรูป"); return; }
+  if(!doc || doc.kind!=="pdf" || !doc.page){ det.style.display="none"; _planDbg("doc="+(doc?doc.kind:"null")+" (ไม่มี PDF page → ใช้ภาพฐาน)"); if(state.zoom>1.05) planTip("แปลนนี้ไม่ใช่ PDF เวกเตอร์ — ซูมได้เท่าความละเอียดรูป"); return; }
   var sw=st.clientWidth, sh=st.clientHeight, z=state.zoom, px=state.panX, py=state.panY;
-  if(!sw||!sh) return;
+  if(!sw||!sh){ _planDbg("stage 0px"); return; }
   var _mob=(window.innerWidth||1024)<760;
   // มือถือ: เรนเดอร์ส่วนที่เห็นเสมอ (แม้ยังไม่ซูม) เพราะภาพเต็มหน้าความละเอียดสูงเกินลิมิต iOS แล้วเบลอ · เดสก์ท็อป: ซูมต่ำใช้ภาพฐานพอ
-  if(z<=1.05 && !_mob){ det.style.display="none"; return; }
+  if(z<=1.05 && !_mob){ det.style.display="none"; _planDbg("desktop z ต่ำ (ใช้ภาพฐาน)"); return; }
   var rx1=Math.max(0,(0-px)/(sw*z)), ry1=Math.max(0,(0-py)/(sh*z));
   var rx2=Math.min(1,(sw-px)/(sw*z)), ry2=Math.min(1,(sh-py)/(sh*z));
   if(rx2-rx1<0.002 || ry2-ry1<0.002) return;
@@ -5380,10 +5387,12 @@ function renderVisibleRegion(){
       det.style.width=((b.rx2-b.rx1)*100)+"%"; det.style.height=((b.ry2-b.ry1)*100)+"%";
       det.style.display="block";
     }
+    _planDbg("ใช้แคชคม (sig เดิม) tgt="+targetW);
     return;
   }
-  if(doc.regionRendering){ doc.regionPending=sig; return; }
+  if(doc.regionRendering){ doc.regionPending=sig; _planDbg("กำลังเรนเดอร์อยู่ (คิว)"); return; }
   doc.regionRendering=true; doc.regionSig=sig;
+  _planDbg("กำลังเรนเดอร์คม tgt="+targetW+"px…");
   renderPdfRegionToCanvas(doc.page, rx1,ry1,rx2,ry2, targetW).then(function(cv){
     function finish(url){
       doc.regionRendering=false;
@@ -5397,12 +5406,13 @@ function renderVisibleRegion(){
         doc.detailBox={rx1:rx1,ry1:ry1,rx2:rx2,ry2:ry2};   // เก็บตำแหน่งไว้ทาภาพคมกลับหลัง render
         planLog("🔍 คมส่วนที่เห็น "+cv.width+"×"+cv.height);
         planTip("คมแล้ว "+cv.width+"×"+cv.height+" px");
+        _planDbg("OK คม "+cv.width+"×"+cv.height);
       }
       if(doc.regionPending){ doc.regionPending=null; renderVisibleRegion(); }
     }
     if(cv.toBlob){ cv.toBlob(function(b){ finish(b?URL.createObjectURL(b):cv.toDataURL("image/png")); },"image/png"); }
     else finish(cv.toDataURL("image/png"));
-  }).catch(function(e){ doc.regionRendering=false; doc.regionSig=null; planLog("โซมชัดส่วนที่เห็นล้มเหลว: "+(e&&e.message||e),true); planTip("เรนเดอร์คมล้มเหลว: "+(e&&e.message||e),true); });
+  }).catch(function(e){ doc.regionRendering=false; doc.regionSig=null; _planDbg("ERR "+(e&&e.message||e)); planLog("โซมชัดส่วนที่เห็นล้มเหลว: "+(e&&e.message||e),true); planTip("เรนเดอร์คมล้มเหลว: "+(e&&e.message||e),true); });
 }
 // ชื่อเดิมยังถูกเรียกจากที่อื่น → ชี้มาที่ระบบ region ใหม่
 function ensurePdfResolution(){ renderVisibleRegion(); }
@@ -5412,7 +5422,7 @@ function applyBestImage(){
   var img=$(".plan-img"), det=$("#planDetail");
   if(!img) return;
   var key=planSourceKey(), doc=PLAN_DOCS[key];
-  if(!doc){ if(det) det.style.display="none"; loadPlanSource(key).then(function(d){ if(d && planSourceKey()===key) applyBestImage(); }); return; }
+  if(!doc){ if(det) det.style.display="none"; _planDbg("กำลังโหลดต้นฉบับแปลน…"); loadPlanSource(key).then(function(d){ if(d && planSourceKey()===key) applyBestImage(); else if(!d) _planDbg("โหลดต้นฉบับไม่ได้ (ใช้พรีวิว)"); }); return; }
   if(doc.kind==="img"){
     if(det) det.style.display="none";
     if(doc.url && img.getAttribute("data-full")!==doc.url){ img.src=doc.url; img.setAttribute("data-full",doc.url); }
