@@ -4131,8 +4131,8 @@ function rightPanelHtml(){
     var _flr=getFloor(state.floorId), _allM=_flr?membersOfFloor(_flr.id):[];
     var eyeO='<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
     var eyeX='<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 4.2A9.8 9.8 0 0 1 12 4c6.5 0 10 7 10 7a13 13 0 0 1-2.3 3M6.6 6.6A13 13 0 0 0 2 12s3.5 7 10 7a9.5 9.5 0 0 0 4.3-1M3 3l18 18"/></svg>';
-    // เครื่องมือวาด / โหมด / ชนิดที่วาด ย้ายไปที่แถบริบบอนด้านบนแล้ว — พาเนลนี้เหลือ เลเยอร์ & สไตล์กรอบ
-    h+='<div class="note-info" style="margin-top:0;display:flex;gap:8px;align-items:flex-start"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:1px"><path d="M12 8h.01M11 12h1v4h1"/><circle cx="12" cy="12" r="9"/></svg><span>เครื่องมือวาด · โหมดแสดง · ป้าย/สี อยู่ที่<b>แถบริบบอนด้านบน</b> — ตรงนี้ปรับ<b>เลเยอร์</b>และ<b>สไตล์กรอบ</b></span></div>';
+    // เครื่องมือวาด / โหมด / ชนิดที่วาด / สไตล์กรอบ ย้ายไปที่แถบริบบอนด้านบนแล้ว — พาเนลนี้เหลือ เลเยอร์
+    h+='<div class="note-info" style="margin-top:0;display:flex;gap:8px;align-items:flex-start"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:1px"><path d="M12 8h.01M11 12h1v4h1"/><circle cx="12" cy="12" r="9"/></svg><span>เครื่องมือวาด · สไตล์กรอบ · โหมด · ป้าย/สี อยู่ที่<b>แถบริบบอนด้านบน</b> (แท็บ “วาด” / “มุมมอง”) — ตรงนี้ปรับ<b>เลเยอร์</b></span></div>';
 
     // ── เลเยอร์ (พับ) ──
     if(state.unified){
@@ -4144,23 +4144,7 @@ function rightPanelHtml(){
       h+=rpSec('เลเยอร์ที่แสดง','<span class="sec-badge">'+shown+'/'+TYPE_ORDER.length+'</span>','<div class="type-chips">'+layerChips+'</div>',false);
     }
 
-    // (ย้าย "การแสดงผลบนแปลน": ลงสีตาม/ป้ายเบอร์/ตารางสี ไปที่ริบบอนแท็บ "มุมมอง")
-
-    // ── สไตล์กรอบ (พับ, เปิดเมื่อเลือกชิ้นส่วน) ──
-    if(drawKind(type)==="rect"){
-      var selRect=(m&&isBox(m.plan))?m:null;
-      var sc=selRect?(selRect.plan.fill||"#f59e0b"):state.fillColor;
-      var sa=selRect?(selRect.plan.fillA!=null?selRect.plan.fillA:0.28):state.fillAlpha;
-      var sww=selRect?(selRect.plan.strokeW!=null?selRect.plan.strokeW:10):state.strokeW;
-      var style='<div style="display:flex;align-items:center;gap:12px">'
-        +'<input type="color" id="drawColor" value="'+esc(sc)+'" style="width:50px;height:40px;padding:2px;border-radius:9px">'
-        +'<div style="flex:1"><div class="tiny muted" style="margin-bottom:3px">ความเข้มสีด้านใน</div><input type="range" id="drawAlpha" min="0" max="100" value="'+Math.round(sa*100)+'" style="width:100%"></div>'
-        +'<div id="drawSwatch" style="width:40px;height:40px;border-radius:9px;border:1px solid var(--border-strong);background:'+esc(sc)+';opacity:'+sa+'"></div></div>'
-        +'<div class="tiny muted" style="margin:9px 0 4px">สีใช้บ่อย</div><div class="swatch-row">'+PRESET_COLORS.map(function(c){ return '<button class="swatch'+(sc.toLowerCase()===c?" on":"")+'" data-swatch="'+c+'" title="'+c+'" style="background:'+c+'"></button>'; }).join("")+'</div>'
-        +'<div style="margin-top:8px"><div class="tiny muted" style="margin-bottom:3px">ความหนาเส้นกรอบ (0 = ไม่มีเส้น)</div><input type="range" id="drawStroke" min="0" max="30" value="'+Math.round(sww)+'" style="width:100%"></div>'
-        +'<div class="tiny muted" style="margin-top:7px">'+(selRect?'กำลังปรับ '+esc(TYPES[selRect.type].label)+' '+esc(selRect.code)+' · ลากมุม=ย่อ/ขยาย · จุดวงกลมบน=หมุน · คลิกที่ว่าง=เลิกเลือก':'ตั้งค่าก่อน แล้ววาดกรอบบนแปลน แล้วใส่เบอร์')+'</div>';
-      h+=rpSec('สไตล์กรอบ'+(selRect?' · '+esc(selRect.code):''),'',style,!!selRect);
-    }
+    // (ย้าย "การแสดงผลบนแปลน" ไปริบบอนแท็บ "มุมมอง" และ "สไตล์กรอบ" ไปริบบอนแท็บ "วาด")
 
   }else if(tab==="list"){
     // รายการชิ้นส่วน — โหมดรวมมีดรอปดาวน์กรองชนิด, โหมดโฟกัสโชว์เฉพาะหมวด
@@ -4240,7 +4224,7 @@ function rightPanelHtml(){
 }
 
 /* ---- ริบบอนบนสุดของเอดิเตอร์ (แนว Office/Revit) — เดสก์ท็อป ---- */
-function planRibbonHtml(type, planMenu, sm){
+function planRibbonHtml(type, planMenu, sm, selM){
   var rt=state.ribbonTab||"home";
   var isD=function(sh){ return state.tool==="draw" && (state.drawShape||"rect")===sh; };
   var ICsel='<svg viewBox="0 0 24 24"><path d="m4 4 7 17 2.5-7.5L21 11Z"/></svg>';
@@ -4270,6 +4254,19 @@ function planRibbonHtml(type, planMenu, sm){
       +rbtn(isD("poly"),"setShape",'data-shape="poly"',ICpoly,'หลายเหลี่ยม')
       +rbtn(isD("oval"),"setShape",'data-shape="oval"',ICoval,'วงรี'));
     body+=grp('ตัวช่วย', rbtn(!!state.snap,"toggleSnap",'',ICsnap,'สแนบเส้น'));
+    // สไตล์กรอบ (สี/ความเข้ม/ความหนาเส้น) — ปรับชิ้นที่เลือก หรือค่าเริ่มของกรอบที่จะวาดใหม่
+    if(drawKind(type)==="rect"){
+      var selRect=(selM&&isBox(selM.plan))?selM:null;
+      var sc=selRect?(selRect.plan.fill||"#f59e0b"):state.fillColor;
+      var sa=selRect?(selRect.plan.fillA!=null?selRect.plan.fillA:0.28):state.fillAlpha;
+      var sww=selRect?(selRect.plan.strokeW!=null?selRect.plan.strokeW:10):state.strokeW;
+      var styleInner='<input type="color" id="drawColor" value="'+esc(sc)+'" class="rbn-color" title="สีกรอบ">'
+        +'<div id="drawSwatch" class="rbn-swatch" style="background:'+esc(sc)+';opacity:'+sa+';display:none"></div>'
+        +'<div class="rbn-mini"><span>ความเข้ม</span><input type="range" id="drawAlpha" min="0" max="100" value="'+Math.round(sa*100)+'"></div>'
+        +'<div class="rbn-mini"><span>เส้นกรอบ</span><input type="range" id="drawStroke" min="0" max="30" value="'+Math.round(sww)+'"></div>'
+        +'<div class="rbn-swatches">'+PRESET_COLORS.slice(0,8).map(function(c){ return '<button class="swatch'+(sc.toLowerCase()===c?" on":"")+'" data-swatch="'+c+'" title="'+c+'" style="background:'+c+'"></button>'; }).join("")+'</div>';
+      body+=grp(selRect?'สไตล์ · '+esc(selRect.code):'สไตล์กรอบ', styleInner);
+    }
   }else{ // view
     body+=grp('ลงสีตาม','<div class="rbn-seg">'
       +'<button data-act="colorMode" data-mode="status" aria-pressed="'+(state.colorMode==="status")+'">สถานะ</button>'
@@ -4320,7 +4317,7 @@ function viewPlanEditor(){
   planMenu+='</div></details>';
 
   var left='<div class="editor-left">'
-    + planRibbonHtml(type, planMenu, sm)
+    + planRibbonHtml(type, planMenu, sm, selM)
     + '<input type="file" id="planFile" accept="image/*,application/pdf,.pdf" hidden>'
     + (state.tool==="draw" ? '<div class="note-info" style="margin:0 0 8px">โหมดวาด: '
         + (drawKind(type)==="point" ? 'แตะบนแปลนเพื่อวาง'+esc(TYPES[type].label)
@@ -5972,7 +5969,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 138 โหลดแล้ว — ริบบอนกระชับ/เตี้ยลง + ดันขึ้น ให้เห็นแปลนมากขึ้น","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 139 โหลดแล้ว — ย้าย สไตล์กรอบ เข้าไปในริบบอนแท็บ วาด","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();

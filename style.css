@@ -814,6 +814,14 @@ svg .plan-label{cursor:move}
 html[data-theme="dark"] .rbn-seg button[aria-pressed="true"]{color:#0a1220}
 .rbn-sel{min-width:150px}
 .rbn-grp .tb-menu>summary{margin:0;padding-top:7px;padding-bottom:7px}
+/* กลุ่มสไตล์กรอบในริบบอน (สี/ความเข้ม/เส้น/สีใช้บ่อย) */
+.rbn-color{width:32px;height:32px;padding:2px;border:1px solid var(--border-strong,var(--border));border-radius:8px;cursor:pointer;background:none}
+.rbn-swatch{width:32px;height:32px;border-radius:8px;border:1px solid var(--border-strong,var(--border));flex:none}
+.rbn-mini{display:flex;flex-direction:column;gap:1px;min-width:72px}
+.rbn-mini span{font-size:.6rem;font-weight:600;color:var(--text-dim);line-height:1}
+.rbn-mini input[type=range]{width:100%;margin:0;accent-color:var(--brand)}
+.rbn-swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;align-content:center;width:72px}
+.rbn-swatches .swatch{width:15px;height:15px;border-radius:4px;flex:none}
 
 /* จอแคบ: มินิเมนูชิ้นส่วน = ไอคอนล้วน (ครบทุกปุ่มไม่ต้องเลื่อน) + ปุ่มบนแถบเหลือไอคอน */
 @media(max-width:600px){
