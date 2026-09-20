@@ -475,6 +475,17 @@ body.editor-wide header .hd-wrap{max-width:none}
 /* โครงเอดิเตอร์: จอกว้าง = แปลน + เส้นแบ่งลากได้ + พาเนลขวา (ปรับกว้างได้), มือถือ = ซ้อน */
 .editor{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
 @media(min-width:900px){ .editor{grid-template-columns:minmax(0,1fr) 10px var(--rp-w,380px);gap:0} }
+/* หน้าอัพเดทความคืบหน้า — แปลนเต็มความกว้าง + แถบเครื่องมือบาง */
+.prog-wrap{display:flex;flex-direction:column;min-width:0}
+.prog-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:8px 10px;border:1px solid var(--border,#e3e7ee);border-radius:12px;background:var(--surface,#fff)}
+.prog-bar .btn{margin:0}
+.prog-title{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.prog-title b{font-size:15px}
+.prog-title small{color:var(--text-dim,#7a8698);font-size:12px}
+.prog-sp{flex:1 1 auto}
+.prog-pct{font-weight:700;color:var(--brand);white-space:nowrap}
+.prog-pct small{color:var(--text-dim,#7a8698);font-weight:500}
+@media(max-width:640px){ .prog-title{order:-1;flex-basis:100%} .prog-sp{display:none} }
 /* ยุบพาเนลขวา → แปลนเต็มความกว้าง */
 .editor.rp-collapsed{grid-template-columns:1fr}
 .editor.rp-collapsed .rp-splitter,.editor.rp-collapsed .editor-right{display:none}

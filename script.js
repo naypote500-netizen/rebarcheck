@@ -1561,7 +1561,8 @@ function viewHome(){
     folder:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
     search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
     report:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg>',
-    gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8 2 2 0 1 1-2.8 2.8 1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0 1.6 1.6 0 0 0-2.6-1.1 2 2 0 1 1-2.8-2.8A1.6 1.6 0 0 0 3.9 15a2 2 0 0 1 0-4 1.6 1.6 0 0 0 1.1-2.6A2 2 0 1 1 7.8 5.6 1.6 1.6 0 0 0 10 5.3V5a2 2 0 0 1 4 0 1.6 1.6 0 0 0 2.2.3 2 2 0 1 1 2.8 2.8A1.6 1.6 0 0 0 20.7 11a2 2 0 0 1 0 4Z"/></svg>'
+    gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8 2 2 0 1 1-2.8 2.8 1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0 1.6 1.6 0 0 0-2.6-1.1 2 2 0 1 1-2.8-2.8A1.6 1.6 0 0 0 3.9 15a2 2 0 0 1 0-4 1.6 1.6 0 0 0 1.1-2.6A2 2 0 1 1 7.8 5.6 1.6 1.6 0 0 0 10 5.3V5a2 2 0 0 1 4 0 1.6 1.6 0 0 0 2.2.3 2 2 0 1 1 2.8 2.8A1.6 1.6 0 0 0 20.7 11a2 2 0 0 1 0 4Z"/></svg>',
+    progress:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="m8 12.5 2.5 2.5L16 9"/></svg>'
   };
   var user=(DB.inspector||"ผู้ใช้งาน");
   // ---- sidebar ----
@@ -1571,6 +1572,7 @@ function viewHome(){
     +'<nav class="dh-navs">'
     + homeNav("goHome",true,"หน้าหลัก",IC.home)
     + homeNav("goProjects",false,"ตรวจสอบชิ้นส่วน",IC.search)
+    + homeNav("goProgress",false,"อัพเดทความคืบหน้า",IC.progress)
     + homeNav("goReports",false,"รายงาน",IC.report)
     + homeNav("goData",false,"ตั้งค่า",IC.gear)
     + ((CLOUD && _fbUser) ? homeNav("logout",false,"ออกจากระบบ",'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>') : "")
@@ -1611,6 +1613,7 @@ function viewHome(){
     +'<button class="dh-new" data-act="newProject"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> สร้างโครงการใหม่</button>'
     +'<div class="dh-panel"><div class="ph"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg> ทางลัด</div>'
     +'<a class="dh-short" data-act="goProjects"><span class="ic">'+IC.report+'</span><span><b>เข้าสู่การตรวจสอบ</b><small>เริ่มตรวจสอบชิ้นส่วนในโครงการ</small></span><span class="cv">›</span></a>'
+    +'<a class="dh-short" data-act="goProgress"><span class="ic">'+IC.progress+'</span><span><b>อัพเดทความคืบหน้า</b><small>เทคอนกรีตถึงโซนไหน + ออก PDF</small></span><span class="cv">›</span></a>'
     +'<a class="dh-short" data-act="goReports"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></span><span><b>ดูรายงาน</b><small>สรุปผลการตรวจสอบทั้งหมด</small></span><span class="cv">›</span></a>'
     +'<a class="dh-short" data-act="goData"><span class="ic">'+IC.gear+'</span><span><b>ตั้งค่า / สำรองข้อมูล</b><small>นำเข้า-ส่งออกข้อมูล</small></span><span class="cv">›</span></a></div>'
     +'<div class="dh-tip"><div class="ph"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/></svg> สาระน่ารู้</div>'
@@ -2938,6 +2941,7 @@ function backTarget(){
     case "floors":     return "home";
     case "categories": return "floors";
     case "planEditor": return "categories";
+    case "progress":   return "home";
     case "members":    return "categories";
     case "detail":     return "planEditor";
     case "memberDetail": return "planEditor";
@@ -2965,6 +2969,7 @@ function headerInfo(){
     case "floors":     return [p?p.name:"โครงการ", p&&p.location?p.location:"เลือกชั้น"];
     case "categories": return [f?f.name:"ชั้น", p?p.name:""];
     case "planEditor": return [(TYPES[state.catType]?TYPES[state.catType].label:"หมวด"), f?f.name:""];
+    case "progress":   return ["อัพเดทความคืบหน้า", f?f.name:(p?p.name:"")];
     case "members":    return [f?f.name:"ชั้น", p?p.name:""];
     case "detail":     return [m?m.code:"ชิ้นส่วน", (m?m.name:"")||(f?f.name:"")];
     case "memberDetail": return [m?("รายละเอียด "+m.code):"รายละเอียด", (m?m.name:"")||(f?f.name:"")];
@@ -2983,6 +2988,7 @@ function render(){
     case "floors":     html=viewFloors();     break;
     case "categories": html=viewCategories(); break;
     case "planEditor": html=viewPlanEditor(); break;
+    case "progress":   html=viewProgress();   break;
     case "members":    html=viewMembers();    break;
     case "detail":     html=viewDetail();     break;
     case "memberDetail": html=viewMemberDetail(); break;
@@ -2994,7 +3000,7 @@ function render(){
   $("#app").innerHTML=html;
 
   // เอดิเตอร์แปลนใช้พื้นที่กว้างกว่าหน้าอื่น เพื่อให้กรอบแปลนใหญ่ ดูชัด
-  document.body.classList.toggle("editor-wide", state.screen==="planEditor" || state.screen==="memberDetail" || state.screen==="memberForm");
+  document.body.classList.toggle("editor-wide", state.screen==="planEditor" || state.screen==="memberDetail" || state.screen==="memberForm" || state.screen==="progress");
   document.body.classList.toggle("home-mode", state.screen==="home");   // ซ่อน header เดิม โชว์ dashboard เต็ม
   document.body.classList.remove("auth-mode");   // เข้าแอปแล้ว → เลิกโหมด login
 
@@ -3054,6 +3060,9 @@ function bindScreen(){
   if(state.screen==="planEditor"){
     bindPlanEditor();
   }
+  if(state.screen==="progress"){
+    bindPlanEditor();
+  }
   if(state.screen==="memberForm"){
     $$("#app input, #app select, #app textarea").forEach(function(el){
       el.addEventListener("input",updatePreview);
@@ -3090,6 +3099,14 @@ document.addEventListener("click",function(e){
     case "openProject": go("floors",{projectId:id, floorId:null, q:"", typeFilter:"all"}); break;
     case "goHome":      navigate("home"); break;
     case "goProjects":  navigate("home"); break;
+    case "goProgress": {   // อัพเดทความคืบหน้า — ใช้ชั้นที่เปิดอยู่ (ถ้าไม่มีใช้ชั้นแรกของโครงการ)
+      var _pf=getFloor(state.floorId);
+      if(!_pf){ var _pp=getProject(state.projectId)||(DB.projects||[])[0]; if(_pp){ _pf=floorsOf(_pp.id)[0]; } }
+      if(!_pf){ toast("ยังไม่มีชั้น/แปลนให้อัพเดท — สร้างโครงการและชั้นก่อน",true); navigate("home"); break; }
+      go("progress",{projectId:_pf.projectId, floorId:_pf.id, tool:"select", selZoneId:null,
+                     floatProgressOpen:true, showProgress:true, zoom:1, panX:0, panY:0});
+      break;
+    }
     case "tabInspect":  { var _pj=(DB.projects||[])[0]; if(_pj) go("floors",{projectId:_pj.id, floorId:null, q:"", typeFilter:"all"}); else navigate("home"); break; }
     case "addFloorFab": dlgFloor(null); break;
     case "goData":      navigate("data"); break;
@@ -3577,17 +3594,20 @@ function rotPt(px,py,cx,cy,deg){
   return [cx+dx*c-dy*s, cy+dx*s+dy*c];
 }
 /** สร้าง SVG ของชิ้นส่วนทั้งหมดบนแปลน (รวมจุดจับ ลด/ขยาย/หมุน ของคานที่เลือก) */
+/** โหมดของเวทีแปลน: "progress" = หน้าอัพเดทความคืบหน้า (โซน), อื่นๆ = หน้าแก้ไขแปลน (ชิ้นส่วนเหล็ก) */
+function stageMode(){ return state.screen==="progress" ? "progress" : "inspect"; }
 function planShapesSVG(VW,VH){
   var f=getFloor(state.floorId), type=state.catType;
   var _pid=curPlanId();
-  var members=membersOfFloor(f.id).filter(function(m){
+  var isProgress=stageMode()==="progress";
+  var members=isProgress ? [] : membersOfFloor(f.id).filter(function(m){
     if(!m.plan || m.hidden) return false;
     if(memberPlanId(m)!==_pid) return false;   // แสดงเฉพาะชิ้นที่วาดบน "แปลนที่กำลังเปิด"
     return state.unified ? !state.hiddenTypes[m.type] : (m.type===type);   // รวม = ทุกชนิดที่ไม่ได้ซ่อน
   });
   var shapes="";
-  // ── โซนความคืบหน้าเทคอนกรีต (วาดก่อนชิ้นส่วน → อยู่ชั้นล่าง) ──
-  if(state.showProgress){
+  // ── โซนความคืบหน้าเทคอนกรีต (แสดงเฉพาะหน้าอัพเดท) ──
+  if(isProgress && state.showProgress){
     var ZCOLORS={done:"#22c55e",progress:"#eab308",pending:"#94a3b8"};
     var ZLABELS={done:"เทแล้ว",progress:"กำลังเท",pending:"รอเท"};
     var ZICONS={done:"✓",progress:"◐",pending:"○"};
@@ -3802,11 +3822,12 @@ function floatStyleHtml(){
 
 function planStageHtml(){
   var f=getFloor(state.floorId), type=state.catType;
+  var isProgress=stageMode()==="progress";
   var plan=getFloorPlan(f);
   var ratio=planRatio(plan);
   var VW=1000, VH=Math.round(VW*ratio);
   var _pid2=curPlanId();
-  var members=membersOfFloor(f.id).filter(function(m){ return m.plan && memberPlanId(m)===_pid2 && (state.unified ? !state.hiddenTypes[m.type] : m.type===type); });
+  var members=isProgress ? [] : membersOfFloor(f.id).filter(function(m){ return m.plan && memberPlanId(m)===_pid2 && (state.unified ? !state.hiddenTypes[m.type] : m.type===type); });
   var shapes=planShapesSVG(VW,VH);
 
   var _psrc = plan ? (plan.src || PLAN_PREVIEW[planSourceKey()] || "") : "";   // คลาวด์: floor doc ไม่มี src → ใช้พรีวิว/ต้นฉบับที่โหลดมา
@@ -3815,8 +3836,8 @@ function planStageHtml(){
     : '<div class="plan-grid"></div>';
   var drawing = (state.tool==="draw" || state.tool==="drawZone");
 
-  // แถบมินิเมนูตอนเลือกชิ้นส่วน (ลอยบนกรอบ)
-  var _selM=getMember(state.selMemberId); if(_selM && !state.unified && _selM.type!==type) _selM=null;
+  // แถบมินิเมนูตอนเลือกชิ้นส่วน (ลอยบนกรอบ) — เฉพาะหน้าแก้ไขแปลน
+  var _selM=isProgress ? null : getMember(state.selMemberId); if(_selM && !state.unified && _selM.type!==type) _selM=null;
   var selbar = _selM ? '<div class="plan-selbar">'
     + chipHtml(_selM.code,TYPES[_selM.type].css)
     + '<button data-act="goInspect" title="ตรวจเหล็ก"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 5-5"/></svg> <span class="lb">ตรวจเหล็ก</span></button>'
@@ -3833,10 +3854,11 @@ function planStageHtml(){
        +   '<svg class="plan-overlay" id="planOverlay" viewBox="0 0 '+VW+' '+VH+'" '
        +     'data-vw="'+VW+'" data-vh="'+VH+'" preserveAspectRatio="none">'+shapes+'</svg>'
        + selbar
-       + floatStyleHtml()
-       + floatProgressHtml()
-       + (state.showLegend ? legendHtml(members) : '')
-       + (members.length===0 && !drawing ? '<div class="plan-hint">'+(state.unified?'ยังไม่มีชิ้นส่วนในแปลน — เลือกชนิดแล้วกด “วาด” ลากบนแปลน':'ยังไม่มี'+esc(TYPES[type].label)+'ในแปลน — กด “วาด'+esc(TYPES[type].label)+'” แล้วลากบนแปลน')+'</div>' : '')
+       + (isProgress ? floatProgressHtml() : floatStyleHtml())
+       + (!isProgress && state.showLegend ? legendHtml(members) : '')
+       + (isProgress
+            ? (zonesOfPlan(f.id,_pid2).length===0 && !drawing ? '<div class="plan-hint">ยังไม่มีโซนเท — กด “วาดโซนใหม่” แล้วลากคลุมพื้นที่บนแปลน</div>' : '')
+            : (members.length===0 && !drawing ? '<div class="plan-hint">'+(state.unified?'ยังไม่มีชิ้นส่วนในแปลน — เลือกชนิดแล้วกด “วาด” ลากบนแปลน':'ยังไม่มี'+esc(TYPES[type].label)+'ในแปลน — กด “วาด'+esc(TYPES[type].label)+'” แล้วลากบนแปลน')+'</div>' : ''))
        + '</div>';
 }
 function _planDbg(){}   // (ปิดตัวบอกสถานะดีบั๊กแล้ว)
@@ -4379,10 +4401,6 @@ function planRibbonHtml(type, planMenu, sm, selM){
     body+=grp('ชนิดที่วาด','<div class="sel-wrap rbn-sel"><span class="sel-dot" style="background:var(--t-'+TYPES[type].css+')"></span>'
       +'<select id="drawTypeSel" class="rp-select">'+TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPE_EN[t]||TYPES[t].label)+'</option>'; }).join("")+'</select></div>');
     body+=grp('นำออก', rbtn(false,"exportPdf",'title="นำออกแปลน + ไฮไลท์ เป็น PDF"',ICpdf,'ออก PDF'));
-    var ICprog='<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1.5"/><path d="M12 6v12M3 12h18"/></svg>';
-    var ICtogEye=state.showProgress?'<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>':'<svg viewBox="0 0 24 24"><path d="M9.9 4.2A9.8 9.8 0 0 1 12 4c6.5 0 10 7 10 7a13 13 0 0 1-2.3 3M6.6 6.6A13 13 0 0 0 2 12s3.5 7 10 7a9.5 9.5 0 0 0 4.3-1M3 3l18 18"/></svg>';
-    body+=grp('ความคืบหน้า', rbtn(state.showProgress,"toggleProgress",'',ICtogEye,'โซนเท')
-      +rbtn(state.floatProgressOpen,"toggleProgressPanel",'',ICprog,'แผงโซน'));
   }else if(rt==="draw"){
     body+=grp('เลือก', rbtn(state.tool==="select","setTool",'data-tool="select"',ICsel,'เลือก/ย้าย'));
     body+=grp('วาดรูป', rbtn(isD("rect"),"setShape",'data-shape="rect"',ICrect,'สี่เหลี่ยม')
@@ -4464,6 +4482,50 @@ function viewPlanEditor(){
   var right='<div class="editor-right">'+rightPanelHtml()+'</div>';
   var split='<div class="rp-splitter" id="rpSplitter" title="ลากเพื่อปรับความกว้างพาเนล"></div>';
   return '<div class="editor'+(state.rpCollapsed?" rp-collapsed":"")+'" id="editorGrid" style="--rp-w:'+(state.rpWidth||380)+'px">'+left+split+right+'</div>';
+}
+
+/* ---------------------------------------------------------------------------
+   หน้าจอ: อัพเดทความคืบหน้าเทคอนกรีต — แยกจากหน้าแก้ไขแปลน (โชว์เฉพาะโซน)
+   ------------------------------------------------------------------------ */
+function viewProgress(){
+  var f=getFloor(state.floorId), p=getProject(state.projectId);
+  if(!f) return emptyBox('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18M9 21V9"/></svg>',"ยังไม่ได้เลือกชั้น","เปิดโครงการและชั้นก่อน แล้วกด “อัพเดทความคืบหน้า”");
+  var plan=getFloorPlan(f);
+  var zones=zonesOfPlan(f.id, curPlanId());
+  var done=zones.filter(function(z){ return z.status==="done"; }).length;
+  var pct=zones.length?Math.round(done/zones.length*100):0;
+
+  var _icPlan='<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="m21 15-5-5L5 21"/></svg>';
+  var _plans=floorPlans(f);
+  var planMenu='<details class="tb-menu"><summary class="btn soft" style="margin:0">'+_icPlan+' '
+      + (plan? esc(plan.name||"แปลน")+(_plans.length>1?' <span class="tb-badge">'+_plans.length+'</span>':'') : 'ยังไม่มีแปลน')
+      + ' <span class="caret">▾</span></summary><div class="tb-menu-b">';
+  if(_plans.length){
+    planMenu+='<div class="tbm-h">แปลนในชั้นนี้</div>';
+    _plans.forEach(function(pp){ planMenu+='<button class="tbm-item'+(pp.id===f.activePlanId?" on":"")+'" data-act="switchPlan" data-pid="'+esc(pp.id)+'">'+_icPlan+' <span class="tbm-t">'+esc(pp.name||"แปลน")+'</span>'+(pp.id===f.activePlanId?'<span class="tbm-ck">✓</span>':'')+'</button>'; });
+  }else{
+    planMenu+='<div class="tbm-h">ยังไม่มีแปลนในชั้นนี้ — เพิ่มแปลนจากหน้า “ตรวจสอบชิ้นส่วน”</div>';
+  }
+  planMenu+='</div></details>';
+
+  var ICpdf='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5"/><path d="M9 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5H9"/><path d="M12 18v-6M9 15l3 3 3-3"/></svg>';
+  var ICdraw='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="1.5"/><path d="M12 3v3M12 18v3"/></svg>';
+  var ICeye=state.showProgress?'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>':'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.2A9.8 9.8 0 0 1 12 4c6.5 0 10 7 10 7a13 13 0 0 1-2.3 3M6.6 6.6A13 13 0 0 0 2 12s3.5 7 10 7a9.5 9.5 0 0 0 4.3-1M3 3l18 18"/></svg>';
+
+  var toolbar='<div class="prog-bar">'
+    + '<button class="btn soft prog-back" data-act="back" title="กลับ"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> กลับ</button>'
+    + '<div class="prog-title"><b>อัพเดทความคืบหน้าเทคอนกรีต</b><small>'+esc(p?p.name:"")+(f.name?' · '+esc(f.name):'')+'</small></div>'
+    + planMenu
+    + '<div class="prog-sp"></div>'
+    + '<span class="prog-pct">'+pct+'% เสร็จ <small>('+done+'/'+zones.length+' โซน)</small></span>'
+    + '<button class="btn'+(state.tool==="drawZone"?" on":"")+'" data-act="drawZoneStart">'+ICdraw+' วาดโซนใหม่</button>'
+    + '<button class="btn soft" data-act="toggleProgress" title="ซ่อน/แสดงโซน">'+ICeye+'</button>'
+    + '<button class="btn soft" data-act="exportProgressPdf">'+ICpdf+' PDF อัพเดท</button>'
+    + '</div>';
+
+  var hint = state.tool==="drawZone" ? '<div class="note-info" style="margin:0 0 8px;border-color:#22c55e;background:rgba(34,197,94,0.06)">วาดโซนเท: ลากสี่เหลี่ยมคลุมพื้นที่บนแปลน แล้วตั้งชื่อโซน</div>' : '';
+
+  return '<div class="prog-wrap">'+toolbar+hint+planStageHtml()+'</div>';
 }
 
 /* ---------------------------------------------------------------------------
