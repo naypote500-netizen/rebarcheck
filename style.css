@@ -1035,3 +1035,43 @@ body.auth-mode header{display:none}
 @media(max-width:760px){
   .plan-stage:not(.no-plan){ aspect-ratio:auto !important; height:60vh; min-height:340px; }
 }
+
+/* ===== แถบเมนูล่าง + ปุ่มลอย (ดีไซน์แนวแอป — เฉพาะมือถือ) ===== */
+.tabbar{display:none}
+.fab{display:none}
+@media(max-width:760px){
+  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:200;
+    padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));
+    background:var(--surface);border-top:1px solid var(--border);box-shadow:0 -4px 18px rgba(20,30,50,.07)}
+  .tabbar .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    border:none;background:none;color:var(--text-dim);font:inherit;font-size:.66rem;font-weight:600;cursor:pointer;padding:4px 0}
+  .tabbar .tabic{width:50px;height:30px;border-radius:16px;display:grid;place-items:center;transition:background .15s}
+  .tabbar .tab svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .tabbar .tab.on{color:var(--brand)}
+  .tabbar .tab.on .tabic{background:var(--brand-bg)}
+  .tabbar .tab:active .tabic{background:var(--surface-2)}
+  /* เว้นพื้นที่ล่างให้พ้นแถบเมนู */
+  body.has-tabbar main#app{padding-bottom:78px}
+  body.has-tabbar.home-mode .dh{min-height:auto}
+  body.has-tabbar.home-mode .dh-content{padding-bottom:84px}
+  /* ปุ่มลอย */
+  .fab{place-items:center;position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:201;
+    width:56px;height:56px;border-radius:18px;background:var(--brand);color:#fff;border:none;cursor:pointer;
+    box-shadow:0 8px 22px rgba(58,91,208,.42)}
+  .fab:active{transform:scale(.94)}
+}
+body.auth-mode #tabbar,body.auth-mode #fab{display:none !important}
+
+/* มือถือ: เก็บงานการ์ด dashboard ให้กระชับ (แนวแอป) */
+@media(max-width:760px){
+  .dh-content{padding:16px 16px}
+  .dh-hero{min-height:auto}
+  .dh-hero-l{padding:20px 18px}
+  .dh-hero-l h1{font-size:2rem}
+  .dh-pcard{gap:12px;padding:13px;border-radius:16px}
+  .dh-thumb{width:58px;height:58px}
+  .dh-pcard .t1{font-size:1.02rem;white-space:normal}
+  .dh-new{padding:13px}
+}
+/* มือถือ: ซ่อนปุ่มสร้างในตัว (ใช้ FAB แทน — แนวแอป) */
+@media(max-width:760px){ body.has-tabbar .dh-new{display:none} }

@@ -2999,7 +2999,35 @@ function render(){
   $("#btnBack").hidden = atRoot;
   var bm=$("#brandMark"); if(bm) bm.hidden = !atRoot;   // โลโก้โชว์เฉพาะหน้าแรก
 
+  renderTabbar();   // แถบเมนูล่าง (มือถือ)
   bindScreen();
+}
+/** แถบเมนูล่าง + ปุ่มลอย — โชว์เฉพาะมือถือ (ดีไซน์แนวแอป) */
+var TABBAR_HIDE={planEditor:1, memberDetail:1, memberForm:1, pickType:1};
+function renderTabbar(){
+  var tb=document.getElementById("tabbar"), fab=document.getElementById("fab"); if(!tb) return;
+  var mob=(window.innerWidth||1024)<760;
+  var authed=!(CLOUD && !_fbUser), scr=state.screen;
+  var show = mob && authed && !TABBAR_HIDE[scr] && scr!=="login" && scr!=="loading";
+  document.body.classList.toggle("has-tabbar", show);
+  if(!show){ tb.innerHTML=""; if(fab) fab.style.display="none"; return; }
+  var inspAct=(scr==="floors"||scr==="categories"||scr==="members"||scr==="detail");
+  var IChome='<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>';
+  var ICsearch='<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>';
+  var ICreport='<svg viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg>';
+  var ICuser='<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>';
+  function tab(on,act,label,svg){ return '<button class="tab'+(on?" on":"")+'" data-act="'+act+'"><span class="tabic">'+svg+'</span>'+label+'</button>'; }
+  tb.innerHTML = tab(scr==="home","goHome","หน้าหลัก",IChome)
+    + tab(inspAct,"tabInspect","ตรวจสอบ",ICsearch)
+    + tab(scr==="history","goReports","รายงาน",ICreport)
+    + tab(scr==="data","goData","โปรไฟล์",ICuser);
+  // ปุ่มลอย (FAB) ตามหน้า
+  if(fab){
+    var fa = scr==="home" ? {a:"newProject",t:"สร้างโครงการใหม่"} : (scr==="floors" ? {a:"addFloorFab",t:"เพิ่มชั้น"} : null);
+    if(fa){ fab.style.display="grid"; fab.setAttribute("data-act",fa.a); fab.title=fa.t;
+      fab.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'; }
+    else fab.style.display="none";
+  }
 }
 
 /** ผูก event ของอินพุตที่ต้องฟังค่าแบบต่อเนื่อง (ปุ่มใช้ event delegation แยกต่างหาก) */
@@ -3057,6 +3085,8 @@ document.addEventListener("click",function(e){
     case "openProject": go("floors",{projectId:id, floorId:null, q:"", typeFilter:"all"}); break;
     case "goHome":      navigate("home"); break;
     case "goProjects":  navigate("home"); break;
+    case "tabInspect":  { var _pj=(DB.projects||[])[0]; if(_pj) go("floors",{projectId:_pj.id, floorId:null, q:"", typeFilter:"all"}); else navigate("home"); break; }
+    case "addFloorFab": dlgFloor(null); break;
     case "goData":      navigate("data"); break;
     case "goReports":   if((DB.projects||[]).length){ go("history",{projectId:DB.projects[0].id, qh:""}); } else { navigate("home"); } break;
     case "theme":       toggleTheme(); break;
@@ -5823,6 +5853,7 @@ function renderLoading(){
   document.body.classList.add("auth-mode");
   $("#app").innerHTML='<div class="auth-wrap"><div class="auth-card"><div class="auth-logo">'+hdSvg(HD.logo)+'</div>'
     +'<div class="auth-spin"></div><div class="auth-sub">กำลังโหลด…</div></div></div>';
+  renderTabbar();
 }
 function renderLogin(){
   document.body.classList.add("auth-mode");
@@ -5840,6 +5871,7 @@ function renderLogin(){
     +'</form></div>';
   var frm=$("#authForm");
   if(frm) frm.addEventListener("submit",function(e){ e.preventDefault(); doAuth(false); });
+  renderTabbar();
   setTimeout(function(){ var e=$(lastEmail?"#authPass":"#authEmail"); if(e) e.focus(); },60);
 }
 function _authErr(msg){ var e=$("#authErr"); if(e) e.textContent=msg; }
@@ -5949,7 +5981,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 134 โหลดแล้ว — มือถือ: กรอบแปลนสูงขึ้น + แปลนเต็มความสูง (ใหญ่ขึ้น)","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 135 โหลดแล้ว — มือถือดีไซน์แนวแอป: แถบเมนูล่าง + ปุ่มลอย","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();
@@ -5971,6 +6003,7 @@ function init(){
     if(e.target.id==="lightbox") $("#lightbox").classList.remove("open");
   });
   $("#overlay").addEventListener("click",function(e){ if(e.target.id==="overlay") closeSheet(); });
+  var _rzT; window.addEventListener("resize",function(){ clearTimeout(_rzT); _rzT=setTimeout(function(){ try{ renderTabbar(); }catch(e){} },150); });
   document.addEventListener("keydown",function(e){
     if(e.key==="Escape"){ $("#lightbox").classList.remove("open"); closeSheet(); }
     // (หน้า login ใช้ <form> จริงแล้ว → Enter จะ submit เอง ไม่ต้องดักที่นี่)
