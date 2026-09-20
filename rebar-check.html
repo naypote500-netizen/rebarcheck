@@ -1043,10 +1043,7 @@ body.auth-mode header{display:none}
 .plan-dbg{position:absolute;left:8px;bottom:8px;z-index:12;max-width:calc(100% - 16px);
   background:rgba(10,15,25,.82);color:#7CFC98;font:600 11px ui-monospace,monospace;
   padding:5px 9px;border-radius:8px;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* มือถือ: กรอบแปลนสูงขึ้น (แปลนแนวนอนเลยเต็มความสูง เลื่อนซ้าย-ขวาได้) → แปลนใหญ่ขึ้น */
-@media(max-width:760px){
-  .plan-stage:not(.no-plan){ aspect-ratio:auto !important; height:60vh; min-height:340px; }
-}
+/* (ยกเลิก: การทำกรอบแปลนสูงเกินสัดส่วนทำให้ภาพยืด — คงกรอบตามสัดส่วนแปลนเพื่อไม่ให้เพี้ยน) */
 
 /* ===== แถบเมนูล่าง + ปุ่มลอย (ดีไซน์แนวแอป — เฉพาะมือถือ) ===== */
 .tabbar{display:none}
@@ -4844,15 +4841,9 @@ function planStageHtml(){
        + (state.rpCollapsed ? (state.floatToolsHidden ? '<button class="plan-showtools" data-act="showFloatTools"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> เครื่องมือ</button>' : floatToolsHtml()) : '')
        + (state.showLegend ? legendHtml(members) : '')
        + (members.length===0 && !drawing ? '<div class="plan-hint">'+(state.unified?'ยังไม่มีชิ้นส่วนในแปลน — เลือกชนิดแล้วกด “วาด” ลากบนแปลน':'ยังไม่มี'+esc(TYPES[type].label)+'ในแปลน — กด “วาด'+esc(TYPES[type].label)+'” แล้วลากบนแปลน')+'</div>' : '')
-       + '<div class="plan-dbg" id="planDbg">debug…</div>'
        + '</div>';
 }
-/** ตัวบอกสถานะเรนเดอร์ความคม (ดีบั๊ก) */
-function _planDbg(status){
-  var e=document.getElementById("planDbg"); if(!e) return;
-  var mob=(window.innerWidth||1024)<760, dpr=Math.round((window.devicePixelRatio||1)*10)/10;
-  e.textContent="v132 · "+(mob?"MOBILE":"desktop")+" · dpr="+dpr+" · w="+(window.innerWidth||0)+" · z="+((state.zoom||1).toFixed(2))+" · "+(status||"—");
-}
+function _planDbg(){}   // (ปิดตัวบอกสถานะดีบั๊กแล้ว)
 /** ตารางสี (Legend) บนแปลน — จัดกลุ่มคานตามสีกรอบ → "สีนี้ = คานเบอร์ไหน" */
 function legendHtml(members){
   var groups={}, order=[];
@@ -5530,22 +5521,7 @@ function planZoomBy(f, cx, cy){
   planClampPan(); planApplyTransform();
   scheduleEnsure();   // เรนเดอร์ส่วนคม "หลังหยุดซูม" เท่านั้น (กันกระตุกระหว่างซูม)
 }
-function planFit(){
-  state.zoom=1; state.panX=0; state.panY=0;
-  // มือถือ + แปลนแนวนอน(กว้าง): ขยายให้เต็มความสูงกรอบ (แปลนใหญ่ขึ้น) แล้วเลื่อนซ้าย-ขวาดูได้
-  var st=$("#planStage"), plan=currentPlan();
-  if((window.innerWidth||1024)<760 && st && plan && plan.w && plan.h){
-    var sw=st.clientWidth, sh=st.clientHeight;
-    if(sw && sh){
-      var contH=sw*plan.h/plan.w;   // ความสูงแปลนตอน fit ตามความกว้าง
-      if(contH < sh-4){
-        var z=Math.min(4, sh/contH);
-        state.zoom=z; state.panX=(sw-sw*z)/2; state.panY=0; planClampPan();
-      }
-    }
-  }
-  planApplyTransform();
-}
+function planFit(){ state.zoom=1; state.panX=0; state.panY=0; planApplyTransform(); }
 
 function bindPlanEditor(){
   // นำเข้าแปลน (รูป / PDF)
@@ -5659,9 +5635,7 @@ function bindPlanEditor(){
 
   var overlay=$("#planOverlay"), stage=$("#planStage");
   if(!overlay) return;
-  // มือถือ: เปิดแปลนครั้งแรก (ยังไม่ซูม/เลื่อน) → จัดให้เต็มความสูงกรอบ (แปลนใหญ่)
-  if((window.innerWidth||1024)<760 && state.zoom===1 && !state.panX && !state.panY){ planFit(); }
-  else planApplyTransform();   // คงระดับซูม/ตำแหน่งเดิมหลังเรนเดอร์ใหม่
+  planApplyTransform();   // คงระดับซูม/ตำแหน่งเดิมหลังเรนเดอร์ใหม่
   applyBestImage();       // แสดงภาพคมที่สุด (โหลดต้นฉบับจาก IDB ถ้าจำเป็น)
 
   // แก้สี/ความเข้ม/ความหนาเส้น ของคานที่เลือก (แท็บรายละเอียด) — อัปเดตสดบนแปลน + บันทึกเมื่อปล่อย
@@ -7122,7 +7096,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 135 โหลดแล้ว — มือถือดีไซน์แนวแอป: แถบเมนูล่าง + ปุ่มลอย","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 136 โหลดแล้ว — แก้แปลนยืดผิดสัดส่วนบนมือถือ (คงสัดส่วนแปลน) + ปิด debug","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();
