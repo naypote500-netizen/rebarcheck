@@ -485,7 +485,23 @@ body.editor-wide header .hd-wrap{max-width:none}
 .prog-sp{flex:1 1 auto}
 .prog-pct{font-weight:700;color:var(--brand);white-space:nowrap}
 .prog-pct small{color:var(--text-dim,#7a8698);font-weight:500}
-@media(max-width:640px){ .prog-title{order:-1;flex-basis:100%} .prog-sp{display:none} }
+.prog-counts{font-size:13px;color:var(--text-dim,#7a8698);display:flex;align-items:center;gap:2px;flex-wrap:wrap}
+.prog-c{display:inline-flex;align-items:center;gap:4px;color:var(--text,#223)}
+.prog-c-dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+@media(max-width:640px){ .prog-title{order:-1;flex-basis:100%} .prog-sp{display:none} .prog-counts{flex-basis:100%} }
+/* สรุปจำนวนต่อสถานะ ในพาเนลโซน */
+.ftp-stat-counts{display:flex;flex-wrap:wrap;gap:6px 10px;padding:2px 2px 8px}
+.ftp-sc{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text,#223)}
+.ftp-sc-dot{width:10px;height:10px;border-radius:3px}
+.ftp-managest{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:8px;padding:7px;border:1px dashed var(--border,#cfd6e2);border-radius:9px;background:transparent;color:var(--text-dim,#5b6675);font-size:12.5px;cursor:pointer}
+.ftp-managest:hover{border-color:var(--brand);color:var(--brand)}
+/* dialog จัดการสถานะ */
+.zs-list{display:flex;flex-direction:column;gap:8px;margin:4px 0}
+.zs-row{display:flex;align-items:center;gap:8px}
+.zs-color{width:40px;height:36px;padding:2px;border:1px solid var(--border,#d6dbe4);border-radius:8px;background:var(--surface,#fff);cursor:pointer;flex:none}
+.zs-label{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--border,#d6dbe4);border-radius:8px;background:var(--surface,#fff);color:var(--text,#223);font-size:14px}
+.zs-del{flex:none;padding:6px 9px}
+.zs-add{margin-top:4px}
 /* ยุบพาเนลขวา → แปลนเต็มความกว้าง */
 .editor.rp-collapsed{grid-template-columns:1fr}
 .editor.rp-collapsed .rp-splitter,.editor.rp-collapsed .editor-right{display:none}

@@ -383,6 +383,26 @@ function membersOfProject(pid){ return DB.members.filter(function(m){ return m.p
 function getZone(id){    return DB.zones.filter(function(z){ return z.id===id; })[0] || null; }
 function zonesOfFloor(fid){ return (DB.zones||[]).filter(function(z){ return z.floorId===fid; }); }
 function zonesOfPlan(fid, planId){ return (DB.zones||[]).filter(function(z){ return z.floorId===fid && z.planId===planId; }); }
+/* ---- สถานะโซนเท (กำหนดเองได้ แยกตามแต่ละแปลน/ชั้น) ---- */
+var DEFAULT_ZONE_STATUSES=[
+  {id:"done",    label:"เทแล้ว", color:"#22c55e"},
+  {id:"progress",label:"กำลังเท",color:"#eab308"},
+  {id:"pending", label:"รอเท",   color:"#94a3b8"}
+];
+/** รายการสถานะของแปลนนั้น (สร้างค่าเริ่มต้นถ้ายังไม่มี) */
+function zoneStatuses(fid, planId){
+  var f=getFloor(fid);
+  if(!f) return DEFAULT_ZONE_STATUSES.map(function(s){ return Object.assign({},s); });
+  if(!f.zoneStatusMap) f.zoneStatusMap={};
+  if(!f.zoneStatusMap[planId] || !f.zoneStatusMap[planId].length)
+    f.zoneStatusMap[planId]=DEFAULT_ZONE_STATUSES.map(function(s){ return Object.assign({},s); });
+  return f.zoneStatusMap[planId];
+}
+/** หาสถานะตาม id (ถ้าไม่พบใช้ตัวแรก/เทา) */
+function getZoneStatus(fid, planId, id){
+  var list=zoneStatuses(fid,planId);
+  return list.filter(function(s){ return s.id===id; })[0] || list[0] || {id:id,label:id||"—",color:"#94a3b8"};
+}
 /** ผลตรวจล่าสุดของชิ้นส่วน (ใช้แสดงจุดสถานะในรายการ) */
 function lastInspection(memberId){
   var found=null;
@@ -2898,6 +2918,53 @@ function dlgDelFloor(id){
   render(); toast("ลบชั้นแล้ว");
 }
 
+/* ---- จัดการสถานะโซนเท (กำหนดเอง แยกตามแปลน) ---- */
+function _zsCapture(){
+  $$(".zs-label").forEach(function(el){ var s=(state._stEdit||[])[+el.getAttribute("data-i")]; if(s) s.label=el.value; });
+  $$(".zs-color").forEach(function(el){ var s=(state._stEdit||[])[+el.getAttribute("data-i")]; if(s) s.color=el.value; });
+}
+function _renderZoneStatusSheet(){
+  var list=state._stEdit||[];
+  var rows=list.map(function(s,i){
+    return '<div class="zs-row" data-i="'+i+'">'
+      +'<input type="color" class="zs-color" value="'+esc(s.color||"#94a3b8")+'" data-i="'+i+'">'
+      +'<input type="text" class="zs-label" value="'+esc(s.label||"")+'" data-i="'+i+'" placeholder="ชื่อสถานะ เช่น เทคอนกรีตเสร็จ">'
+      +'<button class="btn soft zs-del" data-act="zsDelStatus" data-sid="'+esc(s.id)+'" title="ลบสถานะนี้"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>'
+      +'</div>';
+  }).join("");
+  openSheet('<h3>จัดการสถานะโซน (เฉพาะแปลนนี้)</h3>'
+    +'<p class="tiny muted" style="margin:0 0 8px">ตั้งชื่อสถานะและสีเองได้ เช่น “เสริมเหล็กเสร็จ”, “เทคอนกรีตเสร็จ”</p>'
+    +'<div class="zs-list">'+rows+'</div>'
+    +'<button class="btn soft zs-add" data-act="zsAddStatus"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> เพิ่มสถานะ</button>'
+    +'<div class="row-end" style="margin-top:12px">'
+    +'<button class="btn soft" data-act="closeSheet">ยกเลิก</button>'
+    +'<button class="btn" data-act="zsSaveStatus">บันทึก</button></div>');
+}
+function dlgZoneStatus(){
+  state._stEdit=zoneStatuses(state.floorId, curPlanId()).map(function(s){ return Object.assign({},s); });
+  _renderZoneStatusSheet();
+}
+function zsAddStatus(){ _zsCapture(); if(!state._stEdit) state._stEdit=[]; state._stEdit.push({id:uid("st"), label:"สถานะใหม่", color:"#3b82f6"}); _renderZoneStatusSheet(); }
+function zsDelStatus(sid){
+  _zsCapture();
+  if((state._stEdit||[]).length<=1){ toast("ต้องมีอย่างน้อย 1 สถานะ",true); return; }
+  state._stEdit=state._stEdit.filter(function(s){ return s.id!==sid; });
+  _renderZoneStatusSheet();
+}
+function zsSaveStatus(){
+  _zsCapture();
+  var list=(state._stEdit||[]).map(function(s){ return {id:s.id, label:(s.label||"").trim()||"สถานะ", color:s.color||"#94a3b8"}; });
+  if(!list.length){ toast("ต้องมีอย่างน้อย 1 สถานะ",true); return; }
+  var f=getFloor(state.floorId); if(!f){ closeSheet(); return; }
+  if(!f.zoneStatusMap) f.zoneStatusMap={};
+  var pid=curPlanId();
+  f.zoneStatusMap[pid]=list;
+  var ids={}; list.forEach(function(s){ ids[s.id]=1; });
+  zonesOfPlan(state.floorId,pid).forEach(function(z){ if(!ids[z.status]) z.status=list[0].id; });   // สถานะที่ถูกลบ → ใช้ตัวแรก
+  if(!saveDB()) return;
+  state._stEdit=null; closeSheet(); render(); toast("บันทึกสถานะแล้ว");
+}
+
 /* ---------------------------------------------------------------------------
    8) สถานะหน้าจอ + การนำทาง
       ลำดับหน้าจอ: projects → floors → members → detail
@@ -2919,6 +2986,7 @@ var state = {
   listFilter:"all",      // กรองชนิดในแท็บรายการ (โหมดรวม)
   tool:"select",         // เครื่องมือ: select | draw
   drawShape:"rect",      // รูปทรงที่จะวาด (พื้นที่): rect | oval | poly
+  zoneShape:"rect",      // รูปทรงที่จะวาดโซนเท: rect | poly
   showLegend:false, legendPos:null,   // ตารางสีบนแปลน (Legend)
   floatStyleOpen:false, floatStylePos:null,  // หน้าต่างลอยสไตล์กรอบ
   showProgress:true, selZoneId:null, floatProgressOpen:false, floatProgressPos:null,  // ความคืบหน้าเทคอนกรีต
@@ -3216,7 +3284,11 @@ document.addEventListener("click",function(e){
     case "toggleProgress": state.showProgress=!state.showProgress; render(); break;
     case "toggleProgressPanel": state.floatProgressOpen=!state.floatProgressOpen; render(); break;
     case "closeProgressPanel": state.floatProgressOpen=false; render(); break;
-    case "drawZoneStart": state.tool="drawZone"; state.floatProgressOpen=true; render(); break;
+    case "drawZoneStart": { var _zs=el.getAttribute("data-shape"); if(_zs) state.zoneShape=_zs; state.tool="drawZone"; state.floatProgressOpen=true; render(); break; }
+    case "manageZoneStatus": dlgZoneStatus(); break;
+    case "zsAddStatus": zsAddStatus(); break;
+    case "zsDelStatus": zsDelStatus(el.getAttribute("data-sid")); break;
+    case "zsSaveStatus": zsSaveStatus(); break;
     case "selectZone": state.selZoneId=el.getAttribute("data-zid"); state.floatProgressOpen=true; render(); break;
     case "deleteZone": {
       var zid=el.getAttribute("data-zid")||state.selZoneId;
@@ -3608,28 +3680,31 @@ function planShapesSVG(VW,VH){
   var shapes="";
   // ── โซนความคืบหน้าเทคอนกรีต (แสดงเฉพาะหน้าอัพเดท) ──
   if(isProgress && state.showProgress){
-    var ZCOLORS={done:"#22c55e",progress:"#eab308",pending:"#94a3b8"};
-    var ZLABELS={done:"เทแล้ว",progress:"กำลังเท",pending:"รอเท"};
-    var ZICONS={done:"✓",progress:"◐",pending:"○"};
     var zones=zonesOfPlan(f.id, _pid);
     zones.forEach(function(z){
-      var zp=z.plan, st=z.status||"pending", col=ZCOLORS[st];
+      var zp=z.plan||{}, stObj=getZoneStatus(f.id,_pid,z.status), col=stObj.color, label=stObj.label;
       var zx=Math.min(zp.x1,zp.x2)*VW, zy=Math.min(zp.y1,zp.y2)*VH;
       var zw=Math.abs(zp.x2-zp.x1)*VW, zh=Math.abs(zp.y2-zp.y1)*VH;
       var zcx=zx+zw/2, zcy=zy+zh/2;
       var isSel=(z.id===state.selZoneId);
-      var dash=st==="pending"?' stroke-dasharray="12 6"':'';
-      shapes+='<rect data-zid="'+z.id+'" x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh
-        +'" rx="4" fill="'+col+'" fill-opacity="0.08" stroke="'+col+'" stroke-width="'+(isSel?4:2)+'"'+dash+' style="cursor:pointer"/>';
-      if(isSel) shapes+='<rect x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh
-        +'" rx="4" fill="none" stroke="var(--brand)" stroke-width="2" stroke-dasharray="8 4" style="pointer-events:none"/>';
-      // Stamp badge
-      var badgeW=120, badgeH=z.date?44:30;
+      if(zp.kind==="poly" && zp.pts && zp.pts.length){
+        var pstr=zp.pts.map(function(p){ return (zx+p[0]*zw).toFixed(1)+","+(zy+p[1]*zh).toFixed(1); }).join(" ");
+        shapes+='<polygon data-zid="'+z.id+'" points="'+pstr+'" fill="'+col+'" fill-opacity="0.08" stroke="'+col+'" stroke-width="'+(isSel?4:2)+'" stroke-linejoin="round" style="cursor:pointer"/>';
+        if(isSel) shapes+='<polygon points="'+pstr+'" fill="none" stroke="var(--brand)" stroke-width="2" stroke-dasharray="8 4" stroke-linejoin="round" style="pointer-events:none"/>';
+      }else{
+        shapes+='<rect data-zid="'+z.id+'" x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh
+          +'" rx="4" fill="'+col+'" fill-opacity="0.08" stroke="'+col+'" stroke-width="'+(isSel?4:2)+'" style="cursor:pointer"/>';
+        if(isSel) shapes+='<rect x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh
+          +'" rx="4" fill="none" stroke="var(--brand)" stroke-width="2" stroke-dasharray="8 4" style="pointer-events:none"/>';
+      }
+      // Stamp badge (กลางรูป)
+      var badgeW=Math.max(96, Math.min(180, label.length*11+40)), badgeH=z.date?44:30;
       var bx=zcx-badgeW/2, by=zcy-badgeH/2;
       shapes+='<g class="zone-stamp" data-zid="'+z.id+'" style="cursor:pointer">'
         +'<rect x="'+bx+'" y="'+by+'" width="'+badgeW+'" height="'+badgeH+'" rx="8" fill="var(--surface,#fff)" stroke="'+col+'" stroke-width="2"/>'
-        +'<text x="'+zcx+'" y="'+(zcy-(z.date?6:0))+'" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="700" fill="'+col
-        +'" font-family="system-ui,sans-serif">'+ZICONS[st]+' '+ZLABELS[st]+'</text>';
+        +'<circle cx="'+(bx+14)+'" cy="'+(zcy-(z.date?6:0))+'" r="5" fill="'+col+'"/>'
+        +'<text x="'+(zcx+7)+'" y="'+(zcy-(z.date?6:0))+'" text-anchor="middle" dominant-baseline="central" font-size="15" font-weight="700" fill="'+col
+        +'" font-family="system-ui,sans-serif">'+esc(label)+'</text>';
       if(z.date) shapes+='<text x="'+zcx+'" y="'+(zcy+14)+'" text-anchor="middle" dominant-baseline="central" font-size="12" fill="var(--text-dim,#888)" font-family="system-ui,sans-serif">'+esc(z.date)+'</text>';
       shapes+='</g>';
       // Zone name label
@@ -3744,22 +3819,24 @@ function floatProgressHtml(){
   var f=getFloor(state.floorId); if(!f) return "";
   var _pid=curPlanId();
   var zones=zonesOfPlan(f.id, _pid);
-  var ZCOLORS={done:"#22c55e",progress:"#eab308",pending:"#94a3b8"};
-  var ZLABELS={done:"เทแล้ว",progress:"กำลังเท",pending:"รอเท"};
-  var ZICONS={done:"✓",progress:"◐",pending:"○"};
+  var stList=zoneStatuses(f.id,_pid);
+  var stMap={}; stList.forEach(function(s){ stMap[s.id]=s; });
   var pos=state.floatProgressPos||{x:14,y:60};
   var selZ=state.selZoneId?getZone(state.selZoneId):null;
-  var doneCount=zones.filter(function(z){return z.status==="done";}).length;
-  var pct=zones.length?Math.round(doneCount/zones.length*100):0;
 
-  var body='<div class="ftp-summary"><span>'+zones.length+' โซน</span><span class="ftp-pct">'+pct+'% เสร็จ</span></div>';
+  // สรุป: จำนวนต่อสถานะ (ไม่ใช้ %)
+  var counts={}; zones.forEach(function(z){ counts[z.status]=(counts[z.status]||0)+1; });
+  var body='<div class="ftp-summary"><span>'+zones.length+' โซน</span></div>';
+  body+='<div class="ftp-stat-counts">';
+  stList.forEach(function(s){ body+='<span class="ftp-sc"><span class="ftp-sc-dot" style="background:'+s.color+'"></span>'+esc(s.label)+' '+(counts[s.id]||0)+'</span>'; });
+  body+='</div>';
 
   // Zone list
   zones.forEach(function(z){
-    var st=z.status||"pending", col=ZCOLORS[st], isSel=(z.id===state.selZoneId);
+    var s=stMap[z.status]||stList[0]||{label:z.status||"—",color:"#94a3b8"}, isSel=(z.id===state.selZoneId);
     body+='<button class="ftp-zone'+(isSel?" sel":"")+'" data-act="selectZone" data-zid="'+esc(z.id)+'">'
-      +'<span class="ftp-z-badge" style="background:'+col+'">'+ZICONS[st]+'</span>'
-      +'<span class="ftp-z-info"><span class="ftp-z-name">'+esc(z.name)+'</span><span class="ftp-z-sub">'+ZLABELS[st]+(z.date?' · '+esc(z.date):'')+'</span></span>'
+      +'<span class="ftp-z-badge" style="background:'+s.color+'"></span>'
+      +'<span class="ftp-z-info"><span class="ftp-z-name">'+esc(z.name)+'</span><span class="ftp-z-sub">'+esc(s.label)+(z.date?' · '+esc(z.date):'')+'</span></span>'
       +'</button>';
   });
 
@@ -3768,14 +3845,15 @@ function floatProgressHtml(){
     body+='<div class="ftp-edit">'
       +'<div class="ftp-edit-row"><span>ชื่อ</span><input type="text" id="zoneNameInput" value="'+esc(selZ.name)+'" class="ftp-input"></div>'
       +'<div class="ftp-edit-row"><span>สถานะ</span><select id="zoneStatusSel" class="ftp-input">'
-        +'<option value="done"'+(selZ.status==="done"?" selected":"")+'>✓ เทแล้ว</option>'
-        +'<option value="progress"'+(selZ.status==="progress"?" selected":"")+'>◐ กำลังเท</option>'
-        +'<option value="pending"'+(selZ.status==="pending"?" selected":"")+'>○ รอเท</option>'
+        + stList.map(function(s){ return '<option value="'+esc(s.id)+'"'+(selZ.status===s.id?" selected":"")+'>'+esc(s.label)+'</option>'; }).join("")
       +'</select></div>'
       +'<div class="ftp-edit-row"><span>วันที่</span><input type="date" id="zoneDateInput" value="'+esc(selZ.date||"")+'" class="ftp-input"></div>'
       +'<button class="ftp-del" data-act="deleteZone" data-zid="'+esc(selZ.id)+'"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg> ลบโซน</button>'
       +'</div>';
   }
+
+  // ปุ่มจัดการสถานะ (กำหนดเอง)
+  body+='<button class="ftp-managest" data-act="manageZoneStatus"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8 2 2 0 1 1-2.8 2.8 1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0 1.6 1.6 0 0 0-2.6-1.1 2 2 0 1 1-2.8-2.8A1.6 1.6 0 0 0 3.9 15a2 2 0 0 1 0-4 1.6 1.6 0 0 0 1.1-2.6A2 2 0 1 1 7.8 5.6 1.6 1.6 0 0 0 10 5.3V5a2 2 0 0 1 4 0 1.6 1.6 0 0 0 2.2.3 2 2 0 1 1 2.8 2.8A1.6 1.6 0 0 0 20.7 11a2 2 0 0 1 0 4Z"/></svg> จัดการสถานะ + สี</button>';
 
   // Action buttons
   body+='<div class="ftp-actions">'
@@ -4491,9 +4569,10 @@ function viewProgress(){
   var f=getFloor(state.floorId), p=getProject(state.projectId);
   if(!f) return emptyBox('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18M9 21V9"/></svg>',"ยังไม่ได้เลือกชั้น","เปิดโครงการและชั้นก่อน แล้วกด “อัพเดทความคืบหน้า”");
   var plan=getFloorPlan(f);
-  var zones=zonesOfPlan(f.id, curPlanId());
-  var done=zones.filter(function(z){ return z.status==="done"; }).length;
-  var pct=zones.length?Math.round(done/zones.length*100):0;
+  var _pidP=curPlanId();
+  var zones=zonesOfPlan(f.id, _pidP);
+  var stListP=zoneStatuses(f.id,_pidP);
+  var countsP={}; zones.forEach(function(z){ countsP[z.status]=(countsP[z.status]||0)+1; });
 
   var _icPlan='<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="m21 15-5-5L5 21"/></svg>';
   var _plans=floorPlans(f);
@@ -4510,6 +4589,16 @@ function viewProgress(){
 
   var ICpdf='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5"/><path d="M9 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5H9"/><path d="M12 18v-6M9 15l3 3 3-3"/></svg>';
   var ICdraw='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="1.5"/><path d="M12 3v3M12 18v3"/></svg>';
+  var ICrect='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="1.5"/></svg>';
+  var ICpoly='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 6-3 10H7L4 9z"/></svg>';
+  var ICsnap='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="3"/></svg>';
+  var drawMenu='<details class="tb-menu"'+(state.tool==="drawZone"?' open':'')+'><summary class="btn'+(state.tool==="drawZone"?" on":"")+'" style="margin:0">'+ICdraw+' วาดโซนใหม่ <span class="caret">▾</span></summary><div class="tb-menu-b">'
+    +'<div class="tbm-h">รูปทรงโซน</div>'
+    +'<button class="tbm-item'+(state.tool==="drawZone"&&state.zoneShape==="rect"?" on":"")+'" data-act="drawZoneStart" data-shape="rect">'+ICrect+' <span class="tbm-t">สี่เหลี่ยม</span></button>'
+    +'<button class="tbm-item'+(state.tool==="drawZone"&&state.zoneShape==="poly"?" on":"")+'" data-act="drawZoneStart" data-shape="poly">'+ICpoly+' <span class="tbm-t">หลายเหลี่ยม (คลิกทีละจุด)</span></button>'
+    +'<div class="tbm-sep"></div>'
+    +'<button class="tbm-item'+(state.snap?" on":"")+'" data-act="toggleSnap">'+ICsnap+' <span class="tbm-t">สแนบเส้นแปลน</span>'+(state.snap?'<span class="tbm-ck">✓</span>':'')+'</button>'
+    +'</div></details>';
   var ICeye=state.showProgress?'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>':'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.2A9.8 9.8 0 0 1 12 4c6.5 0 10 7 10 7a13 13 0 0 1-2.3 3M6.6 6.6A13 13 0 0 0 2 12s3.5 7 10 7a9.5 9.5 0 0 0 4.3-1M3 3l18 18"/></svg>';
 
   var toolbar='<div class="prog-bar">'
@@ -4517,8 +4606,8 @@ function viewProgress(){
     + '<div class="prog-title"><b>อัพเดทความคืบหน้าเทคอนกรีต</b><small>'+esc(p?p.name:"")+(f.name?' · '+esc(f.name):'')+'</small></div>'
     + planMenu
     + '<div class="prog-sp"></div>'
-    + '<span class="prog-pct">'+pct+'% เสร็จ <small>('+done+'/'+zones.length+' โซน)</small></span>'
-    + '<button class="btn'+(state.tool==="drawZone"?" on":"")+'" data-act="drawZoneStart">'+ICdraw+' วาดโซนใหม่</button>'
+    + '<span class="prog-counts">'+zones.length+' โซน'+stListP.map(function(s){ return ' · <span class="prog-c"><span class="prog-c-dot" style="background:'+s.color+'"></span>'+esc(s.label)+' '+(countsP[s.id]||0)+'</span>'; }).join("")+'</span>'
+    + drawMenu
     + '<button class="btn soft" data-act="toggleProgress" title="ซ่อน/แสดงโซน">'+ICeye+'</button>'
     + '<button class="btn soft" data-act="exportProgressPdf">'+ICpdf+' PDF อัพเดท</button>'
     + '</div>';
@@ -4788,7 +4877,7 @@ function bindPlanEditor(){
   }
   function snapAt(ev){
     var p=norm(ev), r=overlay.getBoundingClientRect();
-    var sp=(state.tool==="draw") ? snapNorm(p.x,p.y,r.width,r.height) : null;
+    var sp=(state.tool==="draw"||state.tool==="drawZone") ? snapNorm(p.x,p.y,r.width,r.height) : null;
     if(sp){ showSnap(sp,r); return {x:sp.x,y:sp.y}; }
     showSnap(null); return p;
   }
@@ -4963,13 +5052,45 @@ function bindPlanEditor(){
     return;
   }
 
-  /* ---------- โหมดวาดโซนเท ---------- */
+  /* ---------- โหมดวาดโซนเท (สี่เหลี่ยม / หลายเหลี่ยม + สแนบ) ---------- */
   if(state.tool==="drawZone"){
+    var ZCOL="#22c55e";
+    if((state.zoneShape||"rect")==="poly"){   // หลายเหลี่ยม: คลิกทีละจุด, ดับเบิลคลิก/คลิกจุดแรกเพื่อปิดรูป
+      var zpts=[], zg=document.createElementNS(NS,"g"); zg.setAttribute("id","zonePolyTemp"); overlay.appendChild(zg);
+      function zredraw(cur){
+        var z=state.zoom||1, arr=zpts.slice(); if(cur) arr.push(cur);
+        var out="";
+        if(arr.length){
+          var dd=arr.map(function(p){ return (p.x*VW).toFixed(1)+","+(p.y*VH).toFixed(1); }).join(" ");
+          out+='<polyline points="'+dd+'" fill="'+ZCOL+'" fill-opacity="'+(zpts.length>=2?0.08:0)+'" stroke="'+ZCOL+'" stroke-width="'+(2.4/z)+'" stroke-dasharray="'+(7/z)+' '+(5/z)+'" stroke-linecap="round" stroke-linejoin="round"/>';
+          zpts.forEach(function(p){ out+='<circle cx="'+(p.x*VW)+'" cy="'+(p.y*VH)+'" r="'+(5/z)+'" fill="#fff" stroke="'+ZCOL+'" stroke-width="'+(2/z)+'"/>'; });
+        }
+        zg.innerHTML=out;
+      }
+      function zfinishPoly(){
+        if(zpts.length<3){ zg.remove(); showSnap(null); return; }
+        var xs=zpts.map(function(p){return p.x;}), ys=zpts.map(function(p){return p.y;});
+        var x1=Math.min.apply(null,xs), x2=Math.max.apply(null,xs), y1=Math.min.apply(null,ys), y2=Math.max.apply(null,ys);
+        var w=Math.max(1e-4,x2-x1), hgt=Math.max(1e-4,y2-y1);
+        var np=zpts.map(function(p){ return [(p.x-x1)/w, (p.y-y1)/hgt]; });
+        zg.remove(); showSnap(null);
+        finishDrawZone({kind:"poly", x1:x1, y1:y1, x2:x2, y2:y2, pts:np});
+      }
+      overlay.addEventListener("pointermove",function(ev){ zredraw(snapAt(ev)); });
+      overlay.addEventListener("click",function(ev){
+        var p=snapAt(ev);
+        if(zpts.length>=3){ var fpt=zpts[0], r=overlay.getBoundingClientRect();
+          if(Math.hypot((p.x-fpt.x)*r.width,(p.y-fpt.y)*r.height)<12){ zfinishPoly(); return; } }
+        zpts.push(p); zredraw(p);
+      });
+      overlay.addEventListener("dblclick",function(ev){ ev.preventDefault(); if(zpts.length) zpts.pop(); zfinishPoly(); });
+      return;
+    }
     var zStart=null, zTemp=null;
     function zDrawMove(ev2){
       if(!zStart||!zTemp) return;
       if(ev2.cancelable) ev2.preventDefault();
-      var p=norm(ev2);
+      var p=snapAt(ev2);
       zTemp.setAttribute("x",Math.min(zStart.x,p.x)*VW); zTemp.setAttribute("y",Math.min(zStart.y,p.y)*VH);
       zTemp.setAttribute("width",Math.abs(p.x-zStart.x)*VW); zTemp.setAttribute("height",Math.abs(p.y-zStart.y)*VH);
     }
@@ -4978,22 +5099,24 @@ function bindPlanEditor(){
       window.removeEventListener("pointerup",zDrawEnd,true);
       window.removeEventListener("pointercancel",zDrawEnd,true);
       if(!zStart) return;
-      var p=norm(ev2), s=zStart; zStart=null;
+      var p=snapAt(ev2), s=zStart; zStart=null; showSnap(null);
       if(zTemp){ zTemp.remove(); zTemp=null; }
       var rb=overlay.getBoundingClientRect();
       if(Math.abs(p.x-s.x)*rb.width<5 && Math.abs(p.y-s.y)*rb.height<5) return;
-      finishDrawZone({x1:s.x, y1:s.y, x2:p.x, y2:p.y});
+      finishDrawZone({kind:"rect", x1:s.x, y1:s.y, x2:p.x, y2:p.y});
     }
+    overlay.addEventListener("pointermove",function(ev){ if(!zStart) snapAt(ev); });
+    overlay.addEventListener("pointerleave",function(){ if(!zStart) showSnap(null); });
     overlay.addEventListener("pointerdown",function(ev){
       if(window.__planPinch) return;
       if(ev.button!=null && ev.button!==0) return;
       ev.preventDefault();
-      zStart=norm(ev);
+      zStart=snapAt(ev);
       zTemp=document.createElementNS(NS,"rect");
       var z=state.zoom||1;
-      zTemp.setAttribute("stroke","#22c55e"); zTemp.setAttribute("stroke-width",(2.4/z));
+      zTemp.setAttribute("stroke",ZCOL); zTemp.setAttribute("stroke-width",(2.4/z));
       zTemp.setAttribute("stroke-dasharray",(7/z)+" "+(5/z));
-      zTemp.setAttribute("fill","#22c55e"); zTemp.setAttribute("fill-opacity","0.08");
+      zTemp.setAttribute("fill",ZCOL); zTemp.setAttribute("fill-opacity","0.08");
       zTemp.setAttribute("rx","4");
       overlay.appendChild(zTemp);
       window.addEventListener("pointermove",zDrawMove,true);
@@ -5137,8 +5260,9 @@ function finishDrawZone(geom){
   var name=window.prompt("ชื่อโซน:", suggest);
   if(name===null){ state.tool="select"; render(); return; }
   name=name.trim()||suggest;
+  var _stL=zoneStatuses(state.floorId, curPlanId()), _st0=(_stL[_stL.length-1]||_stL[0]||{id:"pending"}).id;
   var z={ id:uid("z"), projectId:state.projectId, floorId:state.floorId, planId:curPlanId(),
-    name:name, status:"pending", date:null, plan:geom };
+    name:name, status:_st0, date:null, plan:geom };
   if(!DB.zones) DB.zones=[];
   DB.zones.push(z);
   saveDB();
@@ -5686,11 +5810,11 @@ function exportProgressPDF(){
   var origProgress=state.showProgress; state.showProgress=true;
   var vm=membersOfFloor(f.id).filter(function(m){ return m.plan && !m.hidden && memberPlanId(m)===_pid && (state.unified?!state.hiddenTypes[m.type]:(m.type===type)); });
   toast("กำลังสร้าง PDF อัพเดท…");
-  var ZC={done:"#22c55e",progress:"#eab308",pending:"#94a3b8"}, ZL={done:"เทแล้ว",progress:"กำลังเท",pending:"รอเท"};
-  var zc={done:0,progress:0,pending:0}; zones.forEach(function(z){ zc[z.status]=(zc[z.status]||0)+1; });
-  var zChips=[["ทั้งหมด "+zones.length+" โซน",null],[ZL.done+" "+zc.done,ZC.done],[ZL.progress+" "+zc.progress,ZC.progress],[ZL.pending+" "+zc.pending,ZC.pending]];
-  var zLeg=["done","progress","pending"].filter(function(s){ return zc[s]>0; }).map(function(s){
-    return { color:ZC[s], label:ZL[s], n:zc[s], codes:zones.filter(function(z){return z.status===s;}).map(function(z){return z.name;}) };
+  var stListX=zoneStatuses(f.id,_pid);
+  var zc={}; zones.forEach(function(z){ zc[z.status]=(zc[z.status]||0)+1; });
+  var zChips=[["ทั้งหมด "+zones.length+" โซน",null]].concat(stListX.map(function(s){ return [s.label+" "+(zc[s.id]||0), s.color]; }));
+  var zLeg=stListX.filter(function(s){ return (zc[s.id]||0)>0; }).map(function(s){
+    return { color:s.color, label:s.label, n:zc[s.id], codes:zones.filter(function(z){return z.status===s.id;}).map(function(z){return z.name;}) };
   });
   var p0=getProject(state.projectId);
   var zSub=(p0?p0.name:"—")+"  ·  "+(f?f.name:"—")+"  ·  "+(plan?(plan.name||"แปลน"):"—");
