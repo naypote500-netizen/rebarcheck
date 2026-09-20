@@ -6166,44 +6166,44 @@ function buildReportSheet(planCv, vm, keyCv){
   var SW=Math.round((landscape?16.54:11.69)*DPI), SH=Math.round((landscape?11.69:16.54)*DPI);   // A3
   var cv=document.createElement("canvas"); cv.width=SW; cv.height=SH;
   var cx=cv.getContext("2d"); cx.fillStyle="#ffffff"; cx.fillRect(0,0,SW,SH);
-  var M=Math.round(SW*0.03), brand=_cvar("brand"), ink="#12233a", sub="#5b6675";
+  var M=Math.round(SW*0.02), brand=_cvar("brand"), ink="#12233a", sub="#5b6675";
   var p=getProject(state.projectId), f=getFloor(state.floorId), type=state.catType, sm=summarize(vm);
-  // ── หัวกระดาษ ──
-  var y=M;
-  cx.fillStyle=brand; cx.fillRect(M, y, Math.round(SW*0.012), Math.round(SH*0.052));   // แถบสีนำหน้าชื่อ
+  // ── หัวกระดาษ (กระชับ 2 บรรทัด: ชื่อ+วันที่ / โครงการ+ชิปสรุปชิดขวา) ──
+  var y=M, tX=M+Math.round(SW*0.022);
+  cx.fillStyle=brand; cx.fillRect(M, y, Math.round(SW*0.009), Math.round(SH*0.048));   // แถบสีนำหน้าชื่อ
   cx.textBaseline="top"; cx.textAlign="left";
-  var tS=Math.round(SW*0.020);
+  var tS=Math.round(SW*0.019);
   cx.fillStyle=ink; cx.font="800 "+tS+"px "+FF;
-  cx.fillText("รายงานแปลนตรวจเหล็กเสริม", M+Math.round(SW*0.028), y+2);
-  cx.fillStyle=sub; cx.font="500 "+Math.round(SW*0.0125)+"px "+FF;
-  cx.fillText((p?p.name:"—")+"  ·  "+(f?f.name:"—")+"  ·  หมวด "+(TYPE_EN[type]||TYPES[type].label), M+Math.round(SW*0.028), y+tS+Math.round(SH*0.012));
-  // วันที่ (ชิดขวา)
-  cx.textAlign="right"; cx.fillStyle=sub; cx.font="500 "+Math.round(SW*0.012)+"px "+FF;
-  cx.fillText("วันที่ออกรายงาน  "+dMY(Date.now()), SW-M, y+2);
+  cx.fillText("รายงานแปลนตรวจเหล็กเสริม", tX, y);
+  cx.textAlign="right"; cx.fillStyle=sub; cx.font="500 "+Math.round(SW*0.011)+"px "+FF;
+  cx.fillText("วันที่ออกรายงาน  "+dMY(Date.now()), SW-M, y+Math.round(tS*0.15));
   cx.textAlign="left";
-  // แถวชิปสรุป
-  var chipY=y+Math.round(SH*0.058), chipH=Math.round(SH*0.045), chipFS=Math.round(SW*0.0115), cxp=M;
-  function chip(txt, dot){
-    cx.font="700 "+chipFS+"px "+FF;
-    var pad=Math.round(SW*0.012), dotR=dot?Math.round(chipFS*0.42):0, gap=dot?Math.round(chipFS*0.6):0;
-    var w=pad*2+ (dot?dotR*2+gap:0) + cx.measureText(txt).width;
-    cx.fillStyle="#f1f3f7"; _rr(cx,cxp,chipY,w,chipH,chipH/2); cx.fill();
+  // บรรทัด 2: โครงการ (ซ้าย) + ชิปสรุป (ขวา) อยู่แถวเดียวกัน
+  var r2H=Math.round(SH*0.034), r2Y=y+tS+Math.round(SH*0.012);
+  cx.fillStyle=sub; cx.font="500 "+Math.round(SW*0.0118)+"px "+FF; cx.textBaseline="middle";
+  cx.fillText((p?p.name:"—")+"  ·  "+(f?f.name:"—")+"  ·  หมวด "+(TYPE_EN[type]||TYPES[type].label), tX, r2Y+r2H/2);
+  cx.textBaseline="top";
+  var chipFS=Math.round(SW*0.011), pad=Math.round(SW*0.011), gap2=Math.round(SW*0.007), dotR=Math.round(chipFS*0.42), dotGap=Math.round(chipFS*0.55);
+  var chips=[["ทั้งหมด "+sm.total+" ชิ้น",null],["ผ่าน "+sm.pass,_cvar("pass")],["ไม่ผ่าน "+sm.fail,_cvar("fail")],["รอตรวจ "+sm.todo,_cvar("text-dim")]];
+  cx.font="700 "+chipFS+"px "+FF;
+  var cw=chips.map(function(c){ return pad*2+(c[1]?dotR*2+dotGap:0)+cx.measureText(c[0]).width; });
+  var totalW=cw.reduce(function(a,w){return a+w;},0)+gap2*(chips.length-1);
+  var cxp=Math.max(tX, SW-M-totalW);
+  chips.forEach(function(c,i){
+    var w=cw[i];
+    cx.fillStyle="#f1f3f7"; _rr(cx,cxp,r2Y,w,r2H,r2H/2); cx.fill();
     var tx=cxp+pad;
-    if(dot){ cx.fillStyle=dot; cx.beginPath(); cx.arc(cxp+pad+dotR,chipY+chipH/2,dotR,0,7); cx.fill(); tx=cxp+pad+dotR*2+gap; }
-    cx.fillStyle=ink; cx.textBaseline="middle"; cx.fillText(txt, tx, chipY+chipH/2+1); cx.textBaseline="top";
-    cxp+=w+Math.round(SW*0.01);
-  }
-  chip("ทั้งหมด "+sm.total+" ชิ้น", null);
-  chip("ผ่าน "+sm.pass, _cvar("pass"));
-  chip("ไม่ผ่าน "+sm.fail, _cvar("fail"));
-  chip("รอตรวจ "+sm.todo, _cvar("text-dim"));
-  var headBottom=chipY+chipH+Math.round(SH*0.02);
+    if(c[1]){ cx.fillStyle=c[1]; cx.beginPath(); cx.arc(cxp+pad+dotR,r2Y+r2H/2,dotR,0,7); cx.fill(); tx=cxp+pad+dotR*2+dotGap; }
+    cx.fillStyle=ink; cx.textBaseline="middle"; cx.font="700 "+chipFS+"px "+FF; cx.fillText(c[0],tx,r2Y+r2H/2+1); cx.textBaseline="top";
+    cxp+=w+gap2;
+  });
+  var headBottom=r2Y+r2H+Math.round(SH*0.01);
   cx.strokeStyle="#e3e7ee"; cx.lineWidth=1.5; cx.beginPath(); cx.moveTo(M,headBottom); cx.lineTo(SW-M,headBottom); cx.stroke();
   // ── Legend (แถบล่าง) — 1 แถวเต็มความกว้างต่อชนิด, โค้ดยาวเกินตัดด้วย …(+N) ไม่ทับกัน ──
   var leg=_legendForExport(vm);
-  var legFS=Math.round(SW*0.011), swz=Math.round(SW*0.016), legRowH=Math.round(SH*0.036);
-  var legTitleH=Math.round(SH*0.03);
-  var legH = leg.length? (legTitleH + leg.length*legRowH + Math.round(SH*0.01)) : 0;
+  var legFS=Math.round(SW*0.0105), swz=Math.round(SW*0.015), legRowH=Math.round(SH*0.028);
+  var legTitleH=Math.round(SH*0.022);
+  var legH = leg.length? (legTitleH + leg.length*legRowH + Math.round(SH*0.006)) : 0;
   var legTop=SH-M-legH;
   if(leg.length){
     cx.fillStyle=ink; cx.font="800 "+Math.round(SW*0.0125)+"px "+FF; cx.textBaseline="top";
@@ -6225,7 +6225,7 @@ function buildReportSheet(planCv, vm, keyCv){
     });
   }
   // ── รูปแปลน (กลาง) letterbox ──
-  var areaTop=headBottom+Math.round(SH*0.02), areaBottom=(leg.length?legTop:SH-M)-Math.round(SH*0.015);
+  var areaTop=headBottom+Math.round(SH*0.008), areaBottom=(leg.length?legTop:SH-M)-Math.round(SH*0.006);
   var pw=SW-2*M, ph=areaBottom-areaTop;
   var s=Math.min(pw/planCv.width, ph/planCv.height);
   var dw=planCv.width*s, dh=planCv.height*s, dx=M+(pw-dw)/2, dy=areaTop+(ph-dh)/2;
@@ -6932,7 +6932,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 125 โหลดแล้ว — แก้ภาพแปลนเบลอตอนวาด (ทาภาพคม deep-zoom กลับหลัง render)","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 126 โหลดแล้ว — PDF: บีบหัว/legend ให้แปลนใหญ่ขึ้นเต็มหน้า","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();
