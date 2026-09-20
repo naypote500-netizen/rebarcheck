@@ -790,7 +790,7 @@ svg .plan-label{cursor:move}
     linear-gradient(var(--border) 1px, transparent 1px),
     linear-gradient(90deg, var(--border) 1px, transparent 1px);
   background-size:34px 34px, 34px 34px;opacity:.7}
-.plan-overlay{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.plan-overlay{position:absolute;inset:0;width:100%;height:100%;touch-action:none;transform-origin:0 0;will-change:transform}
 .plan-overlay [data-mid]{cursor:pointer}
 .plan-overlay [data-handle]{cursor:move}
 .plan-overlay [data-handle="rot"]{cursor:grab}

@@ -3664,12 +3664,11 @@ function planStageHtml(){
     + '</div>' : '';
 
   return '<div class="plan-stage'+(drawing?" is-draw":"")+(plan?"":" no-plan")+'" id="planStage" style="aspect-ratio:'+ (plan&&plan.w?plan.w+"/"+plan.h : "100/72") +'">'
-       + '<div class="plan-canvas" id="planCanvas">'
-       +   bg
-       +   '<img class="plan-detail" id="planDetail" alt="" draggable="false" style="display:none">'   // เลเยอร์ความคมของส่วนที่เห็น (FOXIT-style)
+       + '<div class="plan-canvas" id="planCanvas">'+bg+'</div>'
+       // เลเยอร์ความคม + ไฮไลท์ อยู่ "นอก" canvas ที่ถูกซูม → บน iOS ภาพคมไม่โดน CSS transform ขยายจนเบลอ
+       +   '<img class="plan-detail" id="planDetail" alt="" draggable="false" style="display:none">'
        +   '<svg class="plan-overlay" id="planOverlay" viewBox="0 0 '+VW+' '+VH+'" '
        +     'data-vw="'+VW+'" data-vh="'+VH+'" preserveAspectRatio="none">'+shapes+'</svg>'
-       + '</div>'
        + selbar
        + (state.rpCollapsed ? (state.floatToolsHidden ? '<button class="plan-showtools" data-act="showFloatTools"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> เครื่องมือ</button>' : floatToolsHtml()) : '')
        + (state.showLegend ? legendHtml(members) : '')
@@ -4305,9 +4304,22 @@ function viewPlanEditor(){
 /* ---- ซูม/เลื่อนแปลน: ใช้ transform บน #planCanvas (transform-origin 0 0) ---- */
 function planApplyTransform(){
   var c=$("#planCanvas"); if(!c) return;
-  c.style.transformOrigin="0 0";
-  c.style.transform="translate("+state.panX+"px,"+state.panY+"px) scale("+state.zoom+")";   // ถูก แต่เบา (GPU)
+  var t="translate("+state.panX+"px,"+state.panY+"px) scale("+state.zoom+")";
+  c.style.transformOrigin="0 0"; c.style.transform=t;
+  var ov=$("#planOverlay"); if(ov){ ov.style.transformOrigin="0 0"; ov.style.transform=t; }   // ไฮไลท์ (เวกเตอร์) ซูมตามได้ คมเสมอ
+  positionDetail();      // เลเยอร์ภาพคม (screen-space) วางตามตำแหน่งจริงบนจอ
   updateLabelScale();
+}
+/** วางเลเยอร์ภาพคม (#planDetail) ในพิกัดจอจริง — คมบน iOS เพราะไม่อยู่ใน transform ที่ถูกซูม */
+function positionDetail(){
+  var det=$("#planDetail"); if(!det || det.style.display==="none") return;
+  var doc=PLAN_DOCS[planSourceKey()], st=$("#planStage");
+  if(!doc || !doc.detailBox || !st){ return; }
+  var sw=st.clientWidth, sh=st.clientHeight, z=state.zoom, px=state.panX, py=state.panY, b=doc.detailBox;
+  det.style.left=(b.rx1*sw*z+px)+"px";
+  det.style.top=(b.ry1*sh*z+py)+"px";
+  det.style.width=((b.rx2-b.rx1)*sw*z)+"px";
+  det.style.height=((b.ry2-b.ry1)*sh*z)+"px";
 }
 /** ปรับป้ายเบอร์และจุดจับให้คงขนาดคงที่บนจอ (สวนทางกับการซูม) จึงไม่บานตอนซูมเข้า */
 function updateLabelScale(){
@@ -5381,11 +5393,7 @@ function renderVisibleRegion(){
   if(doc.regionSig===sig){                            // ส่วนเดิม/ความละเอียดเดิม
     // แต่ถ้า #planDetail ถูกสร้างใหม่ (ว่าง) หลัง render (เช่นตอนเข้าโหมดวาด/วาดเสร็จ) → ทาภาพคมที่แคชไว้กลับทันที กันภาพเบลอ
     if(doc.detailUrl && doc.detailBox && !det.getAttribute("src")){
-      var b=doc.detailBox;
-      det.src=doc.detailUrl;
-      det.style.left=(b.rx1*100)+"%"; det.style.top=(b.ry1*100)+"%";
-      det.style.width=((b.rx2-b.rx1)*100)+"%"; det.style.height=((b.ry2-b.ry1)*100)+"%";
-      det.style.display="block";
+      det.src=doc.detailUrl; det.style.display="block"; positionDetail();
     }
     _planDbg("ใช้แคชคม (sig เดิม) tgt="+targetW);
     return;
@@ -5400,10 +5408,9 @@ function renderVisibleRegion(){
         if(doc.detailUrl){ try{ URL.revokeObjectURL(doc.detailUrl); }catch(e){} }
         if(url.indexOf("blob:")===0) doc.detailUrl=url;
         det.src=url;
-        det.style.left=(rx1*100)+"%"; det.style.top=(ry1*100)+"%";
-        det.style.width=((rx2-rx1)*100)+"%"; det.style.height=((ry2-ry1)*100)+"%";
+        doc.detailBox={rx1:rx1,ry1:ry1,rx2:rx2,ry2:ry2};   // ตำแหน่งภาพคม (พิกัดแปลน 0..1)
         det.style.display="block";
-        doc.detailBox={rx1:rx1,ry1:ry1,rx2:rx2,ry2:ry2};   // เก็บตำแหน่งไว้ทาภาพคมกลับหลัง render
+        positionDetail();                                   // วางในพิกัดจอจริง (screen-space) → คมบน iOS
         planLog("🔍 คมส่วนที่เห็น "+cv.width+"×"+cv.height);
         planTip("คมแล้ว "+cv.width+"×"+cv.height+" px");
         _planDbg("OK คม "+cv.width+"×"+cv.height);
@@ -5925,7 +5932,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 132 โหลดแล้ว — แก้แปลนเบลอบน iOS (เรนเดอร์เฉพาะส่วนที่เห็น ≤3200px ไม่เกินลิมิต iOS)","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 133 โหลดแล้ว — แก้แปลนเบลอบน iOS จริง (ย้ายเลเยอร์ภาพคมออกนอก transform)","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();
