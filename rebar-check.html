@@ -1108,6 +1108,37 @@ body.auth-mode header{display:none}
 .fts-swatches{display:grid;grid-template-columns:repeat(8,1fr);gap:3px}
 .fts-swatches .swatch{width:22px;height:22px;border-radius:5px;flex:none;border:1.5px solid rgba(0,0,0,.12)}
 .fts-swatches .swatch[data-swatch="#ffffff"]{border-color:var(--border-strong)}
+/* หน้าต่างลอย: ความคืบหน้าเทคอนกรีต */
+.plan-floatprogress{position:absolute;z-index:11;width:260px;border-radius:14px;overflow:hidden;
+  border:1px solid var(--border-strong);background:color-mix(in srgb,var(--surface) 95%, transparent);
+  backdrop-filter:saturate(150%) blur(8px);-webkit-backdrop-filter:saturate(150%) blur(8px);box-shadow:var(--shadow-md);max-height:70vh;overflow-y:auto}
+.ftp-head{display:flex;align-items:center;gap:6px;padding:8px 8px 8px 10px;font-size:.82rem;font-weight:800;
+  color:var(--text);background:var(--surface-2);border-bottom:1px solid var(--border);cursor:move;user-select:none;touch-action:none}
+.ftp-body{padding:10px 10px 12px;display:flex;flex-direction:column;gap:6px}
+.ftp-summary{display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-dim);font-weight:600;padding:2px 4px}
+.ftp-pct{color:#22c55e;font-weight:700}
+.ftp-zone{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:10px;
+  background:var(--surface);cursor:pointer;transition:border-color .13s;width:100%;text-align:left;font:inherit;color:var(--text)}
+.ftp-zone:hover{border-color:var(--brand)}
+.ftp-zone.sel{border-color:var(--brand);background:var(--brand-bg)}
+.ftp-z-badge{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:.7rem;font-weight:700;color:#fff;flex:none}
+.ftp-z-info{display:flex;flex-direction:column;gap:1px;min-width:0}
+.ftp-z-name{font-size:.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ftp-z-sub{font-size:.65rem;color:var(--text-dim)}
+.ftp-edit{margin-top:4px;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);display:flex;flex-direction:column;gap:6px}
+.ftp-edit-row{display:flex;align-items:center;gap:6px}
+.ftp-edit-row span{font-size:.68rem;font-weight:600;color:var(--text-dim);width:42px;flex:none}
+.ftp-input{flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:7px;font-size:.78rem;background:var(--surface);color:var(--text);min-width:0}
+.ftp-del{display:flex;align-items:center;gap:4px;padding:5px 10px;border:1px solid #ef4444;border-radius:8px;
+  background:rgba(239,68,68,.06);color:#ef4444;font-size:.72rem;font-weight:600;cursor:pointer;align-self:flex-start}
+.ftp-del:hover{background:rgba(239,68,68,.14)}
+.ftp-actions{display:flex;gap:6px;margin-top:4px}
+.ftp-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:7px 6px;border:1px solid var(--border);
+  border-radius:9px;font-size:.72rem;font-weight:600;cursor:pointer;background:var(--surface);color:var(--text);transition:all .13s}
+.ftp-btn:hover{border-color:var(--brand);color:var(--brand)}
+.ftp-btn-draw{border-color:#22c55e;color:#22c55e;background:rgba(34,197,94,.06)}
+.ftp-btn-draw:hover{background:rgba(34,197,94,.14)}
 /* ปุ่มเปิดหน้าต่างลอยสไตล์กรอบ (ในริบบอน) */
 .rbn-style-toggle{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1.5px solid var(--border);border-radius:10px;
   background:var(--surface);cursor:pointer;transition:border-color .13s,background .13s;color:var(--text-dim)}
@@ -1526,7 +1557,7 @@ var CHECKLIST = {
    4) ชั้นเก็บข้อมูล (localStorage) — ครอบ try/catch ทุกจุด
       โครงสร้าง: projects[] → floors[] (อ้าง projectId) → members[] (อ้าง floorId)
    ------------------------------------------------------------------------ */
-var DB = { projects:[], floors:[], members:[], inspections:[], inspector:"" };
+var DB = { projects:[], floors:[], members:[], inspections:[], zones:[], inspector:"" };
 
 function loadDB(){
   try{
@@ -1597,6 +1628,9 @@ function floorsOf(pid){
 }
 function membersOfFloor(fid){   return DB.members.filter(function(m){ return m.floorId===fid; }); }
 function membersOfProject(pid){ return DB.members.filter(function(m){ return m.projectId===pid; }); }
+function getZone(id){    return DB.zones.filter(function(z){ return z.id===id; })[0] || null; }
+function zonesOfFloor(fid){ return (DB.zones||[]).filter(function(z){ return z.floorId===fid; }); }
+function zonesOfPlan(fid, planId){ return (DB.zones||[]).filter(function(z){ return z.floorId===fid && z.planId===planId; }); }
 /** ผลตรวจล่าสุดของชิ้นส่วน (ใช้แสดงจุดสถานะในรายการ) */
 function lastInspection(memberId){
   var found=null;
@@ -4132,6 +4166,7 @@ var state = {
   drawShape:"rect",      // รูปทรงที่จะวาด (พื้นที่): rect | oval | poly
   showLegend:false, legendPos:null,   // ตารางสีบนแปลน (Legend)
   floatStyleOpen:false, floatStylePos:null,  // หน้าต่างลอยสไตล์กรอบ
+  showProgress:true, selZoneId:null, floatProgressOpen:false, floatProgressPos:null,  // ความคืบหน้าเทคอนกรีต
   rightTab:"palette",    // แท็บพาเนลขวา: palette | spec | inspect
   selMemberId:null,      // ชิ้นส่วนที่เลือกบนแปลน
   colorMode:"plain",     // ลงสีตาม: status | plain — ค่าเริ่มต้น = สีประจำประเภท
@@ -4409,6 +4444,17 @@ document.addEventListener("click",function(e){
     case "showFloatTools": state.floatToolsHidden=false; render(); break;
     case "toggleFloatStyle": state.floatStyleOpen=!state.floatStyleOpen; render(); break;
     case "closeFloatStyle": state.floatStyleOpen=false; render(); break;
+    case "toggleProgress": state.showProgress=!state.showProgress; render(); break;
+    case "toggleProgressPanel": state.floatProgressOpen=!state.floatProgressOpen; render(); break;
+    case "closeProgressPanel": state.floatProgressOpen=false; render(); break;
+    case "drawZoneStart": state.tool="drawZone"; state.floatProgressOpen=true; render(); break;
+    case "selectZone": state.selZoneId=el.getAttribute("data-zid"); state.floatProgressOpen=true; render(); break;
+    case "deleteZone": {
+      var zid=el.getAttribute("data-zid")||state.selZoneId;
+      if(zid && confirm("ลบโซนนี้?")){ DB.zones=DB.zones.filter(function(z){return z.id!==zid;}); state.selZoneId=null; saveDB(); render(); }
+      break;
+    }
+    case "exportProgressPdf": exportProgressPDF(); break;
     case "exportPdf": exportPlanPDF(); break;
     case "addPlan": {          // เพิ่มแปลนใหม่ → ตั้ง active เป็น id ใหม่ แล้วเปิดหน้าต่างเลือกไฟล์
       var fA=getFloor(state.floorId); if(!fA.planList) fA.planList=[];
@@ -4788,6 +4834,36 @@ function planShapesSVG(VW,VH){
     return state.unified ? !state.hiddenTypes[m.type] : (m.type===type);   // รวม = ทุกชนิดที่ไม่ได้ซ่อน
   });
   var shapes="";
+  // ── โซนความคืบหน้าเทคอนกรีต (วาดก่อนชิ้นส่วน → อยู่ชั้นล่าง) ──
+  if(state.showProgress){
+    var ZCOLORS={done:"#22c55e",progress:"#eab308",pending:"#94a3b8"};
+    var ZLABELS={done:"เทแล้ว",progress:"กำลังเท",pending:"รอเท"};
+    var ZICONS={done:"✓",progress:"◐",pending:"○"};
+    var zones=zonesOfPlan(f.id, _pid);
+    zones.forEach(function(z){
+      var zp=z.plan, st=z.status||"pending", col=ZCOLORS[st];
+      var zx=Math.min(zp.x1,zp.x2)*VW, zy=Math.min(zp.y1,zp.y2)*VH;
+      var zw=Math.abs(zp.x2-zp.x1)*VW, zh=Math.abs(zp.y2-zp.y1)*VH;
+      var zcx=zx+zw/2, zcy=zy+zh/2;
+      var isSel=(z.id===state.selZoneId);
+      var dash=st==="pending"?' stroke-dasharray="12 6"':'';
+      shapes+='<rect data-zid="'+z.id+'" x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh
+        +'" rx="4" fill="'+col+'" fill-opacity="0.08" stroke="'+col+'" stroke-width="'+(isSel?4:2)+'"'+dash+' style="cursor:pointer"/>';
+      if(isSel) shapes+='<rect x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh
+        +'" rx="4" fill="none" stroke="var(--brand)" stroke-width="2" stroke-dasharray="8 4" style="pointer-events:none"/>';
+      // Stamp badge
+      var badgeW=120, badgeH=z.date?44:30;
+      var bx=zcx-badgeW/2, by=zcy-badgeH/2;
+      shapes+='<g class="zone-stamp" data-zid="'+z.id+'" style="cursor:pointer">'
+        +'<rect x="'+bx+'" y="'+by+'" width="'+badgeW+'" height="'+badgeH+'" rx="8" fill="var(--surface,#fff)" stroke="'+col+'" stroke-width="2"/>'
+        +'<text x="'+zcx+'" y="'+(zcy-(z.date?6:0))+'" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="700" fill="'+col
+        +'" font-family="system-ui,sans-serif">'+ZICONS[st]+' '+ZLABELS[st]+'</text>';
+      if(z.date) shapes+='<text x="'+zcx+'" y="'+(zcy+14)+'" text-anchor="middle" dominant-baseline="central" font-size="12" fill="var(--text-dim,#888)" font-family="system-ui,sans-serif">'+esc(z.date)+'</text>';
+      shapes+='</g>';
+      // Zone name label
+      shapes+='<text x="'+(zx+8)+'" y="'+(zy+18)+'" font-size="15" font-weight="700" fill="'+col+'" font-family="system-ui,sans-serif" style="pointer-events:none">'+esc(z.name||"")+'</text>';
+    });
+  }
   members.forEach(function(m){
     var col=planColor(m), sel=(m.id===state.selMemberId), pl=m.plan;
     // โหมดรวม: ชนิดที่ไม่ได้กำลังวาด/เลือก ทำให้จางลงนิด เพื่อให้ชนิดที่โฟกัสเด่น (เลือกไว้ = เด่นเสมอ)
@@ -4890,6 +4966,60 @@ function floatToolsHtml(){
     +     '<select id="drawTypeSelF" class="rp-select">'+TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPE_EN[t]||TYPES[t].label)+'</option>'; }).join("")+'</select></div>'
     + '</div></div>';
 }
+/** หน้าต่างลอย: ความคืบหน้าเทคอนกรีต (รายการโซน + แก้ไข + วาดโซนใหม่) */
+function floatProgressHtml(){
+  if(!state.floatProgressOpen) return "";
+  var f=getFloor(state.floorId); if(!f) return "";
+  var _pid=curPlanId();
+  var zones=zonesOfPlan(f.id, _pid);
+  var ZCOLORS={done:"#22c55e",progress:"#eab308",pending:"#94a3b8"};
+  var ZLABELS={done:"เทแล้ว",progress:"กำลังเท",pending:"รอเท"};
+  var ZICONS={done:"✓",progress:"◐",pending:"○"};
+  var pos=state.floatProgressPos||{x:14,y:60};
+  var selZ=state.selZoneId?getZone(state.selZoneId):null;
+  var doneCount=zones.filter(function(z){return z.status==="done";}).length;
+  var pct=zones.length?Math.round(doneCount/zones.length*100):0;
+
+  var body='<div class="ftp-summary"><span>'+zones.length+' โซน</span><span class="ftp-pct">'+pct+'% เสร็จ</span></div>';
+
+  // Zone list
+  zones.forEach(function(z){
+    var st=z.status||"pending", col=ZCOLORS[st], isSel=(z.id===state.selZoneId);
+    body+='<button class="ftp-zone'+(isSel?" sel":"")+'" data-act="selectZone" data-zid="'+esc(z.id)+'">'
+      +'<span class="ftp-z-badge" style="background:'+col+'">'+ZICONS[st]+'</span>'
+      +'<span class="ftp-z-info"><span class="ftp-z-name">'+esc(z.name)+'</span><span class="ftp-z-sub">'+ZLABELS[st]+(z.date?' · '+esc(z.date):'')+'</span></span>'
+      +'</button>';
+  });
+
+  // Edit form for selected zone
+  if(selZ){
+    body+='<div class="ftp-edit">'
+      +'<div class="ftp-edit-row"><span>ชื่อ</span><input type="text" id="zoneNameInput" value="'+esc(selZ.name)+'" class="ftp-input"></div>'
+      +'<div class="ftp-edit-row"><span>สถานะ</span><select id="zoneStatusSel" class="ftp-input">'
+        +'<option value="done"'+(selZ.status==="done"?" selected":"")+'>✓ เทแล้ว</option>'
+        +'<option value="progress"'+(selZ.status==="progress"?" selected":"")+'>◐ กำลังเท</option>'
+        +'<option value="pending"'+(selZ.status==="pending"?" selected":"")+'>○ รอเท</option>'
+      +'</select></div>'
+      +'<div class="ftp-edit-row"><span>วันที่</span><input type="date" id="zoneDateInput" value="'+esc(selZ.date||"")+'" class="ftp-input"></div>'
+      +'<button class="ftp-del" data-act="deleteZone" data-zid="'+esc(selZ.id)+'"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg> ลบโซน</button>'
+      +'</div>';
+  }
+
+  // Action buttons
+  body+='<div class="ftp-actions">'
+    +'<button class="ftp-btn ftp-btn-draw" data-act="drawZoneStart"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="6" width="18" height="12" rx="1.5"/><path d="M12 6v12M3 12h18"/></svg> วาดโซนใหม่</button>'
+    +'<button class="ftp-btn" data-act="exportProgressPdf"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 3v5h5"/><path d="M9 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5H9"/><path d="M12 18v-6M9 15l3 3 3-3"/></svg> PDF อัพเดท</button>'
+    +'</div>';
+
+  return '<div class="plan-floatprogress" id="floatProgress" style="left:'+pos.x+'px;top:'+pos.y+'px">'
+    +'<div class="ftp-head" id="floatProgressDrag">'
+    +'<svg class="ftl-grip" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>'
+    +'ความคืบหน้าเท'
+    +'<button class="ftl-x" data-act="closeProgressPanel" title="ปิด">✕</button>'
+    +'</div>'
+    +'<div class="ftp-body">'+body+'</div>'
+    +'</div>';
+}
 /** หน้าต่างลอยสไตล์กรอบ (สี/ความเข้ม/ความหนาเส้น/สีใช้บ่อย) — วางบนแปลน */
 function floatStyleHtml(){
   var type=state.catType;
@@ -4931,7 +5061,7 @@ function planStageHtml(){
   var bg = plan
     ? '<img class="plan-img"'+(_psrc?' src="'+_psrc+'"':'')+' alt="แปลนโครงสร้าง" draggable="false">'
     : '<div class="plan-grid"></div>';
-  var drawing = (state.tool==="draw");
+  var drawing = (state.tool==="draw" || state.tool==="drawZone");
 
   // แถบมินิเมนูตอนเลือกชิ้นส่วน (ลอยบนกรอบ)
   var _selM=getMember(state.selMemberId); if(_selM && !state.unified && _selM.type!==type) _selM=null;
@@ -4952,6 +5082,7 @@ function planStageHtml(){
        +     'data-vw="'+VW+'" data-vh="'+VH+'" preserveAspectRatio="none">'+shapes+'</svg>'
        + selbar
        + floatStyleHtml()
+       + floatProgressHtml()
        + (state.showLegend ? legendHtml(members) : '')
        + (members.length===0 && !drawing ? '<div class="plan-hint">'+(state.unified?'ยังไม่มีชิ้นส่วนในแปลน — เลือกชนิดแล้วกด “วาด” ลากบนแปลน':'ยังไม่มี'+esc(TYPES[type].label)+'ในแปลน — กด “วาด'+esc(TYPES[type].label)+'” แล้วลากบนแปลน')+'</div>' : '')
        + '</div>';
@@ -5496,6 +5627,10 @@ function planRibbonHtml(type, planMenu, sm, selM){
     body+=grp('ชนิดที่วาด','<div class="sel-wrap rbn-sel"><span class="sel-dot" style="background:var(--t-'+TYPES[type].css+')"></span>'
       +'<select id="drawTypeSel" class="rp-select">'+TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPE_EN[t]||TYPES[t].label)+'</option>'; }).join("")+'</select></div>');
     body+=grp('นำออก', rbtn(false,"exportPdf",'title="นำออกแปลน + ไฮไลท์ เป็น PDF"',ICpdf,'ออก PDF'));
+    var ICprog='<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1.5"/><path d="M12 6v12M3 12h18"/></svg>';
+    var ICtogEye=state.showProgress?'<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>':'<svg viewBox="0 0 24 24"><path d="M9.9 4.2A9.8 9.8 0 0 1 12 4c6.5 0 10 7 10 7a13 13 0 0 1-2.3 3M6.6 6.6A13 13 0 0 0 2 12s3.5 7 10 7a9.5 9.5 0 0 0 4.3-1M3 3l18 18"/></svg>';
+    body+=grp('ความคืบหน้า', rbtn(state.showProgress,"toggleProgress",'',ICtogEye,'โซนเท')
+      +rbtn(state.floatProgressOpen,"toggleProgressPanel",'',ICprog,'แผงโซน'));
   }else if(rt==="draw"){
     body+=grp('เลือก', rbtn(state.tool==="select","setTool",'data-tool="select"',ICsel,'เลือก/ย้าย'));
     body+=grp('วาดรูป', rbtn(isD("rect"),"setShape",'data-shape="rect"',ICrect,'สี่เหลี่ยม')
@@ -5564,7 +5699,8 @@ function viewPlanEditor(){
   var left='<div class="editor-left">'
     + planRibbonHtml(type, planMenu, sm, selM)
     + '<input type="file" id="planFile" accept="image/*,application/pdf,.pdf" hidden>'
-    + (state.tool==="draw" ? '<div class="note-info" style="margin:0 0 8px">โหมดวาด: '
+    + (state.tool==="drawZone" ? '<div class="note-info" style="margin:0 0 8px;border-color:#22c55e;background:rgba(34,197,94,0.06)">วาดโซนเท: ลากสี่เหลี่ยมคลุมพื้นที่บนแปลน แล้วตั้งชื่อโซน</div>'
+       : state.tool==="draw" ? '<div class="note-info" style="margin:0 0 8px">โหมดวาด: '
         + (drawKind(type)==="point" ? 'แตะบนแปลนเพื่อวาง'+esc(TYPES[type].label)
           : drawKind(type)!=="rect" ? 'ลากบนแปลนเพื่อกำหนดแนว'+esc(TYPES[type].label)
           : state.drawShape==="poly" ? 'คลิกทีละจุด — ดับเบิลคลิกหรือคลิกที่จุดแรกเพื่อปิดรูป'
@@ -5718,6 +5854,26 @@ function bindPlanEditor(){
       fsd.addEventListener("pointermove",mvS); fsd.addEventListener("pointerup",upS);
     });
   }
+
+  // ผูกลากหน้าต่างลอยความคืบหน้า
+  var fpd=$("#floatProgressDrag"), fpw=$("#floatProgress"), fpStage=$("#planStage");
+  if(fpd && fpw && fpStage){
+    fpd.addEventListener("pointerdown",function(ev){
+      if(ev.target.closest(".ftl-x")) return;
+      ev.preventDefault(); var r=fpStage.getBoundingClientRect(), wr=fpw.getBoundingClientRect();
+      var ox=ev.clientX-wr.left, oy=ev.clientY-wr.top;
+      try{ fpd.setPointerCapture(ev.pointerId); }catch(e){}
+      function mvP(e2){ var x=Math.max(0,Math.min(r.width-60, e2.clientX-r.left-ox)), y=Math.max(0,Math.min(r.height-40, e2.clientY-r.top-oy));
+        fpw.style.left=x+"px"; fpw.style.top=y+"px"; state.floatProgressPos={x:Math.round(x),y:Math.round(y)}; }
+      function upP(){ fpd.removeEventListener("pointermove",mvP); fpd.removeEventListener("pointerup",upP); }
+      fpd.addEventListener("pointermove",mvP); fpd.addEventListener("pointerup",upP);
+    });
+  }
+  // ผูกอินพุตแก้ไขโซน
+  var zni=$("#zoneNameInput"), zsi=$("#zoneStatusSel"), zdi=$("#zoneDateInput");
+  if(zni){ zni.addEventListener("input",function(){ var z=getZone(state.selZoneId); if(z){ z.name=zni.value; saveDB(); var ov=$("#planOverlay"); if(ov) ov.innerHTML=planShapesSVG(+ov.getAttribute("data-vw"),+ov.getAttribute("data-vh")); } }); }
+  if(zsi){ zsi.addEventListener("change",function(){ var z=getZone(state.selZoneId); if(z){ z.status=zsi.value; saveDB(); render(); } }); }
+  if(zdi){ zdi.addEventListener("change",function(){ var z=getZone(state.selZoneId); if(z){ z.date=zdi.value||null; saveDB(); render(); } }); }
 
   // ผูกอินพุตของบล็อกตรวจเหล็ก เมื่ออยู่แท็บ inspect
   if(state.rightTab==="inspect" && getMember(state.selMemberId)) bindInspectionInputs();
@@ -5902,6 +6058,11 @@ function bindPlanEditor(){
           ev.preventDefault(); return;
         }
       }
+      var zEl=ev.target.closest("[data-zid]");
+      if(zEl){        // กดที่โซนเท → เลือกโซน
+        state.selZoneId=zEl.getAttribute("data-zid"); state.selMemberId=null;
+        state.floatProgressOpen=true; render(); return;
+      }
       var sEl=ev.target.closest("[data-mid]");
       if(sEl){        // กดที่ตัวชิ้นส่วน → เตรียมย้าย/เลือก
         var m=getMember(sEl.getAttribute("data-mid")); var p0=norm(ev);
@@ -5975,7 +6136,7 @@ function bindPlanEditor(){
       if(mv){
         var wasMove=mv.moved, id=mv.mid; mv=null;
         if(wasMove){ saveDB(); return; }        // ลากย้ายเสร็จ → บันทึก
-        state.selMemberId=id;                    // แค่แตะ → เลือก (คงแท็บเดิมไว้ เพื่อให้เห็นไฮไลต์ในรายการคาน)
+        state.selMemberId=id; state.selZoneId=null;  // แค่แตะ → เลือก (คงแท็บเดิมไว้ เพื่อให้เห็นไฮไลต์ในรายการคาน)
         if(state.rightTab==="palette") state.rightTab="inspect";   // ถ้าอยู่แท็บสไตล์ ค่อยพาไปตรวจเหล็ก
         state.answers={}; state.photos=[]; state.note=""; render();
         return;
@@ -5983,8 +6144,48 @@ function bindPlanEditor(){
       if(!ps) return;
       var wasMoved=moved; ps=null;
       if(wasMoved){ scheduleEnsure(); return; }    // ลากที่ว่าง = เลื่อนภาพ → เรนเดอร์ส่วนที่เห็นใหม่ให้คม
-      if(state.selMemberId){ state.selMemberId=null; render(); }   // แตะที่ว่าง = เลิกเลือก
+      if(state.selMemberId||state.selZoneId){ state.selMemberId=null; state.selZoneId=null; render(); }   // แตะที่ว่าง = เลิกเลือก
     }
+    return;
+  }
+
+  /* ---------- โหมดวาดโซนเท ---------- */
+  if(state.tool==="drawZone"){
+    var zStart=null, zTemp=null;
+    function zDrawMove(ev2){
+      if(!zStart||!zTemp) return;
+      if(ev2.cancelable) ev2.preventDefault();
+      var p=norm(ev2);
+      zTemp.setAttribute("x",Math.min(zStart.x,p.x)*VW); zTemp.setAttribute("y",Math.min(zStart.y,p.y)*VH);
+      zTemp.setAttribute("width",Math.abs(p.x-zStart.x)*VW); zTemp.setAttribute("height",Math.abs(p.y-zStart.y)*VH);
+    }
+    function zDrawEnd(ev2){
+      window.removeEventListener("pointermove",zDrawMove,true);
+      window.removeEventListener("pointerup",zDrawEnd,true);
+      window.removeEventListener("pointercancel",zDrawEnd,true);
+      if(!zStart) return;
+      var p=norm(ev2), s=zStart; zStart=null;
+      if(zTemp){ zTemp.remove(); zTemp=null; }
+      var rb=overlay.getBoundingClientRect();
+      if(Math.abs(p.x-s.x)*rb.width<5 && Math.abs(p.y-s.y)*rb.height<5) return;
+      finishDrawZone({x1:s.x, y1:s.y, x2:p.x, y2:p.y});
+    }
+    overlay.addEventListener("pointerdown",function(ev){
+      if(window.__planPinch) return;
+      if(ev.button!=null && ev.button!==0) return;
+      ev.preventDefault();
+      zStart=norm(ev);
+      zTemp=document.createElementNS(NS,"rect");
+      var z=state.zoom||1;
+      zTemp.setAttribute("stroke","#22c55e"); zTemp.setAttribute("stroke-width",(2.4/z));
+      zTemp.setAttribute("stroke-dasharray",(7/z)+" "+(5/z));
+      zTemp.setAttribute("fill","#22c55e"); zTemp.setAttribute("fill-opacity","0.08");
+      zTemp.setAttribute("rx","4");
+      overlay.appendChild(zTemp);
+      window.addEventListener("pointermove",zDrawMove,true);
+      window.addEventListener("pointerup",zDrawEnd,true);
+      window.addEventListener("pointercancel",zDrawEnd,true);
+    });
     return;
   }
 
@@ -6114,6 +6315,21 @@ function finishDraw(geom){
   state.selMemberId=m.id;    // วาดเสร็จอยู่หน้าแปลนต่อ — กรอกข้อมูลทีหลังจากแท็บ "รายการคาน" ได้
   render();
   toast("เพิ่ม "+code+" แล้ว — แตะแท็บ “รายการคาน” เพื่อกรอกข้อมูลเหล็ก");
+}
+function finishDrawZone(geom){
+  var existing=zonesOfPlan(state.floorId, curPlanId());
+  var suggest="Zone "+"ABCDEFGHIJKLMNOPQRSTUVWXYZ".charAt(existing.length);
+  var name=window.prompt("ชื่อโซน:", suggest);
+  if(name===null){ state.tool="select"; render(); return; }
+  name=name.trim()||suggest;
+  var z={ id:uid("z"), projectId:state.projectId, floorId:state.floorId, planId:curPlanId(),
+    name:name, status:"pending", date:null, plan:geom };
+  if(!DB.zones) DB.zones=[];
+  DB.zones.push(z);
+  saveDB();
+  state.tool="select"; state.selZoneId=z.id; state.floatProgressOpen=true;
+  render();
+  toast("เพิ่มโซน "+name+" แล้ว");
 }
 /** เดาเบอร์ถัดไป เช่น B1,B2,... ตามจำนวนที่มีในชั้น */
 function nextCode(type){
@@ -6452,7 +6668,8 @@ function _legendForExport(vm){
   return order.map(function(k){ return groups[k]; });
 }
 /** วาดแผ่นรายงาน A4 (หัวกระดาษ + แปลน + Legend + คีย์แปลน) คืนค่า canvas */
-function buildReportSheet(planCv, vm, keyCv){
+function buildReportSheet(planCv, vm, keyCv, opts){
+  opts = opts || {};
   var landscape = planCv.width >= planCv.height, DPI=300, FF="'Sarabun','Tahoma','Segoe UI',sans-serif";
   var SW=Math.round((landscape?16.54:11.69)*DPI), SH=Math.round((landscape?11.69:16.54)*DPI);   // A3
   var cv=document.createElement("canvas"); cv.width=SW; cv.height=SH;
@@ -6465,17 +6682,17 @@ function buildReportSheet(planCv, vm, keyCv){
   cx.textBaseline="top"; cx.textAlign="left";
   var tS=Math.round(SW*0.019);
   cx.fillStyle=ink; cx.font="800 "+tS+"px "+FF;
-  cx.fillText("รายงานแปลนตรวจเหล็กเสริม", tX, y);
+  cx.fillText(opts.title || "รายงานแปลนตรวจเหล็กเสริม", tX, y);
   cx.textAlign="right"; cx.fillStyle=sub; cx.font="500 "+Math.round(SW*0.011)+"px "+FF;
   cx.fillText("วันที่ออกรายงาน  "+dMY(Date.now()), SW-M, y+Math.round(tS*0.15));
   cx.textAlign="left";
   // บรรทัด 2: โครงการ (ซ้าย) + ชิปสรุป (ขวา) อยู่แถวเดียวกัน
   var r2H=Math.round(SH*0.034), r2Y=y+tS+Math.round(SH*0.012);
   cx.fillStyle=sub; cx.font="500 "+Math.round(SW*0.0118)+"px "+FF; cx.textBaseline="middle";
-  cx.fillText((p?p.name:"—")+"  ·  "+(f?f.name:"—")+"  ·  หมวด "+(TYPE_EN[type]||TYPES[type].label), tX, r2Y+r2H/2);
+  cx.fillText(opts.subtitle || ((p?p.name:"—")+"  ·  "+(f?f.name:"—")+"  ·  หมวด "+(TYPE_EN[type]||TYPES[type].label)), tX, r2Y+r2H/2);
   cx.textBaseline="top";
   var chipFS=Math.round(SW*0.011), pad=Math.round(SW*0.011), gap2=Math.round(SW*0.007), dotR=Math.round(chipFS*0.42), dotGap=Math.round(chipFS*0.55);
-  var chips=[["ทั้งหมด "+sm.total+" ชิ้น",null],["ผ่าน "+sm.pass,_cvar("pass")],["ไม่ผ่าน "+sm.fail,_cvar("fail")],["รอตรวจ "+sm.todo,_cvar("text-dim")]];
+  var chips=opts.chips || [["ทั้งหมด "+sm.total+" ชิ้น",null],["ผ่าน "+sm.pass,_cvar("pass")],["ไม่ผ่าน "+sm.fail,_cvar("fail")],["รอตรวจ "+sm.todo,_cvar("text-dim")]];
   cx.font="700 "+chipFS+"px "+FF;
   var cw=chips.map(function(c){ return pad*2+(c[1]?dotR*2+dotGap:0)+cx.measureText(c[0]).width; });
   var totalW=cw.reduce(function(a,w){return a+w;},0)+gap2*(chips.length-1);
@@ -6491,14 +6708,14 @@ function buildReportSheet(planCv, vm, keyCv){
   var headBottom=r2Y+r2H+Math.round(SH*0.01);
   cx.strokeStyle="#e3e7ee"; cx.lineWidth=1.5; cx.beginPath(); cx.moveTo(M,headBottom); cx.lineTo(SW-M,headBottom); cx.stroke();
   // ── Legend (แถบล่าง) — 1 แถวเต็มความกว้างต่อชนิด, โค้ดยาวเกินตัดด้วย …(+N) ไม่ทับกัน ──
-  var leg=_legendForExport(vm);
+  var leg=opts.legend || _legendForExport(vm);
   var legFS=Math.round(SW*0.0105), swz=Math.round(SW*0.015), legRowH=Math.round(SH*0.028);
   var legTitleH=Math.round(SH*0.022);
   var legH = leg.length? (legTitleH + leg.length*legRowH + Math.round(SH*0.006)) : 0;
   var legTop=SH-M-legH;
   if(leg.length){
     cx.fillStyle=ink; cx.font="800 "+Math.round(SW*0.0125)+"px "+FF; cx.textBaseline="top";
-    cx.fillText("ตารางสี (Legend)", M, legTop);
+    cx.fillText(opts.legendTitle || "ตารางสี (Legend)", M, legTop);
     var rY=legTop+legTitleH;
     leg.forEach(function(g,i){
       var gy=rY+i*legRowH;
@@ -6643,6 +6860,41 @@ function exportPlanPDF(){
     _downloadBlob(blob, fname);
     toast("บันทึก PDF แล้ว ✓");
   }).catch(function(e){ toast("สร้าง PDF ไม่สำเร็จ: "+(e&&e.message||e),true); });
+}
+
+function exportProgressPDF(){
+  var f=getFloor(state.floorId); if(!f){ toast("ยังไม่ได้เลือกชั้น",true); return; }
+  var plan=getFloorPlan(f), _pid=curPlanId(), type=state.catType;
+  var zones=zonesOfPlan(f.id, _pid);
+  if(!plan && zones.length===0){ toast("ยังไม่มีแปลนหรือโซนเทให้นำออก",true); return; }
+  var origProgress=state.showProgress; state.showProgress=true;
+  var vm=membersOfFloor(f.id).filter(function(m){ return m.plan && !m.hidden && memberPlanId(m)===_pid && (state.unified?!state.hiddenTypes[m.type]:(m.type===type)); });
+  toast("กำลังสร้าง PDF อัพเดท…");
+  var ZC={done:"#22c55e",progress:"#eab308",pending:"#94a3b8"}, ZL={done:"เทแล้ว",progress:"กำลังเท",pending:"รอเท"};
+  var zc={done:0,progress:0,pending:0}; zones.forEach(function(z){ zc[z.status]=(zc[z.status]||0)+1; });
+  var zChips=[["ทั้งหมด "+zones.length+" โซน",null],[ZL.done+" "+zc.done,ZC.done],[ZL.progress+" "+zc.progress,ZC.progress],[ZL.pending+" "+zc.pending,ZC.pending]];
+  var zLeg=["done","progress","pending"].filter(function(s){ return zc[s]>0; }).map(function(s){
+    return { color:ZC[s], label:ZL[s], n:zc[s], codes:zones.filter(function(z){return z.status===s;}).map(function(z){return z.name;}) };
+  });
+  var p0=getProject(state.projectId);
+  var zSub=(p0?p0.name:"—")+"  ·  "+(f?f.name:"—")+"  ·  "+(plan?(plan.name||"แปลน"):"—");
+  buildComposite({x1:0,y1:0,x2:1,y2:1,full:true}, 8000).then(function(planCv){
+    state.showProgress=origProgress;
+    var built=buildReportSheet(planCv, vm, null, {title:"รายงานความคืบหน้าเทคอนกรีต", subtitle:zSub, chips:zChips, legend:zLeg, legendTitle:"สถานะการเทคอนกรีต"});
+    var frameCv=built.cv, rect=built.rect, landscape=frameCv.width>=frameCv.height;
+    var Wpt=landscape?1190.55:841.89, Hpt=landscape?841.89:1190.55;
+    var sx=Wpt/frameCv.width, sy=Hpt/frameCv.height;
+    var imgs=[
+      { u8:_jpegBytes(frameCv,0.9), iw:frameCv.width, ih:frameCv.height, x:0, y:0, w:Wpt, h:Hpt },
+      { u8:_jpegBytes(planCv,0.92), iw:planCv.width, ih:planCv.height,
+        x:rect.dx*sx, y:Hpt-(rect.dy+rect.dh)*sy, w:rect.dw*sx, h:rect.dh*sy }
+    ];
+    var blob=_pdfFromImages(Wpt, Hpt, imgs);
+    var p=getProject(state.projectId);
+    var fname="RebarCheck-Progress-"+_safeName(p&&p.name)+"-"+_safeName(f.name)+".pdf";
+    _downloadBlob(blob, fname);
+    toast("บันทึก PDF อัพเดทแล้ว ✓");
+  }).catch(function(e){ state.showProgress=origProgress; toast("สร้าง PDF ไม่สำเร็จ: "+(e&&e.message||e),true); });
 }
 
 /** เรนเดอร์เฉพาะ "ส่วนที่มองเห็น" ของหน้า PDF (rx1..rx2, ry1..ry2 = 0..1) ที่ความกว้าง targetW */

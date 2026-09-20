@@ -1096,6 +1096,37 @@ body.auth-mode header{display:none}
 .fts-swatches{display:grid;grid-template-columns:repeat(8,1fr);gap:3px}
 .fts-swatches .swatch{width:22px;height:22px;border-radius:5px;flex:none;border:1.5px solid rgba(0,0,0,.12)}
 .fts-swatches .swatch[data-swatch="#ffffff"]{border-color:var(--border-strong)}
+/* หน้าต่างลอย: ความคืบหน้าเทคอนกรีต */
+.plan-floatprogress{position:absolute;z-index:11;width:260px;border-radius:14px;overflow:hidden;
+  border:1px solid var(--border-strong);background:color-mix(in srgb,var(--surface) 95%, transparent);
+  backdrop-filter:saturate(150%) blur(8px);-webkit-backdrop-filter:saturate(150%) blur(8px);box-shadow:var(--shadow-md);max-height:70vh;overflow-y:auto}
+.ftp-head{display:flex;align-items:center;gap:6px;padding:8px 8px 8px 10px;font-size:.82rem;font-weight:800;
+  color:var(--text);background:var(--surface-2);border-bottom:1px solid var(--border);cursor:move;user-select:none;touch-action:none}
+.ftp-body{padding:10px 10px 12px;display:flex;flex-direction:column;gap:6px}
+.ftp-summary{display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-dim);font-weight:600;padding:2px 4px}
+.ftp-pct{color:#22c55e;font-weight:700}
+.ftp-zone{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:10px;
+  background:var(--surface);cursor:pointer;transition:border-color .13s;width:100%;text-align:left;font:inherit;color:var(--text)}
+.ftp-zone:hover{border-color:var(--brand)}
+.ftp-zone.sel{border-color:var(--brand);background:var(--brand-bg)}
+.ftp-z-badge{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:.7rem;font-weight:700;color:#fff;flex:none}
+.ftp-z-info{display:flex;flex-direction:column;gap:1px;min-width:0}
+.ftp-z-name{font-size:.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ftp-z-sub{font-size:.65rem;color:var(--text-dim)}
+.ftp-edit{margin-top:4px;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);display:flex;flex-direction:column;gap:6px}
+.ftp-edit-row{display:flex;align-items:center;gap:6px}
+.ftp-edit-row span{font-size:.68rem;font-weight:600;color:var(--text-dim);width:42px;flex:none}
+.ftp-input{flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:7px;font-size:.78rem;background:var(--surface);color:var(--text);min-width:0}
+.ftp-del{display:flex;align-items:center;gap:4px;padding:5px 10px;border:1px solid #ef4444;border-radius:8px;
+  background:rgba(239,68,68,.06);color:#ef4444;font-size:.72rem;font-weight:600;cursor:pointer;align-self:flex-start}
+.ftp-del:hover{background:rgba(239,68,68,.14)}
+.ftp-actions{display:flex;gap:6px;margin-top:4px}
+.ftp-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:7px 6px;border:1px solid var(--border);
+  border-radius:9px;font-size:.72rem;font-weight:600;cursor:pointer;background:var(--surface);color:var(--text);transition:all .13s}
+.ftp-btn:hover{border-color:var(--brand);color:var(--brand)}
+.ftp-btn-draw{border-color:#22c55e;color:#22c55e;background:rgba(34,197,94,.06)}
+.ftp-btn-draw:hover{background:rgba(34,197,94,.14)}
 /* ปุ่มเปิดหน้าต่างลอยสไตล์กรอบ (ในริบบอน) */
 .rbn-style-toggle{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1.5px solid var(--border);border-radius:10px;
   background:var(--surface);cursor:pointer;transition:border-color .13s,background .13s;color:var(--text-dim)}
