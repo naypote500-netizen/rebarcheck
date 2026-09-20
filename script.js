@@ -4359,7 +4359,22 @@ function planZoomBy(f, cx, cy){
   planClampPan(); planApplyTransform();
   scheduleEnsure();   // เรนเดอร์ส่วนคม "หลังหยุดซูม" เท่านั้น (กันกระตุกระหว่างซูม)
 }
-function planFit(){ state.zoom=1; state.panX=0; state.panY=0; planApplyTransform(); }
+function planFit(){
+  state.zoom=1; state.panX=0; state.panY=0;
+  // มือถือ + แปลนแนวนอน(กว้าง): ขยายให้เต็มความสูงกรอบ (แปลนใหญ่ขึ้น) แล้วเลื่อนซ้าย-ขวาดูได้
+  var st=$("#planStage"), plan=currentPlan();
+  if((window.innerWidth||1024)<760 && st && plan && plan.w && plan.h){
+    var sw=st.clientWidth, sh=st.clientHeight;
+    if(sw && sh){
+      var contH=sw*plan.h/plan.w;   // ความสูงแปลนตอน fit ตามความกว้าง
+      if(contH < sh-4){
+        var z=Math.min(4, sh/contH);
+        state.zoom=z; state.panX=(sw-sw*z)/2; state.panY=0; planClampPan();
+      }
+    }
+  }
+  planApplyTransform();
+}
 
 function bindPlanEditor(){
   // นำเข้าแปลน (รูป / PDF)
@@ -4473,7 +4488,9 @@ function bindPlanEditor(){
 
   var overlay=$("#planOverlay"), stage=$("#planStage");
   if(!overlay) return;
-  planApplyTransform();   // คงระดับซูม/ตำแหน่งเดิมหลังเรนเดอร์ใหม่
+  // มือถือ: เปิดแปลนครั้งแรก (ยังไม่ซูม/เลื่อน) → จัดให้เต็มความสูงกรอบ (แปลนใหญ่)
+  if((window.innerWidth||1024)<760 && state.zoom===1 && !state.panX && !state.panY){ planFit(); }
+  else planApplyTransform();   // คงระดับซูม/ตำแหน่งเดิมหลังเรนเดอร์ใหม่
   applyBestImage();       // แสดงภาพคมที่สุด (โหลดต้นฉบับจาก IDB ถ้าจำเป็น)
 
   // แก้สี/ความเข้ม/ความหนาเส้น ของคานที่เลือก (แท็บรายละเอียด) — อัปเดตสดบนแปลน + บันทึกเมื่อปล่อย
@@ -5932,7 +5949,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 133 โหลดแล้ว — แก้แปลนเบลอบน iOS จริง (ย้ายเลเยอร์ภาพคมออกนอก transform)","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 134 โหลดแล้ว — มือถือ: กรอบแปลนสูงขึ้น + แปลนเต็มความสูง (ใหญ่ขึ้น)","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();
