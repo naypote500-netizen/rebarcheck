@@ -5327,7 +5327,17 @@ function renderVisibleRegion(){
   var SS=2.0, cap=(window.innerWidth||1024)<760 ? 3400 : 5200;   // ซูเปอร์แซมเปิลสูงขึ้น = คมขึ้น
   var targetW=Math.max(1000, Math.min(cap, Math.round((rx2-rx1)*sw*z*dpr*SS)));
   var sig=[rx1.toFixed(3),ry1.toFixed(3),rx2.toFixed(3),ry2.toFixed(3),targetW].join(",");
-  if(doc.regionSig===sig) return;                    // ส่วนเดิม/ความละเอียดเดิม ไม่ต้องทำซ้ำ
+  if(doc.regionSig===sig){                            // ส่วนเดิม/ความละเอียดเดิม
+    // แต่ถ้า #planDetail ถูกสร้างใหม่ (ว่าง) หลัง render (เช่นตอนเข้าโหมดวาด/วาดเสร็จ) → ทาภาพคมที่แคชไว้กลับทันที กันภาพเบลอ
+    if(doc.detailUrl && doc.detailBox && !det.getAttribute("src")){
+      var b=doc.detailBox;
+      det.src=doc.detailUrl;
+      det.style.left=(b.rx1*100)+"%"; det.style.top=(b.ry1*100)+"%";
+      det.style.width=((b.rx2-b.rx1)*100)+"%"; det.style.height=((b.ry2-b.ry1)*100)+"%";
+      det.style.display="block";
+    }
+    return;
+  }
   if(doc.regionRendering){ doc.regionPending=sig; return; }
   doc.regionRendering=true; doc.regionSig=sig;
   renderPdfRegionToCanvas(doc.page, rx1,ry1,rx2,ry2, targetW).then(function(cv){
@@ -5340,6 +5350,7 @@ function renderVisibleRegion(){
         det.style.left=(rx1*100)+"%"; det.style.top=(ry1*100)+"%";
         det.style.width=((rx2-rx1)*100)+"%"; det.style.height=((ry2-ry1)*100)+"%";
         det.style.display="block";
+        doc.detailBox={rx1:rx1,ry1:ry1,rx2:rx2,ry2:ry2};   // เก็บตำแหน่งไว้ทาภาพคมกลับหลัง render
         planLog("🔍 คมส่วนที่เห็น "+cv.width+"×"+cv.height);
         planTip("คมแล้ว "+cv.width+"×"+cv.height+" px");
       }
@@ -5855,7 +5866,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 124 โหลดแล้ว — เฟส 3: ไฟล์แปลนซิงค์คลาวด์ (chunking)","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 125 โหลดแล้ว — แก้ภาพแปลนเบลอตอนวาด (ทาภาพคม deep-zoom กลับหลัง render)","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();
