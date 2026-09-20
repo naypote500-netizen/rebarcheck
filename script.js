@@ -3154,6 +3154,8 @@ document.addEventListener("click",function(e){
     }
     case "zoomFit": planFit(); break;
     case "toggleRp": state.rpCollapsed=!state.rpCollapsed; render(); break;
+    case "hideFloatTools": state.floatToolsHidden=true; render(); break;
+    case "showFloatTools": state.floatToolsHidden=false; render(); break;
     case "exportPdf": exportPlanPDF(); break;
     case "addPlan": {          // เพิ่มแปลนใหม่ → ตั้ง active เป็น id ใหม่ แล้วเปิดหน้าต่างเลือกไฟล์
       var fA=getFloor(state.floorId); if(!fA.planList) fA.planList=[];
@@ -3612,6 +3614,29 @@ function planShapesSVG(VW,VH){
   return shapes;
 }
 
+/** หน้าต่างเครื่องมือลอย — โผล่ตอนซ่อนพาเนล (จอเต็ม) เพื่อให้ยังวาดได้ ลากย้ายได้ */
+function floatToolsHtml(){
+  var type=state.catType; if(!type||!TYPES[type]) return "";
+  var isD=function(sh){ return state.tool==="draw" && (state.drawShape||"rect")===sh; };
+  var b=function(on,act,attr,svg,title){ return '<button class="ftl-b'+(on?" on":"")+'" data-act="'+act+'" '+attr+' title="'+title+'">'+svg+'</button>'; };
+  var pos=state.floatToolsPos||{x:14,y:14};
+  var ICsel='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 4 7 17 2.5-7.5L21 11Z"/></svg>';
+  var ICrect='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="1.5"/></svg>';
+  var ICpoly='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 6-3 10H7L4 9z"/></svg>';
+  var ICoval='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>';
+  return '<div class="plan-floattools" id="floatTools" style="left:'+pos.x+'px;top:'+pos.y+'px">'
+    + '<div class="ftl-head" id="floatToolsDrag"><svg class="ftl-grip" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>เครื่องมือวาด<button class="ftl-x" data-act="hideFloatTools" title="ซ่อน">✕</button></div>'
+    + '<div class="ftl-body">'
+    +   '<div class="ftl-row">'
+    +     b(state.tool==="select","setTool",'data-tool="select"',ICsel,"เลือก/ย้าย")
+    +     b(isD("rect"),"setShape",'data-shape="rect"',ICrect,"สี่เหลี่ยม")
+    +     b(isD("poly"),"setShape",'data-shape="poly"',ICpoly,"หลายเหลี่ยม")
+    +     b(isD("oval"),"setShape",'data-shape="oval"',ICoval,"วงรี")
+    +   '</div>'
+    +   '<div class="sel-wrap ftl-sel"><span class="sel-dot" style="background:var(--t-'+TYPES[type].css+')"></span>'
+    +     '<select id="drawTypeSelF" class="rp-select">'+TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPE_EN[t]||TYPES[t].label)+'</option>'; }).join("")+'</select></div>'
+    + '</div></div>';
+}
 function planStageHtml(){
   var f=getFloor(state.floorId), type=state.catType;
   var plan=getFloorPlan(f);
@@ -3646,6 +3671,7 @@ function planStageHtml(){
        +     'data-vw="'+VW+'" data-vh="'+VH+'" preserveAspectRatio="none">'+shapes+'</svg>'
        + '</div>'
        + selbar
+       + (state.rpCollapsed ? (state.floatToolsHidden ? '<button class="plan-showtools" data-act="showFloatTools"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> เครื่องมือ</button>' : floatToolsHtml()) : '')
        + (state.showLegend ? legendHtml(members) : '')
        + (members.length===0 && !drawing ? '<div class="plan-hint">'+(state.unified?'ยังไม่มีชิ้นส่วนในแปลน — เลือกชนิดแล้วกด “วาด” ลากบนแปลน':'ยังไม่มี'+esc(TYPES[type].label)+'ในแปลน — กด “วาด'+esc(TYPES[type].label)+'” แล้วลากบนแปลน')+'</div>' : '')
        + '</div>';
@@ -4359,6 +4385,23 @@ function bindPlanEditor(){
         lg.style.left=x+"px"; lg.style.top=y+"px"; state.legendPos={x:Math.round(x),y:Math.round(y)}; }
       function upL(){ lgd.removeEventListener("pointermove",mvL); lgd.removeEventListener("pointerup",upL); }
       lgd.addEventListener("pointermove",mvL); lgd.addEventListener("pointerup",upL);
+    });
+  }
+
+  // หน้าต่างเครื่องมือลอย (ตอนซ่อนพาเนล): ดรอปดาวน์ชนิด + ลากย้าย
+  var dtsF=$("#drawTypeSelF");
+  if(dtsF) dtsF.addEventListener("change",function(){ state.catType=dtsF.value; if(state.hiddenTypes) delete state.hiddenTypes[dtsF.value]; render(); });
+  var ftd=$("#floatToolsDrag"), ftw=$("#floatTools"), ftStage=$("#planStage");
+  if(ftd && ftw && ftStage){
+    ftd.addEventListener("pointerdown",function(ev){
+      if(ev.target.closest(".ftl-x")) return;
+      ev.preventDefault(); var r=ftStage.getBoundingClientRect(), wr=ftw.getBoundingClientRect();
+      var ox=ev.clientX-wr.left, oy=ev.clientY-wr.top;
+      try{ ftd.setPointerCapture(ev.pointerId); }catch(e){}
+      function mvF(e2){ var x=Math.max(0,Math.min(r.width-60, e2.clientX-r.left-ox)), y=Math.max(0,Math.min(r.height-40, e2.clientY-r.top-oy));
+        ftw.style.left=x+"px"; ftw.style.top=y+"px"; state.floatToolsPos={x:Math.round(x),y:Math.round(y)}; }
+      function upF(){ ftd.removeEventListener("pointermove",mvF); ftd.removeEventListener("pointerup",upF); }
+      ftd.addEventListener("pointermove",mvF); ftd.addEventListener("pointerup",upF);
     });
   }
 
@@ -5865,7 +5908,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 127 โหลดแล้ว — เหลือแค่ล็อกอิน (ผู้ดูแลสร้างบัญชีเอง ไม่มีสมัครสาธารณะ)","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 128 โหลดแล้ว — หน้าต่างเครื่องมือวาดลอย (ตอนซ่อนพาเนล/จอเต็ม)","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();

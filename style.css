@@ -1005,3 +1005,25 @@ body.auth-mode header{display:none}
   border-radius:50%;animation:authspin .8s linear infinite}
 @keyframes authspin{to{transform:rotate(360deg)}}
 .auth-note{margin-top:16px;font-size:.8rem;color:var(--text-dim);line-height:1.5}
+
+/* ===== หน้าต่างเครื่องมือวาดลอย (ตอนซ่อนพาเนล/จอเต็ม) ===== */
+.plan-floattools{position:absolute;z-index:9;width:214px;border-radius:14px;overflow:hidden;
+  border:1px solid var(--border-strong);background:color-mix(in srgb,var(--surface) 95%, transparent);
+  backdrop-filter:saturate(150%) blur(8px);-webkit-backdrop-filter:saturate(150%) blur(8px);box-shadow:var(--shadow-md)}
+.ftl-head{display:flex;align-items:center;gap:6px;padding:8px 8px 8px 10px;font-size:.82rem;font-weight:800;
+  color:var(--text);background:var(--surface-2);border-bottom:1px solid var(--border);cursor:move;user-select:none;touch-action:none}
+.ftl-grip{opacity:.45;flex:none}
+.ftl-x{margin-left:auto;border:none;background:none;color:var(--text-dim);font-size:.95rem;cursor:pointer;line-height:1;padding:2px 5px;border-radius:6px}
+.ftl-x:hover{background:var(--border);color:var(--fail)}
+.ftl-body{padding:10px}
+.ftl-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}
+.ftl-b{height:40px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);
+  display:grid;place-items:center;cursor:pointer;transition:border-color .13s,background .13s}
+.ftl-b svg{width:20px;height:20px}
+.ftl-b:hover{border-color:var(--brand)}
+.ftl-b.on{border-color:var(--brand);background:var(--brand-bg);color:var(--brand)}
+.ftl-sel{margin:0}
+.plan-showtools{position:absolute;left:14px;top:14px;z-index:9;display:inline-flex;align-items:center;gap:6px;
+  padding:9px 13px;border-radius:11px;border:1px solid var(--border-strong);color:var(--brand);font-weight:700;font-size:.86rem;cursor:pointer;
+  background:color-mix(in srgb,var(--surface) 93%, transparent);backdrop-filter:saturate(150%) blur(8px);-webkit-backdrop-filter:saturate(150%) blur(8px);box-shadow:var(--shadow-md)}
+.plan-showtools:hover{background:var(--surface-2)}
