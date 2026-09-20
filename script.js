@@ -3129,6 +3129,9 @@ document.addEventListener("click",function(e){
       render(); break;
     }
     case "setRightTab": state.rightTab=el.getAttribute("data-tab"); render(); break;
+    case "setRibbonTab": state.ribbonTab=el.getAttribute("data-rtab"); render(); break;
+    case "toggleSnap":   state.snap=!state.snap; render(); break;
+    case "toggleLabels": state.showLabels=!state.showLabels; render(); break;
     case "selectPlanMember":
       state.selMemberId=id; state.rightTab="inspect"; state.answers={}; state.photos=[]; state.note="";
       render();
@@ -3700,7 +3703,7 @@ function planStageHtml(){
        +   '<svg class="plan-overlay" id="planOverlay" viewBox="0 0 '+VW+' '+VH+'" '
        +     'data-vw="'+VW+'" data-vh="'+VH+'" preserveAspectRatio="none">'+shapes+'</svg>'
        + selbar
-       + (state.rpCollapsed ? (state.floatToolsHidden ? '<button class="plan-showtools" data-act="showFloatTools"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> เครื่องมือ</button>' : floatToolsHtml()) : '')
+       /* เครื่องมือวาดย้ายไปอยู่บนริบบอน (แถบบน) แล้ว — ไม่ต้องมีหน้าต่างลอยซ้ำ */
        + (state.showLegend ? legendHtml(members) : '')
        + (members.length===0 && !drawing ? '<div class="plan-hint">'+(state.unified?'ยังไม่มีชิ้นส่วนในแปลน — เลือกชนิดแล้วกด “วาด” ลากบนแปลน':'ยังไม่มี'+esc(TYPES[type].label)+'ในแปลน — กด “วาด'+esc(TYPES[type].label)+'” แล้วลากบนแปลน')+'</div>' : '')
        + '</div>';
@@ -4128,29 +4131,8 @@ function rightPanelHtml(){
     var _flr=getFloor(state.floorId), _allM=_flr?membersOfFloor(_flr.id):[];
     var eyeO='<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
     var eyeX='<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 4.2A9.8 9.8 0 0 1 12 4c6.5 0 10 7 10 7a13 13 0 0 1-2.3 3M6.6 6.6A13 13 0 0 0 2 12s3.5 7 10 7a9.5 9.5 0 0 0 4.3-1M3 3l18 18"/></svg>';
-    var IC_SEL='<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 4 7 17 2.5-7.5L21 11Z"/></svg>';
-
-    // ── การ์ดหลัก (เห็นตลอด): โหมด + ชนิดที่วาด + เครื่องมือ ──
-    h+='<div class="card"><div class="card-b" style="padding:13px">';
-    h+='<div class="seg" style="grid-template-columns:1fr 1fr;margin-bottom:12px">'
-      +'<button data-act="setPlanMode" data-mode="unified" aria-pressed="'+(state.unified)+'">รวมทุกชนิด</button>'
-      +'<button data-act="setPlanMode" data-mode="focus" aria-pressed="'+(!state.unified)+'">เฉพาะ '+esc(TYPE_EN[type]||TYPES[type].label)+'</button>'
-      +'</div>';
-    h+='<div class="fld"><span class="fld-l">ชนิดที่กำลังวาด</span>'
-      +'<div class="sel-wrap"><span class="sel-dot" style="background:var(--t-'+TYPES[type].css+')"></span>'
-      +'<select id="drawTypeSel" class="rp-select">'+TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPE_EN[t]||TYPES[t].label)+'</option>'; }).join("")+'</select></div></div>';
-    // เครื่องมือ — ปุ่มมีป้ายชื่อ (ไอคอน + ข้อความ)
-    var isD=function(sh){ return state.tool==="draw" && (state.drawShape||"rect")===sh; };
-    var toolBtn=function(on,act,attr,svg,label){ return '<button class="rp-tool'+(on?" on":"")+'" data-act="'+act+'" '+attr+'>'+svg+'<span>'+label+'</span></button>'; };
-    h+='<div class="fld-l" style="margin:14px 0 6px">เครื่องมือ</div><div class="rp-tools">';
-    h+=toolBtn(state.tool==="select","setTool",'data-tool="select"','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 4 7 17 2.5-7.5L21 11Z"/></svg>','เลือก/ย้าย');
-    h+=toolBtn(isD("rect"),"setShape",'data-shape="rect"','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="1.5"/></svg>','สี่เหลี่ยม');
-    h+=toolBtn(isD("poly"),"setShape",'data-shape="poly"','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 6-3 10H7L4 9z"/></svg>','หลายเหลี่ยม');
-    h+=toolBtn(isD("oval"),"setShape",'data-shape="oval"','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>','วงรี');
-    h+='</div>';
-    // สแนบ — สวิตช์
-    h+='<div class="rp-switch-row" id="snapSwitch"><div class="tx"><b>สแนบเข้าเส้นแปลน</b><small>ดูดเข้าเส้น/จุดตัดของ PDF</small></div><span class="rp-switch'+(state.snap?"":" off")+'"></span></div>';
-    h+='</div></div>';
+    // เครื่องมือวาด / โหมด / ชนิดที่วาด ย้ายไปที่แถบริบบอนด้านบนแล้ว — พาเนลนี้เหลือ เลเยอร์ & สไตล์กรอบ
+    h+='<div class="note-info" style="margin-top:0;display:flex;gap:8px;align-items:flex-start"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:1px"><path d="M12 8h.01M11 12h1v4h1"/><circle cx="12" cy="12" r="9"/></svg><span>เครื่องมือวาด · โหมดแสดง · ป้าย/สี อยู่ที่<b>แถบริบบอนด้านบน</b> — ตรงนี้ปรับ<b>เลเยอร์</b>และ<b>สไตล์กรอบ</b></span></div>';
 
     // ── เลเยอร์ (พับ) ──
     if(state.unified){
@@ -4162,14 +4144,7 @@ function rightPanelHtml(){
       h+=rpSec('เลเยอร์ที่แสดง','<span class="sec-badge">'+shown+'/'+TYPE_ORDER.length+'</span>','<div class="type-chips">'+layerChips+'</div>',false);
     }
 
-    // ── การแสดงผล (พับ) ──
-    var disp='<div class="fld-l" style="margin-bottom:5px">ลงสีตาม</div>'
-      +'<div class="seg" style="grid-template-columns:1fr 1fr">'
-      +'<button data-act="colorMode" data-mode="status" aria-pressed="'+(state.colorMode==="status")+'">สถานะการตรวจ</button>'
-      +'<button data-act="colorMode" data-mode="plain" aria-pressed="'+(state.colorMode==="plain")+'">สีประจำประเภท</button></div>'
-      +'<label class="chk-line" style="margin-top:10px"><input type="checkbox" id="chkLabels" '+(state.showLabels?"checked":"")+'><span>แสดงเบอร์บนแปลน</span></label>'
-      +'<label class="chk-line"><input type="checkbox" data-act="toggleLegend" '+(state.showLegend?"checked":"")+'><span>แสดงตารางสี (Legend) บนแปลน</span></label>';
-    h+=rpSec('การแสดงผลบนแปลน','',disp,false);
+    // (ย้าย "การแสดงผลบนแปลน": ลงสีตาม/ป้ายเบอร์/ตารางสี ไปที่ริบบอนแท็บ "มุมมอง")
 
     // ── สไตล์กรอบ (พับ, เปิดเมื่อเลือกชิ้นส่วน) ──
     if(drawKind(type)==="rect"){
@@ -4264,6 +4239,59 @@ function rightPanelHtml(){
   return h+'</div>';
 }
 
+/* ---- ริบบอนบนสุดของเอดิเตอร์ (แนว Office/Revit) — เดสก์ท็อป ---- */
+function planRibbonHtml(type, planMenu, sm){
+  var rt=state.ribbonTab||"home";
+  var isD=function(sh){ return state.tool==="draw" && (state.drawShape||"rect")===sh; };
+  var ICsel='<svg viewBox="0 0 24 24"><path d="m4 4 7 17 2.5-7.5L21 11Z"/></svg>';
+  var ICrect='<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1.5"/></svg>';
+  var ICpoly='<svg viewBox="0 0 24 24"><path d="M12 3l8 6-3 10H7L4 9z"/></svg>';
+  var ICoval='<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>';
+  var ICsnap='<svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="3"/></svg>';
+  var ICpdf='<svg viewBox="0 0 24 24"><path d="M14 3v5h5"/><path d="M9 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5H9"/><path d="M12 18v-6M9 15l3 3 3-3"/></svg>';
+  var ICtag='<svg viewBox="0 0 24 24"><path d="M20.6 13.4 13 21a2 2 0 0 1-2.8 0L3 13.8V4h9.8l7.8 7.8a2 2 0 0 1 0 1.6Z"/><circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none"/></svg>';
+  var ICgrid='<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>';
+
+  var rbtn=function(on,act,attr,svg,label){ return '<button class="rbn-btn'+(on?" on":"")+'" data-act="'+act+'" '+(attr||"")+'>'+svg+'<span>'+esc(label)+'</span></button>'; };
+  var grp=function(cap,inner){ return '<div class="rbn-grp"><div class="rbn-grp-row">'+inner+'</div><div class="rbn-grp-cap">'+esc(cap)+'</div></div>'; };
+
+  var body='';
+  if(rt==="home"){
+    body+=grp('แปลน', planMenu);
+    body+=grp('โหมดแสดง','<div class="rbn-seg">'
+      +'<button data-act="setPlanMode" data-mode="unified" aria-pressed="'+(state.unified)+'">รวมทุกชนิด</button>'
+      +'<button data-act="setPlanMode" data-mode="focus" aria-pressed="'+(!state.unified)+'">เฉพาะ '+esc(TYPE_EN[type]||TYPES[type].label)+'</button></div>');
+    body+=grp('ชนิดที่วาด','<div class="sel-wrap rbn-sel"><span class="sel-dot" style="background:var(--t-'+TYPES[type].css+')"></span>'
+      +'<select id="drawTypeSel" class="rp-select">'+TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPE_EN[t]||TYPES[t].label)+'</option>'; }).join("")+'</select></div>');
+    body+=grp('นำออก', rbtn(false,"exportPdf",'title="นำออกแปลน + ไฮไลท์ เป็น PDF"',ICpdf,'ออก PDF'));
+  }else if(rt==="draw"){
+    body+=grp('เลือก', rbtn(state.tool==="select","setTool",'data-tool="select"',ICsel,'เลือก/ย้าย'));
+    body+=grp('วาดรูป', rbtn(isD("rect"),"setShape",'data-shape="rect"',ICrect,'สี่เหลี่ยม')
+      +rbtn(isD("poly"),"setShape",'data-shape="poly"',ICpoly,'หลายเหลี่ยม')
+      +rbtn(isD("oval"),"setShape",'data-shape="oval"',ICoval,'วงรี'));
+    body+=grp('ตัวช่วย', rbtn(!!state.snap,"toggleSnap",'',ICsnap,'สแนบเส้น'));
+  }else{ // view
+    body+=grp('ลงสีตาม','<div class="rbn-seg">'
+      +'<button data-act="colorMode" data-mode="status" aria-pressed="'+(state.colorMode==="status")+'">สถานะ</button>'
+      +'<button data-act="colorMode" data-mode="plain" aria-pressed="'+(state.colorMode==="plain")+'">ประเภท</button></div>');
+    body+=grp('บนแปลน', rbtn(!!state.showLabels,"toggleLabels",'',ICtag,'ป้ายเบอร์')
+      +rbtn(!!state.showLegend,"toggleLegend",'',ICgrid,'ตารางสี'));
+  }
+
+  var tab=function(id,label){ return '<button class="rbn-tab" data-act="setRibbonTab" data-rtab="'+id+'" aria-selected="'+(rt===id)+'">'+esc(label)+'</button>'; };
+  var stats='<div class="tb-stats">'
+    +'<span class="tb-chip"><b>'+sm.total+'</b> ชิ้น</span>'
+    +'<span class="tb-chip ok"><b>'+sm.pass+'</b> ผ่าน</span>'
+    +'<span class="tb-chip bad"><b>'+sm.fail+'</b> ไม่ผ่าน</span>'
+    +'<span class="tb-chip wait"><b>'+sm.todo+'</b> รอตรวจ</span></div>';
+  var collapse='<button class="btn soft rbn-collapse tb-collapse'+(state.rpCollapsed?" on":"")+'" data-act="toggleRp" title="'+(state.rpCollapsed?"แสดงพาเนลข้อมูล":"ซ่อนพาเนลข้อมูล")+'"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>'+(state.rpCollapsed?'<path d="m9 9 2 3-2 3"/>':'<path d="m11 9-2 3 2 3"/>')+'</svg> <span class="tbc-tx">'+(state.rpCollapsed?"แสดงพาเนล":"ซ่อนพาเนล")+'</span></button>';
+
+  return '<div class="ribbon">'
+    + '<div class="rbn-tabs">'+tab("home","หน้าแรก")+tab("draw","วาด")+tab("view","มุมมอง")+'<span class="rbn-tabs-sp"></span>'+stats+collapse+'</div>'
+    + '<div class="rbn-body">'+body+'</div>'
+    + '</div>';
+}
+
 function viewPlanEditor(){
   var f=getFloor(state.floorId), type=state.catType;
   if(!f||!type) return emptyBox('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>',"ไม่พบหมวด","");
@@ -4292,22 +4320,8 @@ function viewPlanEditor(){
   planMenu+='</div></details>';
 
   var left='<div class="editor-left">'
-    + '<div class="plan-toolbar">'
-    // — กลุ่มแปลน (dropdown) —
-    +   planMenu
-    +   '<input type="file" id="planFile" accept="image/*,application/pdf,.pdf" hidden>'
-    +   '<span class="tb-div"></span>'
-    // — ชิปสรุปสถานะ (ทั้งแปลนนี้) —
-    +   '<div class="tb-stats">'
-    +     '<span class="tb-chip"><b>'+sm.total+'</b> ชิ้น</span>'
-    +     '<span class="tb-chip ok"><b>'+sm.pass+'</b> ผ่าน</span>'
-    +     '<span class="tb-chip bad"><b>'+sm.fail+'</b> ไม่ผ่าน</span>'
-    +     '<span class="tb-chip wait"><b>'+sm.todo+'</b> รอตรวจ</span>'
-    +   '</div>'
-    // — ปุ่มนำออก PDF + ยุบ/แสดงพาเนล (ดันไปขวาสุด) —
-    +   '<button class="btn soft tb-export" data-act="exportPdf" title="นำออกแปลน + ไฮไลท์ เป็น PDF"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3v5h5"/><path d="M9 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5H9"/><path d="M12 18v-6M9 15l3 3 3-3"/></svg> <span class="tbc-tx">นำออก PDF</span></button>'
-    +   '<button class="btn soft tb-collapse'+(state.rpCollapsed?" on":"")+'" data-act="toggleRp" title="'+(state.rpCollapsed?"แสดงพาเนลข้อมูล":"ซ่อนพาเนลข้อมูล")+'"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>'+(state.rpCollapsed?'<path d="m9 9 2 3-2 3"/>':'<path d="m11 9-2 3 2 3"/>')+'</svg> <span class="tbc-tx">'+(state.rpCollapsed?"แสดงพาเนล":"ซ่อนพาเนล")+'</span></button>'
-    + '</div>'
+    + planRibbonHtml(type, planMenu, sm)
+    + '<input type="file" id="planFile" accept="image/*,application/pdf,.pdf" hidden>'
     + (state.tool==="draw" ? '<div class="note-info" style="margin:0 0 8px">โหมดวาด: '
         + (drawKind(type)==="point" ? 'แตะบนแปลนเพื่อวาง'+esc(TYPES[type].label)
           : drawKind(type)!=="rect" ? 'ลากบนแปลนเพื่อกำหนดแนว'+esc(TYPES[type].label)
@@ -5958,7 +5972,7 @@ function migrateLocalToCloud(local){
 }
 
 function init(){
-  try{ console.log("%c[RebarCheck] เวอร์ชัน 136 โหลดแล้ว — แก้แปลนยืดผิดสัดส่วนบนมือถือ (คงสัดส่วนแปลน) + ปิด debug","color:#3a5bd0;font-weight:700"); }catch(e){}
+  try{ console.log("%c[RebarCheck] เวอร์ชัน 137 โหลดแล้ว — แถบเครื่องมือใหม่แนวริบบอน (Office/Revit) บนเดสก์ท็อป","color:#3a5bd0;font-weight:700"); }catch(e){}
   initTheme();
   if(!CLOUD){
     loadDB();
