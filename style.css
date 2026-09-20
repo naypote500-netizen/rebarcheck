@@ -1093,8 +1093,9 @@ body.auth-mode header{display:none}
 .fts-slider{display:flex;flex-direction:column;gap:2px}
 .fts-slider span{font-size:.68rem;font-weight:600;color:var(--text-dim);line-height:1}
 .fts-slider input[type=range]{width:100%;margin:0;accent-color:var(--brand)}
-.fts-swatches{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
-.fts-swatches .swatch{width:20px;height:20px;border-radius:5px;flex:none}
+.fts-swatches{display:grid;grid-template-columns:repeat(8,1fr);gap:3px}
+.fts-swatches .swatch{width:22px;height:22px;border-radius:5px;flex:none;border:1.5px solid rgba(0,0,0,.12)}
+.fts-swatches .swatch[data-swatch="#ffffff"]{border-color:var(--border-strong)}
 /* ปุ่มเปิดหน้าต่างลอยสไตล์กรอบ (ในริบบอน) */
 .rbn-style-toggle{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1.5px solid var(--border);border-radius:10px;
   background:var(--surface);cursor:pointer;transition:border-color .13s,background .13s;color:var(--text-dim)}

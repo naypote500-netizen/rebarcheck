@@ -23,7 +23,7 @@ var CLEAR_MIN = 25;                       // ระยะช่องว่า�
 var DIA_LIST  = [6,9,12,16,20,25,28,32];  // ขนาดเหล็กข้ออ้อย
 var RB_LIST   = [6,9,12];                 // ขนาดเหล็กปลอก
 var STIR_LIST = [6,9,10,12,16];           // ขนาดเหล็กปลอกคาน (รองรับ DB16/DB10 ตามตารางคาน)
-var PRESET_COLORS = ["#f59e0b","#ef4444","#e11d48","#ec4899","#a855f7","#8b5cf6","#3b82f6","#0ea5e9","#06b6d4","#14b8a6","#22c55e","#84cc16","#eab308","#78716c","#111827"];  // จานสีใช้บ่อย 15 สี
+var PRESET_COLORS = ["#f59e0b","#f97316","#ef4444","#e11d48","#ec4899","#d946ef","#a855f7","#8b5cf6","#6366f1","#3b82f6","#0ea5e9","#06b6d4","#14b8a6","#10b981","#22c55e","#84cc16","#eab308","#d97706","#92400e","#78716c","#6b7280","#475569","#111827","#ffffff"];  // จานสี 24 สี (3 แถว)
 /* สถานีตามความยาวคาน — เหล็กเสริมเปลี่ยนตามตำแหน่ง (ตามตารางรายละเอียดคาน) */
 var BEAM_STATIONS = [
   { k:"ext",  l:"หัวเสาริม (Exterior)",  short:"ริม" },
@@ -3697,7 +3697,7 @@ function floatStyleHtml(){
     +   '</div>'
     +   '<div class="fts-slider"><span>ความเข้ม</span><input type="range" id="drawAlpha" min="0" max="100" value="'+Math.round(sa*100)+'"></div>'
     +   '<div class="fts-slider"><span>เส้นกรอบ</span><input type="range" id="drawStroke" min="0" max="30" value="'+Math.round(sww)+'"></div>'
-    +   '<div class="fts-swatches">'+PRESET_COLORS.slice(0,8).map(function(c){ return '<button class="swatch'+(sc.toLowerCase()===c?" on":"")+'" data-swatch="'+c+'" title="'+c+'" style="background:'+c+'"></button>'; }).join("")+'</div>'
+    +   '<div class="fts-swatches">'+PRESET_COLORS.map(function(c){ return '<button class="swatch'+(sc.toLowerCase()===c?" on":"")+'" data-swatch="'+c+'" title="'+c+'" style="background:'+c+'"></button>'; }).join("")+'</div>'
     + '</div></div>';
 }
 
