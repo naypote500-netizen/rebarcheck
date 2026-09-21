@@ -4007,15 +4007,50 @@ function deUid(){ return uid("de"); }
 var DE_PDF={};   // eid -> {page, pageNo, raster:{w,url}}
 var DE_IMG={};   // eid -> dataURL
 function deImgEl(id){ return document.querySelector('#deCanvas .de-img[data-eid="'+id+'"]'); }
+/* ---- sync สื่อในหน้ารายละเอียดขึ้นคลาวด์ (ใช้ระบบ chunk เดียวกับแปลน) เพื่อให้เห็นข้ามเครื่อง ---- */
+var DE_CLOUD_DONE={};   // กันอัปซ้ำในเซสชันเดียว (id -> true)
+function deCloudSaveImg(id, dataUrl){
+  if(!CLOUD || !_fbUser) return;
+  var m=/^data:([^;]+);base64,(.*)$/.exec(dataUrl||''); if(!m) return;
+  DE_CLOUD_DONE['de_img_'+id]=true;
+  try{ cloudUploadPlan('de_img_'+id, _b64ToBytes(m[2]), {kind:m[1]}); }catch(e){}
+}
+function deCloudSavePdf(id, buf, pageNo){
+  if(!CLOUD || !_fbUser) return;
+  DE_CLOUD_DONE['de_pdf_'+id]=true;
+  try{ cloudUploadPlan('de_pdf_'+id, buf, {kind:'pdf', pageNo:pageNo||1}); }catch(e){}
+}
+/** เติมสื่อที่มีในเครื่องนี้แต่ยังไม่เคยขึ้นคลาวด์ (แก้รูปเก่าที่อัปก่อนมีระบบ sync) — อัปครั้งเดียวต่อเซสชัน */
+function deCloudBackfillImg(id, dataUrl){ if(!DE_CLOUD_DONE['de_img_'+id]) deCloudSaveImg(id, dataUrl); }
+function deCloudBackfillPdf(id, buf, pageNo){ if(!DE_CLOUD_DONE['de_pdf_'+id]) deCloudSavePdf(id, buf, pageNo); }
 function deLoadImage(elm){
   var img=deImgEl(elm.id); if(!img) return;
   if(DE_IMG[elm.id]){ if(img.src!==DE_IMG[elm.id]) img.src=DE_IMG[elm.id]; return; }
-  idbGet('deimg_'+elm.id).then(function(url){ if(url){ DE_IMG[elm.id]=url; var im=deImgEl(elm.id); if(im) im.src=url; } }).catch(function(){});
+  idbGet('deimg_'+elm.id).then(function(url){
+    if(url){ DE_IMG[elm.id]=url; var im=deImgEl(elm.id); if(im) im.src=url; deCloudBackfillImg(elm.id, url); return; }
+    // ไม่มีในเครื่อง → ดึงจากคลาวด์ (อัปมาจากอีกเครื่อง) แล้วแคชลงเครื่อง
+    return cloudFetchPlan('de_img_'+elm.id).then(function(rec){
+      if(!rec||!rec.bytes) return;
+      var mime=(rec.kind && rec.kind.indexOf('/')>0)?rec.kind:'image/jpeg';
+      var durl='data:'+mime+';base64,'+_bytesToB64(new Uint8Array(rec.bytes));
+      DE_IMG[elm.id]=durl; idbPut('deimg_'+elm.id,durl).catch(function(){});
+      var im=deImgEl(elm.id); if(im) im.src=durl;
+    });
+  }).catch(function(){});
 }
 function deEnsurePage(elm){
   var rec=DE_PDF[elm.id];
   if(rec && rec.page) return Promise.resolve(rec.page);
   return idbGet('depdf_'+elm.id).then(function(v){
+    if(v && v.bytes){ deCloudBackfillPdf(elm.id, v.bytes, v.pageNo||elm.pageNo||1); return v; }
+    // ไม่มีในเครื่อง → ดึงจากคลาวด์ แล้วแคชลงเครื่อง
+    return cloudFetchPlan('de_pdf_'+elm.id).then(function(cf){
+      if(!cf||!cf.bytes) return null;
+      var rr={bytes:cf.bytes, pageNo:cf.pageNo||elm.pageNo||1};
+      idbPut('depdf_'+elm.id, rr).catch(function(){});
+      return rr;
+    });
+  }).then(function(v){
     if(!v||!v.bytes) throw new Error('no pdf');
     return loadPdfJs().then(function(lib){
       return lib.getDocument(pdfDocOpts(new Uint8Array(v.bytes.slice(0)))).promise
@@ -4161,8 +4196,8 @@ function deApplyCrop(elm, done){
       cv.getContext('2d').drawImage(scv, sx,sy,sw,sh, 0,0,sw,sh);
       var url; try{ url=cv.toDataURL('image/jpeg',0.93); }catch(e){ done(); return; }
       idbPut('deimg_'+elm.id, url).then(function(){
-        DE_IMG[elm.id]=url;
-        if(DE_PDF[elm.id]){ delete DE_PDF[elm.id]; idbDel('depdf_'+elm.id).catch(function(){}); }
+        DE_IMG[elm.id]=url; deCloudSaveImg(elm.id, url);
+        if(DE_PDF[elm.id]){ delete DE_PDF[elm.id]; idbDel('depdf_'+elm.id).catch(function(){}); cloudDeletePlan('de_pdf_'+elm.id); }
         elm.type='image'; delete elm.pageNo; if(elm.w) elm.h=elm.w*(sh/sw);
         done();
       }).catch(function(){ toast('บันทึกภาพครอบตัดไม่สำเร็จ',true); done(); });
@@ -4217,7 +4252,7 @@ function bindDetailEditor(){
     resizeImage(f,4000,0.9).then(function(url){
       var id=deUid();
       idbPut('deimg_'+id,url).then(function(){
-        DE_IMG[id]=url;
+        DE_IMG[id]=url; deCloudSaveImg(id, url);
         var im=new Image(); im.onload=function(){ var w=Math.min(360,im.width||360), hh=w*(im.height/im.width||0.7);
           doc.els.push({id:id,type:'image',x:20,y:20,w:w,h:hh}); state.deSel=id; saveDB(); render(); };
         im.src=url;
@@ -4243,6 +4278,7 @@ function bindDetailEditor(){
           pdf.getPage(pageNo).then(function(page){
             var id=deUid(); DE_PDF[id]={page:page,pageNo:pageNo};
             idbPut('depdf_'+id, {bytes:buf, pageNo:pageNo}).catch(function(){ toast('บันทึก PDF ไม่สำเร็จ',true); });
+            deCloudSavePdf(id, buf, pageNo);
             var vp=page.getViewport({scale:1}); var w=360, hh=w*(vp.height/vp.width);
             doc.els.push({id:id,type:'pdf',x:20,y:20,w:w,h:hh,pageNo:pageNo}); state.deSel=id;
             saveDB(); render();
@@ -4265,7 +4301,7 @@ function bindDetailEditor(){
     else if(act==='addtext'){ var t={id:deUid(),type:'text',x:24,y:24,w:280,h:80,html:'ใส่ข้อความ...'}; doc.els.push(t); state.deSel=t.id; saveDB(); render(); }
     else if(act==='addtable'){ var tb={id:deUid(),type:'table',x:24,y:24,w:360,rows:[['หัวข้อ','หัวข้อ','หัวข้อ'],['','',''],['','','']]}; doc.els.push(tb); state.deSel=tb.id; saveDB(); render(); }
     else if(act==='del' && elm){ if(confirm('ลบสิ่งนี้?')){ doc.els=doc.els.filter(function(x){return x.id!==elm.id;});
-        idbDel('deimg_'+elm.id).catch(function(){}); idbDel('depdf_'+elm.id).catch(function(){}); delete DE_IMG[elm.id]; delete DE_PDF[elm.id];
+        idbDel('deimg_'+elm.id).catch(function(){}); idbDel('depdf_'+elm.id).catch(function(){}); cloudDeletePlan('de_img_'+elm.id); cloudDeletePlan('de_pdf_'+elm.id); delete DE_IMG[elm.id]; delete DE_PDF[elm.id];
         state.deSel=null; saveDB(); render(); } }
     else if(act==='crop' && elm){ state.deSel=elm.id; state.deCrop=elm.id; elm._crop={x:0.1,y:0.1,w:0.8,h:0.8}; render(); }
     else if(act==='cropcancel' && elm){ state.deCrop=null; delete elm._crop; render(); }
