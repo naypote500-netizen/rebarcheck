@@ -6400,10 +6400,19 @@ function startCloudSession(user){
   var got={};
   CLOUD_COLLS.forEach(function(c){
     var un=fbDb.collection(c).onSnapshot(function(snap){
-      DB[c]=snap.docs.map(function(d){ try{ return JSON.parse(d.data().data); }catch(e){ return null; } }).filter(Boolean);
+      var pending=snap.metadata && snap.metadata.hasPendingWrites;
+      var editing=_isEditing();
+      // อัปเดต _syncBase เสมอ (ใช้ diff ตอนอัปครั้งถัดไป)
       _syncBase[c]={}; snap.docs.forEach(function(d){ _syncBase[c][d.id]=d.data().data; });
-      got[c]=true;
+      // สำคัญ: อย่าเขียนทับ DB[c] ถ้า
+      //  - snapshot นี้คือ echo การเขียนของเราเอง (pending) — เราเพิ่งอัป, ข้อมูลใน memory
+      //    ถูกต้องแล้ว การสร้าง object ใหม่จะทำให้ closure ที่ถือ reference เก่า (เช่น
+      //    doc ใน bindDetailEditor) กลายเป็น orphan → saveDB() รอบต่อไปจะ serialize
+      //    object เก่าใน DB ที่ไม่ได้อัปเดต ทำให้ข้อความหาย
+      //  - ผู้ใช้กำลังพิมพ์อยู่ (contenteditable/input มี focus) — กันคลอบเบอร์งานที่ยังไม่ save
       if(!_fbLoaded){
+        DB[c]=snap.docs.map(function(d){ try{ return JSON.parse(d.data().data); }catch(e){ return null; } }).filter(Boolean);
+        got[c]=true;
         if(CLOUD_COLLS.every(function(x){return got[x];})){
           _fbLoaded=true;
           DB.inspector = user.email||"";
@@ -6413,10 +6422,12 @@ function startCloudSession(user){
           render();
           setTimeout(offerLocalMigration, 400);   // เสนออัปข้อมูลเดิมในเครื่อง (ถ้ามี)
         }
-      }else{
-        // มีการเปลี่ยนจากที่อื่น → รีเฟรชจอ (เลี่ยงตอนกำลังพิมพ์)
-        if(!(snap.metadata&&snap.metadata.hasPendingWrites) && !_isEditing()) render();
+        return;
       }
+      if(pending || editing) return;   // เพิกเฉย echo/พิมพ์ค้างอยู่ — ข้อมูลใน memory คือของจริง
+      // การเปลี่ยนแปลงจริงจากที่อื่น → apply แล้วรีเฟรชจอ
+      DB[c]=snap.docs.map(function(d){ try{ return JSON.parse(d.data().data); }catch(e){ return null; } }).filter(Boolean);
+      render();
     }, function(err){ console.warn("Firestore listen error ["+c+"]", err); toast("เชื่อมต่อฐานข้อมูลมีปัญหา: "+(err&&err.code||err),true); });
     _fbUnsub.push(un);
   });
