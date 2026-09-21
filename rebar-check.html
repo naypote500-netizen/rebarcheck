@@ -7776,8 +7776,7 @@ function startCloudSession(user){
         if(!lockScreens[state.screen]) return false;
         return id===state.memberId || id===state.selMemberId;
       }
-      // ADD / UPDATE ทีละ item — แต่ SKIP ถ้า local มี "งานที่แก้แล้วยังไม่ sync"
-      //   (ตัดสินโดยเทียบ JSON ของ item ใน DB กับที่จำไว้ใน oldBase — ถ้าไม่เท่ากัน = แก้ local แล้ว)
+      // ADD / UPDATE ทีละ item
       snap.docs.forEach(function(d){
         var incomingJson; try{ incomingJson=d.data().data; }catch(e){ return; }
         var incoming; try{ incoming=JSON.parse(incomingJson); }catch(e){ return; }
@@ -7786,11 +7785,22 @@ function startCloudSession(user){
         if(_isLockedMember(incoming.id)) return;   // 🔒 กำลังเปิดหน้าแก้ไขอยู่ — อย่าแตะ
         var ex=DB[c].filter(function(x){return x&&x.id===incoming.id;})[0];
         if(!ex){ DB[c].push(incoming); return; }
-        // ตรวจว่า local ตัวนี้แตกต่างจาก syncBase เดิมไหม (แก้ local ยังไม่ sync)
+        // 🔒🔒 HARD LOCK สำหรับ members: ห้าม cloud snapshot เขียนทับ .doc ของ member ที่มีอยู่แล้ว
+        //   ในเครื่องเด็ดขาด (รูป/ข้อความ/ตำแหน่งเป็นของเครื่องนี้ล้วน ๆ) — อัปเดตแค่ metadata อื่น
+        if(c==='members'){
+          var preservedDoc=ex.doc;
+          var localJson0; try{ localJson0=JSON.stringify(_forCloud(c, ex)); }catch(e){ localJson0=null; }
+          var lastSynced0=oldBase[incoming.id];
+          if(localJson0!=null && lastSynced0!=null && localJson0!==lastSynced0) return;   // มีงาน local ค้าง → เก็บ local
+          Object.keys(ex).forEach(function(k){ if(k!=='doc') delete ex[k]; });   // เคลียร์ทุกฟิลด์ ยกเว้น doc
+          Object.keys(incoming).forEach(function(k){ if(k!=='doc') ex[k]=incoming[k]; });   // รับ metadata ใหม่
+          ex.doc=preservedDoc;   // คง doc เดิมไว้เสมอ
+          return;
+        }
+        // collections อื่น (projects/floors/inspections) — merge in-place ตามปกติ
         var localJson; try{ localJson=JSON.stringify(_forCloud(c, ex)); }catch(e){ localJson=null; }
         var lastSynced=oldBase[incoming.id];
-        if(localJson!=null && lastSynced!=null && localJson!==lastSynced) return;   // เก็บ local ไว้
-        // ปลอดภัย → merge in-place เพื่อรักษา object identity
+        if(localJson!=null && lastSynced!=null && localJson!==lastSynced) return;
         Object.keys(ex).forEach(function(k){ delete ex[k]; });
         Object.assign(ex, incoming);
       });
