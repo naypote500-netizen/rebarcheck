@@ -3686,14 +3686,13 @@ function planShapesSVG(VW,VH){
       var zx=Math.min(zp.x1,zp.x2)*VW, zy=Math.min(zp.y1,zp.y2)*VH;
       var zw=Math.abs(zp.x2-zp.x1)*VW, zh=Math.abs(zp.y2-zp.y1)*VH;
       var isSel=(z.id===state.selZoneId);
-      var fillOp=isSel?0.5:0.32;
-      var selAttr=isSel?' stroke="var(--brand)" stroke-width="2.5" stroke-dasharray="9 5"':' stroke="none"';
+      var fillOp=isSel?0.55:0.32;   // ไม่มีขอบเลย — ใช้ความเข้มของสีบอกว่าเลือกอยู่
       if(zp.kind==="poly" && zp.pts && zp.pts.length){
         var pstr=zp.pts.map(function(p){ return (zx+p[0]*zw).toFixed(1)+","+(zy+p[1]*zh).toFixed(1); }).join(" ");
-        shapes+='<polygon data-zid="'+z.id+'" points="'+pstr+'" fill="'+col+'" fill-opacity="'+fillOp+'"'+selAttr+' stroke-linejoin="round" style="cursor:pointer"/>';
+        shapes+='<polygon data-zid="'+z.id+'" points="'+pstr+'" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:pointer"/>';
       }else{
         shapes+='<rect data-zid="'+z.id+'" x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh
-          +'" rx="3" fill="'+col+'" fill-opacity="'+fillOp+'"'+selAttr+' style="cursor:pointer"/>';
+          +'" rx="3" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:pointer"/>';
       }
       // ป้ายชื่อโซนเล็ก ๆ มุมซ้ายบน (มีขอบขาวให้อ่านง่ายบนแปลนที่ลายเยอะ) — ไม่มีป้ายสถานะกลางโซน
       var nm=(z.name||"")+(z.date?"  ·  "+z.date:"");
