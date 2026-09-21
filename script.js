@@ -3687,17 +3687,28 @@ function planShapesSVG(VW,VH){
       var zw=Math.abs(zp.x2-zp.x1)*VW, zh=Math.abs(zp.y2-zp.y1)*VH;
       var isSel=(z.id===state.selZoneId);
       var fillOp=isSel?0.55:0.32;   // ไม่มีขอบเลย — ใช้ความเข้มของสีบอกว่าเลือกอยู่
+      var cur=isSel?"move":"pointer";
       if(zp.kind==="poly" && zp.pts && zp.pts.length){
         var pstr=zp.pts.map(function(p){ return (zx+p[0]*zw).toFixed(1)+","+(zy+p[1]*zh).toFixed(1); }).join(" ");
-        shapes+='<polygon data-zid="'+z.id+'" points="'+pstr+'" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:pointer"/>';
+        shapes+='<polygon data-zid="'+z.id+'" points="'+pstr+'" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:'+cur+'"/>';
       }else{
         shapes+='<rect data-zid="'+z.id+'" x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh
-          +'" rx="3" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:pointer"/>';
+          +'" rx="3" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:'+cur+'"/>';
       }
       // ป้ายชื่อโซนเล็ก ๆ มุมซ้ายบน (มีขอบขาวให้อ่านง่ายบนแปลนที่ลายเยอะ) — ไม่มีป้ายสถานะกลางโซน
       var nm=(z.name||"")+(z.date?"  ·  "+z.date:"");
       if(nm) shapes+='<text x="'+(zx+7)+'" y="'+(zy+19)+'" font-size="15" font-weight="800" fill="'+col
         +'" stroke="var(--surface,#fff)" stroke-width="3.5" paint-order="stroke" font-family="system-ui,sans-serif" style="pointer-events:none">'+esc(nm)+'</text>';
+      // จุดจับ 8 จุด (เฉพาะโซนที่เลือก) — ลากมุม/ขอบเพื่อย่อ-ขยาย (คงขนาดคงที่ด้วย updateLabelScale)
+      if(isSel){
+        var hx2=zx+zw, hy2=zy+zh;
+        var zhs=[["nw",zx,zy],["ne",hx2,zy],["se",hx2,hy2],["sw",zx,hy2],
+                 ["n",zx+zw/2,zy],["e",hx2,zy+zh/2],["s",zx+zw/2,hy2],["w",zx,zy+zh/2]];
+        zhs.forEach(function(c){
+          shapes+='<g class="plan-handle" data-ax="'+c[1].toFixed(1)+'" data-ay="'+c[2].toFixed(1)+'">'
+            +'<circle data-zid="'+z.id+'" data-zhandle="'+c[0]+'" cx="'+c[1]+'" cy="'+c[2]+'" r="9" fill="var(--brand)" stroke="#fff" stroke-width="2.5" style="cursor:pointer"/></g>';
+        });
+      }
     });
   }
   members.forEach(function(m){
@@ -4908,7 +4919,7 @@ function bindPlanEditor(){
 
   /* ---------- โหมดเลือก: ลากจุดจับ=ลด/ขยาย/หมุน · ลากตัวคาน=ย้าย · ลากที่ว่าง=เลื่อนภาพ · แตะ=เลือก ---------- */
   if(state.tool==="select"){
-    var ps=null, moved=false, mid=null, tf=null, mv=null, ml=null, lsz=null;
+    var ps=null, moved=false, mid=null, tf=null, mv=null, ml=null, lsz=null, ztf=null, zmv=null;
     function repaintShapes(){ overlay.innerHTML=planShapesSVG(VW,VH); updateLabelScale(); }
     function clampGeo(pl){   // กันชิ้นส่วนหลุดออกนอกแปลน
       ["x1","x2","y1","y2","x","y"].forEach(function(k){ if(pl[k]!=null) pl[k]=Math.max(0,Math.min(1,pl[k])); });
@@ -4950,10 +4961,18 @@ function bindPlanEditor(){
           ev.preventDefault(); return;
         }
       }
+      var zhEl=ev.target.closest("[data-zhandle]");
+      if(zhEl){       // จับจุดจับโซน → ย่อ/ขยาย
+        var zh=getZone(zhEl.getAttribute("data-zid"));
+        if(zh){ ztf={ zid:zh.id, handle:zhEl.getAttribute("data-zhandle"), geo:JSON.parse(JSON.stringify(zh.plan)) };
+          try{ overlay.setPointerCapture(ev.pointerId); }catch(x){} ev.preventDefault(); return; }
+      }
       var zEl=ev.target.closest("[data-zid]");
-      if(zEl){        // กดที่โซนเท → เลือกโซน
-        state.selZoneId=zEl.getAttribute("data-zid"); state.selMemberId=null;
-        state.floatProgressOpen=true; render(); return;
+      if(zEl){        // กดที่โซนเท → เตรียมย้าย/เลือก
+        var zz=getZone(zEl.getAttribute("data-zid")); var zp0=norm(ev);
+        zmv={ zid:zEl.getAttribute("data-zid"), start:zp0, geo:JSON.parse(JSON.stringify(zz.plan)), moved:false };
+        try{ overlay.setPointerCapture(ev.pointerId); }catch(x){}
+        return;
       }
       var sEl=ev.target.closest("[data-mid]");
       if(sEl){        // กดที่ตัวชิ้นส่วน → เตรียมย้าย/เลือก
@@ -5000,6 +5019,31 @@ function bindPlanEditor(){
         }
         repaintShapes(); return;
       }
+      if(ztf){       // ย่อ/ขยายโซน (ลากจุดจับ)
+        var zt=getZone(ztf.zid); if(!zt) return;
+        var pz=norm(ev), g=ztf.geo, hh=ztf.handle, MINZ=0.008;
+        var x1=Math.min(g.x1,g.x2), x2=Math.max(g.x1,g.x2), y1=Math.min(g.y1,g.y2), y2=Math.max(g.y1,g.y2);
+        var cx=Math.max(0,Math.min(1,pz.x)), cy=Math.max(0,Math.min(1,pz.y));
+        if(hh.indexOf("w")>=0) x1=Math.min(cx, x2-MINZ);
+        if(hh.indexOf("e")>=0) x2=Math.max(cx, x1+MINZ);
+        if(hh.indexOf("n")>=0) y1=Math.min(cy, y2-MINZ);
+        if(hh.indexOf("s")>=0) y2=Math.max(cy, y1+MINZ);
+        zt.plan.x1=x1; zt.plan.y1=y1; zt.plan.x2=x2; zt.plan.y2=y2;
+        repaintShapes(); return;
+      }
+      if(zmv){       // ย้ายตำแหน่งโซน (ทั้งก้อน ไม่บิดรูป)
+        var zm=getZone(zmv.zid); if(!zm) return;
+        var pz2=norm(ev), dxZ=pz2.x-zmv.start.x, dyZ=pz2.y-zmv.start.y;
+        if(!zmv.moved && Math.abs(dxZ)+Math.abs(dyZ)>0.004){ zmv.moved=true; state.selZoneId=zmv.zid; }
+        if(zmv.moved){
+          var gz=zmv.geo;
+          var bx1=Math.min(gz.x1,gz.x2), bx2=Math.max(gz.x1,gz.x2), by1=Math.min(gz.y1,gz.y2), by2=Math.max(gz.y1,gz.y2);
+          var ddx=Math.max(-bx1, Math.min(1-bx2, dxZ)), ddy=Math.max(-by1, Math.min(1-by2, dyZ));
+          zm.plan.x1=gz.x1+ddx; zm.plan.x2=gz.x2+ddx; zm.plan.y1=gz.y1+ddy; zm.plan.y2=gz.y2+ddy;
+          repaintShapes();
+        }
+        return;
+      }
       if(mv){        // ย้ายตำแหน่งชิ้นส่วน
         var m2=getMember(mv.mid); if(!m2) return;
         var p2=norm(ev), dxN=p2.x-mv.start.x, dyN=p2.y-mv.start.y;
@@ -5025,6 +5069,13 @@ function bindPlanEditor(){
       if(lsz){ lsz=null; saveDB(); return; }
       if(ml){ ml=null; saveDB(); return; }
       if(tf){ tf=null; saveDB(); return; }
+      if(ztf){ ztf=null; saveDB(); return; }
+      if(zmv){
+        var wasZ=zmv.moved, zid=zmv.zid; zmv=null;
+        if(wasZ){ saveDB(); return; }        // ลากย้ายเสร็จ → บันทึก
+        state.selZoneId=zid; state.selMemberId=null; state.floatProgressOpen=true; render();   // แค่แตะ → เลือก
+        return;
+      }
       if(mv){
         var wasMove=mv.moved, id=mv.mid; mv=null;
         if(wasMove){ saveDB(); return; }        // ลากย้ายเสร็จ → บันทึก
