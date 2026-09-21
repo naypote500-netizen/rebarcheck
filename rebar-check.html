@@ -4334,7 +4334,15 @@ function backTarget(){
   }
   return "home";
 }
-function navigate(screen){ state.screen=screen; render(); }
+function navigate(screen){
+  // ก่อนออกจากหน้าแก้ไข member — flush งานที่ค้างขึ้นคลาวด์ทันที (ไม่รอ debounce 450ms)
+  // เพื่อกัน race: กลับเข้ามาแล้วเจอ snapshot เก่าทับข้อมูลใหม่
+  var leaving=state.screen;
+  if(leaving==='memberDetail' || leaving==='memberForm' || leaving==='planEditor' || leaving==='progress'){
+    try{ if(typeof _syncT!=='undefined' && _syncT){ clearTimeout(_syncT); _syncT=null; cloudSyncNow(); } }catch(e){}
+  }
+  state.screen=screen; render();
+}
 function back(){
   var t=backTarget();
   if(t) navigate(t);
@@ -7759,6 +7767,15 @@ function startCloudSession(user){
       if(pending || editing || _syncT || _syncing>0) return;
       DB[c]=DB[c]||[];
       var incomingIds={};
+      // LOCK: ถ้าผู้ใช้กำลังเปิดหน้าแก้ไข member ใดอยู่ (memberDetail / memberForm /
+      // planEditor / progress) — ไม่ให้ snapshot ทับ member นั้นเด็ดขาด. รอจนกว่า
+      // ผู้ใช้ออกจากหน้า, แล้วรอบถัดไปค่อยรับข้อมูล remote
+      function _isLockedMember(id){
+        if(c!=='members') return false;
+        var lockScreens={memberDetail:1, memberForm:1, planEditor:1, progress:1};
+        if(!lockScreens[state.screen]) return false;
+        return id===state.memberId || id===state.selMemberId;
+      }
       // ADD / UPDATE ทีละ item — แต่ SKIP ถ้า local มี "งานที่แก้แล้วยังไม่ sync"
       //   (ตัดสินโดยเทียบ JSON ของ item ใน DB กับที่จำไว้ใน oldBase — ถ้าไม่เท่ากัน = แก้ local แล้ว)
       snap.docs.forEach(function(d){
@@ -7766,6 +7783,7 @@ function startCloudSession(user){
         var incoming; try{ incoming=JSON.parse(incomingJson); }catch(e){ return; }
         if(!incoming || !incoming.id) return;
         incomingIds[incoming.id]=1;
+        if(_isLockedMember(incoming.id)) return;   // 🔒 กำลังเปิดหน้าแก้ไขอยู่ — อย่าแตะ
         var ex=DB[c].filter(function(x){return x&&x.id===incoming.id;})[0];
         if(!ex){ DB[c].push(incoming); return; }
         // ตรวจว่า local ตัวนี้แตกต่างจาก syncBase เดิมไหม (แก้ local ยังไม่ sync)
@@ -7781,6 +7799,7 @@ function startCloudSession(user){
       for(var i=DB[c].length-1;i>=0;i--){
         var it=DB[c][i]; if(!it){ DB[c].splice(i,1); continue; }
         if(incomingIds[it.id]) continue;
+        if(_isLockedMember(it.id)) continue;   // 🔒 กำลังเปิดหน้าแก้ไขอยู่ — อย่าลบ
         var wasSynced=oldBase[it.id];
         if(!wasSynced) continue;   // เพิ่ง add local ยังไม่ sync → เก็บไว้ (จะ sync รอบถัดไป)
         var localJson2; try{ localJson2=JSON.stringify(_forCloud(c,it)); }catch(e){ continue; }
