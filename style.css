@@ -598,6 +598,27 @@ body.editor-wide header .hd-wrap{max-width:none}
 .de-cbar{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;display:flex;gap:8px;white-space:nowrap;cursor:default}
 .de-cbar button{font-size:.8rem;padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface,#fff);font-weight:700;cursor:pointer;color:var(--text);box-shadow:0 2px 8px rgba(2,6,23,.2)}
 .de-cbar button[data-de="cropok"]{background:var(--brand);color:#fff;border-color:var(--brand)}
+/* ===== DETAIL EDITOR — โหมดมือถือ: stack ลง อ่านง่าย ปิดการลาก/ปรับขนาด =====
+   บนจอเล็ก absolute+min-height:560 ทำให้เนื้อหาโดนตัดและเลื่อนไม่ได้
+   (touch-action:none บล็อกการปัด) — ปรับเป็น flow แนวตั้งเต็มกว้าง ภาพย่อพอดี */
+@media(max-width:760px){
+  .de-tools{padding:8px;gap:6px;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
+  .de-tools .de-tbtn{white-space:nowrap;padding:8px 10px;font-size:.8rem;flex:0 0 auto}
+  .de-canvas{min-height:0!important;overflow:visible!important;touch-action:pan-y!important;padding:12px!important;background:var(--surface,#fff)}
+  .de-hint{position:static!important;inset:auto!important;padding:22px 12px!important;text-align:center}
+  .de-props{display:none!important}
+  .de-el{position:relative!important;left:0!important;top:0!important;width:100%!important;height:auto!important;
+    margin:0 0 14px 0!important;border:1px solid var(--border)!important;border-radius:10px!important;
+    box-shadow:0 1px 3px rgba(2,6,23,.06)!important;overflow:hidden}
+  .de-el.sel{box-shadow:0 0 0 2px var(--brand),0 2px 10px rgba(29,78,216,.15)!important}
+  .de-img{width:100%!important;height:auto!important;max-height:78vh;object-fit:contain!important;background:#fff}
+  .de-txt{padding:12px 14px!important;font-size:.95rem!important;line-height:1.65!important;height:auto!important;min-height:44px}
+  .de-tablewrap{padding:8px!important;overflow-x:auto!important;height:auto!important}
+  .de-table{font-size:.8rem}
+  .de-move,.de-crop-btn,.de-pdftag,.de-h{display:none!important}
+  /* ปุ่มลบ: ยังคงใช้ได้เมื่อกดเลือก (มือถือ = view + upload + delete เท่านั้น) */
+  .de-el.sel .de-del{display:flex!important;top:6px!important;right:6px!important;width:30px;height:30px;font-size:14px}
+}
 .editor-right{min-width:0}
 @media(min-width:900px){ .editor-right{position:sticky;top:74px;max-height:calc(100vh - 88px);overflow:auto;padding-left:6px} }
 /* เส้นแบ่งลากได้ */

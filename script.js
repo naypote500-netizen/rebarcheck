@@ -4109,6 +4109,8 @@ function deCropOverlay(elm){
 function deElHtml(elm){
   var st='left:'+Math.round(elm.x||0)+'px;top:'+Math.round(elm.y||0)+'px;width:'+Math.round(elm.w||300)+'px;'+(elm.h?('height:'+Math.round(elm.h)+'px;'):'');
   var isMedia=(elm.type==='image'||elm.type==='pdf');
+  // อัตราส่วน W/H สำหรับให้ภาพย่อพอดีความกว้างจอมือถือแบบไม่บิดสัดส่วน (aspect-ratio ใน CSS)
+  if(isMedia && elm.w>0 && elm.h>0) st+='aspect-ratio:'+(+elm.w).toFixed(2)+'/'+(+elm.h).toFixed(2)+';';
   var inner='';
   if(isMedia){
     var fst=(elm.frame&&elm.frame.w>0)?' style="border:'+elm.frame.w+'px solid '+(elm.frame.color||'#1f2937')+'"':'';
@@ -4130,7 +4132,10 @@ function deElHtml(elm){
 }
 function detailEditorHtml(m){
   var doc=memberDoc(m);
-  var body=doc.els.map(deElHtml).join('');
+  // เรียงตาม y แล้ว x — บนมือถือเรนเดอร์แบบ stack ดังนั้น DOM order ควรตรงกับลำดับสายตา
+  // (บนเดสก์ท็อปใช้ position:absolute จึงไม่ถูกกระทบ)
+  var ordered=doc.els.slice().sort(function(a,b){ return ((a.y||0)-(b.y||0)) || ((a.x||0)-(b.x||0)); });
+  var body=ordered.map(deElHtml).join('');
   var hint=doc.els.length ? '' : '<div class="de-hint">กด “อัปโหลดรูป” หรือ “นำเข้า PDF” เพื่อเริ่ม — ลากย้าย/ย่อขยายอิสระ · PDF ยิ่งขยายยิ่งคม (deep-zoom) · ครอบตัด/ใส่ข้อความ/ตารางได้</div>';
   return '<div class="card"><div class="card-h"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 15 5-5 4 4 3-3 6 6"/><circle cx="9" cy="9" r="1.6"/></svg> รูปแบบ / รายละเอียด (แก้ไขได้)</div>'
     + '<div class="de-tools">'
@@ -4138,7 +4143,7 @@ function detailEditorHtml(m){
     +   '<button class="de-tbtn" data-de="uploadpdf"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> นำเข้า PDF</button>'
     +   '<button class="de-tbtn" data-de="addtext"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V5h16v2M9 20h6M12 5v15"/></svg> + ข้อความ</button>'
     +   '<button class="de-tbtn" data-de="addtable"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg> + ตาราง</button>'
-    +   '<input type="file" id="deFile" accept="image/*" hidden><input type="file" id="dePdf" accept="application/pdf" hidden>'
+    +   '<input type="file" id="deFile" accept="image/*" multiple hidden><input type="file" id="dePdf" accept="application/pdf" hidden>'
     + '</div>'
     + '<div class="de-canvas" id="deCanvas">'+hint+'<div class="de-props" id="deProps"></div>'+body+'</div></div>';
 }
@@ -4245,20 +4250,47 @@ function bindDetailEditor(){
       b.classList.toggle('on', elm.weight==700); saveDB();
     });
   }
-  // ---- upload image → เก็บใน IndexedDB ----
+  // ---- upload image → เก็บใน IndexedDB (รองรับเลือกหลายรูปพร้อมกัน) ----
   if(fileInput) fileInput.addEventListener('change',function(e){
-    var f=e.target.files&&e.target.files[0]; if(!f){ return; }
-    toast('กำลังย่อรูป...');
-    resizeImage(f,4000,0.9).then(function(url){
-      var id=deUid();
-      idbPut('deimg_'+id,url).then(function(){
-        DE_IMG[id]=url; deCloudSaveImg(id, url);
-        var im=new Image(); im.onload=function(){ var w=Math.min(360,im.width||360), hh=w*(im.height/im.width||0.7);
-          doc.els.push({id:id,type:'image',x:20,y:20,w:w,h:hh}); state.deSel=id; saveDB(); render(); };
-        im.src=url;
-      }).catch(function(){ toast('บันทึกรูปไม่สำเร็จ (พื้นที่เต็ม?)',true); });
-    }).catch(function(){ toast('อัปโหลดรูปไม่สำเร็จ',true); });
+    var files=e.target.files ? Array.prototype.slice.call(e.target.files) : [];
     e.target.value='';
+    if(!files.length) return;
+    var n=files.length;
+    toast(n>1 ? ('กำลังย่อรูป '+n+' รูป...') : 'กำลังย่อรูป...');
+    // จุดวางถัดไป — ต่อจากด้านล่างสุดของทุก element ที่มีอยู่ (กันวางทับ)
+    var baseY=20;
+    doc.els.forEach(function(el){
+      var by=(el.y||0)+(el.h||(el.w?el.w*0.7:240));
+      if(by+16>baseY) baseY=by+16;
+    });
+    var addedIds=[];
+    function processOne(idx){
+      if(idx>=files.length){
+        if(addedIds.length){ state.deSel=addedIds[addedIds.length-1]; saveDB(); render(); toast('เพิ่มรูปแล้ว '+addedIds.length+(n>1?(' / '+n+' รูป'):'')); }
+        return;
+      }
+      var f=files[idx];
+      resizeImage(f,4000,0.9).then(function(url){
+        var id=deUid();
+        return idbPut('deimg_'+id,url).then(function(){
+          DE_IMG[id]=url; deCloudSaveImg(id, url);
+          return new Promise(function(res){
+            var im=new Image();
+            im.onload=function(){
+              var w=Math.min(360,im.width||360), hh=w*((im.height/im.width)||0.7);
+              doc.els.push({id:id,type:'image',x:20,y:baseY,w:w,h:hh});
+              addedIds.push(id); baseY+=hh+16;
+              res();
+            };
+            im.onerror=function(){ res(); };
+            im.src=url;
+          });
+        });
+      }).catch(function(){
+        toast('อัปโหลดรูป'+(f.name?' "'+f.name+'"':'')+' ไม่สำเร็จ',true);
+      }).then(function(){ processOne(idx+1); });
+    }
+    processOne(0);
   });
   // ---- import PDF → เก็บไฟล์ต้นฉบับใน IndexedDB (เรนเดอร์คมตามซูม) ----
   if(pdfInput) pdfInput.addEventListener('change',function(e){
