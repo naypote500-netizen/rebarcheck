@@ -5633,16 +5633,36 @@ function bindDetailEditor(){
     }).catch(function(){ toast('โหลดตัวอ่าน PDF ไม่ได้',true); });
     e.target.value='';
   });
+  // ---- commit เนื้อหาที่กำลังพิมพ์ (contenteditable) ก่อนสั่ง render — กันข้อความหาย
+  //   ครอบคลุมทั้งกรณี IME ไทย (composition) และการพิมพ์เร็วก่อน blur
+  function deCommitEditable(){
+    var actives=canvas.querySelectorAll('[contenteditable="true"]');
+    actives.forEach(function(t){
+      var elDiv=t.closest('.de-el'); if(!elDiv) return;
+      var elm=findEl(elDiv.getAttribute('data-eid')); if(!elm) return;
+      if(t.classList.contains('de-txt')) elm.html=t.innerHTML;
+      else if(t.matches('.de-table [contenteditable]')){ var r=+t.getAttribute('data-r'),c=+t.getAttribute('data-c'); if(elm.rows[r]) elm.rows[r][c]=t.textContent; }
+    });
+  }
+  // ---- จุดวางถัดไปสำหรับ element ใหม่ (append ต่อจากด้านล่างของทุกอย่างที่มี) ----
+  function deNextY(){
+    var maxY=0;
+    doc.els.forEach(function(el){
+      var by=(el.y||0)+(el.h||(el.w?el.w*0.7:240));
+      if(by+16>maxY) maxY=by+16;
+    });
+    return maxY>0?maxY:20;
+  }
   // ---- toolbar / element buttons (click) ----
   var card=canvas.closest('.card');
   card.addEventListener('click',function(e){
     var b=e.target.closest('[data-de]'); if(!b) return;
     var act=b.getAttribute('data-de');
     var elDiv=b.closest('.de-el'), elm=elDiv?findEl(elDiv.getAttribute('data-eid')):null;
-    if(act==='upload'){ fileInput.click(); }
-    else if(act==='uploadpdf'){ pdfInput.click(); }
-    else if(act==='addtext'){ var t={id:deUid(),type:'text',x:24,y:24,w:280,h:80,html:'ใส่ข้อความ...'}; doc.els.push(t); state.deSel=t.id; saveDB(); render(); }
-    else if(act==='addtable'){ var tb={id:deUid(),type:'table',x:24,y:24,w:360,rows:[['หัวข้อ','หัวข้อ','หัวข้อ'],['','',''],['','','']]}; doc.els.push(tb); state.deSel=tb.id; saveDB(); render(); }
+    if(act==='upload'){ deCommitEditable(); fileInput.click(); }
+    else if(act==='uploadpdf'){ deCommitEditable(); pdfInput.click(); }
+    else if(act==='addtext'){ deCommitEditable(); var t={id:deUid(),type:'text',x:24,y:deNextY(),w:280,h:80,html:'ใส่ข้อความ...'}; doc.els.push(t); state.deSel=t.id; saveDB(); render(); }
+    else if(act==='addtable'){ deCommitEditable(); var tb={id:deUid(),type:'table',x:24,y:deNextY(),w:360,rows:[['หัวข้อ','หัวข้อ','หัวข้อ'],['','',''],['','','']]}; doc.els.push(tb); state.deSel=tb.id; saveDB(); render(); }
     else if(act==='del' && elm){ if(confirm('ลบสิ่งนี้?')){ doc.els=doc.els.filter(function(x){return x.id!==elm.id;});
         idbDel('deimg_'+elm.id).catch(function(){}); idbDel('depdf_'+elm.id).catch(function(){}); cloudDeletePlan('de_img_'+elm.id); cloudDeletePlan('de_pdf_'+elm.id); delete DE_IMG[elm.id]; delete DE_PDF[elm.id];
         state.deSel=null; saveDB(); render(); } }
