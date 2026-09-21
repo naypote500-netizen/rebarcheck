@@ -6436,9 +6436,25 @@ function startCloudSession(user){
         }
         return;
       }
-      if(pending || editing) return;   // เพิกเฉย echo/พิมพ์ค้างอยู่ — ข้อมูลใน memory คือของจริง
-      // การเปลี่ยนแปลงจริงจากที่อื่น → apply แล้วรีเฟรชจอ
-      DB[c]=snap.docs.map(function(d){ try{ return JSON.parse(d.data().data); }catch(e){ return null; } }).filter(Boolean);
+      // เพิกเฉย snapshot ถ้า:
+      //  - เป็น echo การเขียนของเราเอง (pending)
+      //  - ผู้ใช้กำลังพิมพ์ (editing)
+      //  - มี saveDB() ค้างรอ upload (_syncT) หรือ upload กำลังวิ่ง (_syncing>0)
+      //    → snapshot อาจมาก่อนที่ข้อมูลเราจะขึ้นถึงเซิฟเวอร์ — ถ้าเขียนทับตอนนี้จะกลืนงานที่เพิ่งเพิ่ม/พิมพ์
+      if(pending || editing || _syncT || _syncing>0) return;
+      // การเปลี่ยนแปลงจริงจากที่อื่น → apply แบบ merge in-place เพื่อรักษา object identity
+      // (closure ที่ยังถือ reference เก่าจะเห็นค่าใหม่ ไม่กลายเป็น orphan)
+      var incoming={};
+      snap.docs.forEach(function(d){ try{ var it=JSON.parse(d.data().data); if(it && it.id) incoming[it.id]=it; }catch(e){} });
+      DB[c]=DB[c]||[];
+      var seen={};
+      Object.keys(incoming).forEach(function(id){
+        var ex=DB[c].filter(function(x){return x&&x.id===id;})[0];
+        if(ex){ Object.keys(ex).forEach(function(k){ delete ex[k]; }); Object.assign(ex, incoming[id]); }
+        else DB[c].push(incoming[id]);
+        seen[id]=1;
+      });
+      for(var i=DB[c].length-1;i>=0;i--){ if(!DB[c][i] || !seen[DB[c][i].id]) DB[c].splice(i,1); }
       render();
     }, function(err){ console.warn("Firestore listen error ["+c+"]", err); toast("เชื่อมต่อฐานข้อมูลมีปัญหา: "+(err&&err.code||err),true); });
     _fbUnsub.push(un);
@@ -6446,7 +6462,8 @@ function startCloudSession(user){
 }
 
 /** ซิงค์ข้อมูลขึ้น Firestore แบบเทียบส่วนต่าง (เขียนเฉพาะที่เปลี่ยน/ลบที่หายไป) */
-function scheduleCloudSync(){ clearTimeout(_syncT); _syncT=setTimeout(cloudSyncNow, 450); }
+var _syncing=0;   // จำนวน batch commit ที่ยัง in-flight — ใช้กันสวมข้อมูลระหว่างอัป
+function scheduleCloudSync(){ clearTimeout(_syncT); _syncT=setTimeout(function(){ _syncT=null; cloudSyncNow(); }, 450); }
 function cloudSyncNow(){ CLOUD_COLLS.forEach(function(c){ _syncCollection(c, DB[c]||[]); }); }
 /** เตรียม item ก่อนขึ้นคลาวด์ — floor: ตัดพรีวิว/ไบต์แปลนออก (เก็บแยกใน planfiles) ให้ doc เล็ก */
 function _forCloud(coll, it){
@@ -6469,7 +6486,12 @@ function _syncCollection(coll, items){
   });
   Object.keys(base).forEach(function(id){ if(!(id in next)){ batch.delete(fbDb.collection(coll).doc(id)); writes++; } });
   _syncBase[coll]=next;
-  if(writes){ batch.commit().catch(function(e){ console.warn("sync "+coll+" fail",e); toast("ซิงค์ข้อมูลไม่สำเร็จ: "+(e&&e.code||e),true); }); }
+  if(writes){
+    _syncing++;
+    batch.commit()
+      .catch(function(e){ console.warn("sync "+coll+" fail",e); toast("ซิงค์ข้อมูลไม่สำเร็จ: "+(e&&e.code||e),true); })
+      .then(function(){ _syncing=Math.max(0,_syncing-1); });
+  }
 }
 
 /* ---- หน้า login / โหลด ---- */
