@@ -5675,8 +5675,18 @@ function bindDetailEditor(){
     var elDiv=b.closest('.de-el'), elm=elDiv?findEl(elDiv.getAttribute('data-eid')):null;
     if(act==='upload'){ deCommitEditable(); fileInput.click(); }
     else if(act==='uploadpdf'){ deCommitEditable(); pdfInput.click(); }
-    else if(act==='addtext'){ deCommitEditable(); var t={id:deUid(),type:'text',x:24,y:deNextY(),w:280,h:80,html:''}; liveDoc().els.push(t); state.deSel=t.id; saveDB(); render(); deScrollToSel(); toast('เพิ่มข้อความแล้ว (ต่อจากด้านล่าง)'); }
-    else if(act==='addtable'){ deCommitEditable(); var tb={id:deUid(),type:'table',x:24,y:deNextY(),w:360,rows:[['หัวข้อ','หัวข้อ','หัวข้อ'],['','',''],['','','']]}; liveDoc().els.push(tb); state.deSel=tb.id; saveDB(); render(); deScrollToSel(); toast('เพิ่มตารางแล้ว (ต่อจากด้านล่าง)'); }
+    else if(act==='addtext'){
+      deCommitEditable();
+      var _mm=getMember(_mid); if(!_mm){ toast('ไม่พบข้อมูลชิ้นส่วน — รีเฟรชหน้าและลองใหม่',true); return; }
+      var _d=memberDoc(_mm); var t={id:deUid(),type:'text',x:24,y:deNextY(),w:280,h:80,html:''};
+      _d.els.push(t); state.deSel=t.id; saveDB(); render(); deScrollToSel(); toast('เพิ่มข้อความแล้ว (ต่อจากด้านล่าง)');
+    }
+    else if(act==='addtable'){
+      deCommitEditable();
+      var _mm2=getMember(_mid); if(!_mm2){ toast('ไม่พบข้อมูลชิ้นส่วน — รีเฟรชหน้าและลองใหม่',true); return; }
+      var _d2=memberDoc(_mm2); var tb={id:deUid(),type:'table',x:24,y:deNextY(),w:360,rows:[['หัวข้อ','หัวข้อ','หัวข้อ'],['','',''],['','','']]};
+      _d2.els.push(tb); state.deSel=tb.id; saveDB(); render(); deScrollToSel(); toast('เพิ่มตารางแล้ว (ต่อจากด้านล่าง)');
+    }
     else if(act==='del' && elm){ if(confirm('ลบสิ่งนี้?')){ var _ld=liveDoc(); _ld.els=_ld.els.filter(function(x){return x.id!==elm.id;});
         idbDel('deimg_'+elm.id).catch(function(){}); idbDel('depdf_'+elm.id).catch(function(){}); cloudDeletePlan('de_img_'+elm.id); cloudDeletePlan('de_pdf_'+elm.id); delete DE_IMG[elm.id]; delete DE_PDF[elm.id];
         state.deSel=null; saveDB(); render(); } }
@@ -7726,14 +7736,11 @@ function startCloudSession(user){
     var un=fbDb.collection(c).onSnapshot(function(snap){
       var pending=snap.metadata && snap.metadata.hasPendingWrites;
       var editing=_isEditing();
-      // อัปเดต _syncBase เสมอ (ใช้ diff ตอนอัปครั้งถัดไป)
-      _syncBase[c]={}; snap.docs.forEach(function(d){ _syncBase[c][d.id]=d.data().data; });
-      // สำคัญ: อย่าเขียนทับ DB[c] ถ้า
-      //  - snapshot นี้คือ echo การเขียนของเราเอง (pending) — เราเพิ่งอัป, ข้อมูลใน memory
-      //    ถูกต้องแล้ว การสร้าง object ใหม่จะทำให้ closure ที่ถือ reference เก่า (เช่น
-      //    doc ใน bindDetailEditor) กลายเป็น orphan → saveDB() รอบต่อไปจะ serialize
-      //    object เก่าใน DB ที่ไม่ได้อัปเดต ทำให้ข้อความหาย
-      //  - ผู้ใช้กำลังพิมพ์อยู่ (contenteditable/input มี focus) — กันคลอบเบอร์งานที่ยังไม่ save
+      // เก็บ syncBase "เก่า" ไว้เทียบก่อน — ใช้ตัดสินว่า item ไหนถูกแก้ local (unsynced) หรือแค่ไม่เปลี่ยน
+      var oldBase=_syncBase[c]||{};
+      var newBase={};
+      snap.docs.forEach(function(d){ newBase[d.id]=d.data().data; });
+      _syncBase[c]=newBase;
       if(!_fbLoaded){
         DB[c]=snap.docs.map(function(d){ try{ return JSON.parse(d.data().data); }catch(e){ return null; } }).filter(Boolean);
         got[c]=true;
@@ -7748,25 +7755,38 @@ function startCloudSession(user){
         }
         return;
       }
-      // เพิกเฉย snapshot ถ้า:
-      //  - เป็น echo การเขียนของเราเอง (pending)
-      //  - ผู้ใช้กำลังพิมพ์ (editing)
-      //  - มี saveDB() ค้างรอ upload (_syncT) หรือ upload กำลังวิ่ง (_syncing>0)
-      //    → snapshot อาจมาก่อนที่ข้อมูลเราจะขึ้นถึงเซิฟเวอร์ — ถ้าเขียนทับตอนนี้จะกลืนงานที่เพิ่งเพิ่ม/พิมพ์
+      // เพิกเฉย snapshot ทั้งก้อนถ้าอยู่ในช่วงเสี่ยง (upload กำลังไปหรือค้าง / พิมพ์อยู่)
       if(pending || editing || _syncT || _syncing>0) return;
-      // การเปลี่ยนแปลงจริงจากที่อื่น → apply แบบ merge in-place เพื่อรักษา object identity
-      // (closure ที่ยังถือ reference เก่าจะเห็นค่าใหม่ ไม่กลายเป็น orphan)
-      var incoming={};
-      snap.docs.forEach(function(d){ try{ var it=JSON.parse(d.data().data); if(it && it.id) incoming[it.id]=it; }catch(e){} });
       DB[c]=DB[c]||[];
-      var seen={};
-      Object.keys(incoming).forEach(function(id){
-        var ex=DB[c].filter(function(x){return x&&x.id===id;})[0];
-        if(ex){ Object.keys(ex).forEach(function(k){ delete ex[k]; }); Object.assign(ex, incoming[id]); }
-        else DB[c].push(incoming[id]);
-        seen[id]=1;
+      var incomingIds={};
+      // ADD / UPDATE ทีละ item — แต่ SKIP ถ้า local มี "งานที่แก้แล้วยังไม่ sync"
+      //   (ตัดสินโดยเทียบ JSON ของ item ใน DB กับที่จำไว้ใน oldBase — ถ้าไม่เท่ากัน = แก้ local แล้ว)
+      snap.docs.forEach(function(d){
+        var incomingJson; try{ incomingJson=d.data().data; }catch(e){ return; }
+        var incoming; try{ incoming=JSON.parse(incomingJson); }catch(e){ return; }
+        if(!incoming || !incoming.id) return;
+        incomingIds[incoming.id]=1;
+        var ex=DB[c].filter(function(x){return x&&x.id===incoming.id;})[0];
+        if(!ex){ DB[c].push(incoming); return; }
+        // ตรวจว่า local ตัวนี้แตกต่างจาก syncBase เดิมไหม (แก้ local ยังไม่ sync)
+        var localJson; try{ localJson=JSON.stringify(_forCloud(c, ex)); }catch(e){ localJson=null; }
+        var lastSynced=oldBase[incoming.id];
+        if(localJson!=null && lastSynced!=null && localJson!==lastSynced) return;   // เก็บ local ไว้
+        // ปลอดภัย → merge in-place เพื่อรักษา object identity
+        Object.keys(ex).forEach(function(k){ delete ex[k]; });
+        Object.assign(ex, incoming);
       });
-      for(var i=DB[c].length-1;i>=0;i--){ if(!DB[c][i] || !seen[DB[c][i].id]) DB[c].splice(i,1); }
+      // DELETE เฉพาะกรณี item "เคยอยู่ใน syncBase" (คือเคย sync แล้ว) และ local ยังตรงกับ syncBase
+      //   (คือไม่ได้แก้ local ค้างไว้) → แสดงว่าถูกลบจากอีก device จริง
+      for(var i=DB[c].length-1;i>=0;i--){
+        var it=DB[c][i]; if(!it){ DB[c].splice(i,1); continue; }
+        if(incomingIds[it.id]) continue;
+        var wasSynced=oldBase[it.id];
+        if(!wasSynced) continue;   // เพิ่ง add local ยังไม่ sync → เก็บไว้ (จะ sync รอบถัดไป)
+        var localJson2; try{ localJson2=JSON.stringify(_forCloud(c,it)); }catch(e){ continue; }
+        if(localJson2===wasSynced) DB[c].splice(i,1);   // ตรงกับ base เดิม = ไม่ได้แก้ → ลบตาม remote
+        // ถ้า localJson2 !== wasSynced = แก้ local ค้างไว้ + remote ลบ → ข้อพิพาท, เก็บ local ไว้
+      }
       render();
     }, function(err){ console.warn("Firestore listen error ["+c+"]", err); toast("เชื่อมต่อฐานข้อมูลมีปัญหา: "+(err&&err.code||err),true); });
     _fbUnsub.push(un);
