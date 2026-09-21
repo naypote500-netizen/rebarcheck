@@ -3082,7 +3082,7 @@ function render(){
   bindScreen();
 }
 /** แถบเมนูล่าง + ปุ่มลอย — โชว์เฉพาะมือถือ (ดีไซน์แนวแอป) */
-var TABBAR_HIDE={planEditor:1, memberDetail:1, memberForm:1, pickType:1};
+var TABBAR_HIDE={planEditor:1, progress:1, memberDetail:1, memberForm:1, pickType:1};
 function renderTabbar(){
   var tb=document.getElementById("tabbar"), fab=document.getElementById("fab"); if(!tb) return;
   var mob=(window.innerWidth||1024)<760;
@@ -4608,6 +4608,7 @@ function viewProgress(){
     + '<div class="prog-sp"></div>'
     + '<span class="prog-counts">'+zones.length+' โซน'+stListP.map(function(s){ return ' · <span class="prog-c"><span class="prog-c-dot" style="background:'+s.color+'"></span>'+esc(s.label)+' '+(countsP[s.id]||0)+'</span>'; }).join("")+'</span>'
     + drawMenu
+    + '<button class="btn soft'+(state.floatProgressOpen?" on":"")+'" data-act="toggleProgressPanel" title="รายการโซน / รายละเอียด"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>'
     + '<button class="btn soft" data-act="toggleProgress" title="ซ่อน/แสดงโซน">'+ICeye+'</button>'
     + '<button class="btn soft" data-act="exportProgressPdf">'+ICpdf+' PDF อัพเดท</button>'
     + '</div>';
