@@ -4221,8 +4221,15 @@ function deApplyCrop(elm, done){
 function bindDetailEditor(){
   var canvas=$('#deCanvas'); if(!canvas) return;
   var m=getMember(activeMemberId()); if(!m) return;
-  var doc=memberDoc(m), fileInput=$('#deFile'), pdfInput=$('#dePdf');
-  function findEl(id){ return doc.els.filter(function(x){return x.id===id;})[0]; }
+  var fileInput=$('#deFile'), pdfInput=$('#dePdf'), _mid=m.id;
+  /* อ่าน doc "สด" จาก DB ทุกครั้งที่ใช้ — ห้ามเก็บ reference ไว้ใน closure
+     เพราะ cloud snapshot สร้าง object ใหม่ทับ DB.members ได้ตลอดเวลา
+     ถ้าถือ reference เก่าไว้ จะกลายเป็น orphan แล้วงานที่แก้/เพิ่มหายทั้งหมด */
+  function liveDoc(){
+    var mm=getMember(_mid)||getMember(activeMemberId())||getMember(state.memberId)||getMember(state.selMemberId);
+    return mm?memberDoc(mm):{els:[]};
+  }
+  function findEl(id){ return liveDoc().els.filter(function(x){return x.id===id;})[0]; }
   function selectDom(elDiv){
     state.deSel = elDiv ? elDiv.getAttribute('data-eid') : null;
     $$('.de-el',canvas).forEach(function(d){ d.classList.toggle('sel', !!elDiv && d===elDiv); });
@@ -4258,11 +4265,7 @@ function bindDetailEditor(){
     var n=files.length;
     toast(n>1 ? ('กำลังย่อรูป '+n+' รูป...') : 'กำลังย่อรูป...');
     // จุดวางถัดไป — ต่อจากด้านล่างสุดของทุก element ที่มีอยู่ (กันวางทับ)
-    var baseY=20;
-    doc.els.forEach(function(el){
-      var by=(el.y||0)+(el.h||(el.w?el.w*0.7:240));
-      if(by+16>baseY) baseY=by+16;
-    });
+    var baseY=deNextY();
     var addedIds=[];
     function processOne(idx){
       if(idx>=files.length){
@@ -4278,7 +4281,7 @@ function bindDetailEditor(){
             var im=new Image();
             im.onload=function(){
               var w=Math.min(360,im.width||360), hh=w*((im.height/im.width)||0.7);
-              doc.els.push({id:id,type:'image',x:20,y:baseY,w:w,h:hh});
+              liveDoc().els.push({id:id,type:'image',x:20,y:baseY,w:w,h:hh});
               addedIds.push(id); baseY+=hh+16;
               res();
             };
@@ -4312,8 +4315,8 @@ function bindDetailEditor(){
             idbPut('depdf_'+id, {bytes:buf, pageNo:pageNo}).catch(function(){ toast('บันทึก PDF ไม่สำเร็จ',true); });
             deCloudSavePdf(id, buf, pageNo);
             var vp=page.getViewport({scale:1}); var w=360, hh=w*(vp.height/vp.width);
-            doc.els.push({id:id,type:'pdf',x:20,y:20,w:w,h:hh,pageNo:pageNo}); state.deSel=id;
-            saveDB(); render();
+            liveDoc().els.push({id:id,type:'pdf',x:20,y:deNextY(),w:w,h:hh,pageNo:pageNo}); state.deSel=id;
+            saveDB(); render(); deScrollToSel();
             toast('นำเข้า PDF แล้ว — ลากมุมขยายให้ใหญ่ ยิ่งคม (deep-zoom)');
           }).catch(function(){ toast('อ่านหน้า PDF ไม่ได้',true); });
         }).catch(function(){ toast('เปิดไฟล์ PDF ไม่ได้ (อาจเสีย/มีรหัสผ่าน)',true); });
@@ -4334,9 +4337,10 @@ function bindDetailEditor(){
     });
   }
   // ---- จุดวางถัดไปสำหรับ element ใหม่ (append ต่อจากด้านล่างของทุกอย่างที่มี) ----
+  //   ไม่แตะ x/y ของ element เดิมเด็ดขาด — ของใหม่ไปต่อท้ายเสมอ
   function deNextY(){
     var maxY=0;
-    doc.els.forEach(function(el){
+    liveDoc().els.forEach(function(el){
       var by=(el.y||0)+(el.h||(el.w?el.w*0.7:240));
       if(by+16>maxY) maxY=by+16;
     });
@@ -4357,9 +4361,9 @@ function bindDetailEditor(){
     var elDiv=b.closest('.de-el'), elm=elDiv?findEl(elDiv.getAttribute('data-eid')):null;
     if(act==='upload'){ deCommitEditable(); fileInput.click(); }
     else if(act==='uploadpdf'){ deCommitEditable(); pdfInput.click(); }
-    else if(act==='addtext'){ deCommitEditable(); var t={id:deUid(),type:'text',x:24,y:deNextY(),w:280,h:80,html:''}; doc.els.push(t); state.deSel=t.id; saveDB(); render(); deScrollToSel(); toast('เพิ่มข้อความแล้ว (ต่อจากด้านล่าง)'); }
-    else if(act==='addtable'){ deCommitEditable(); var tb={id:deUid(),type:'table',x:24,y:deNextY(),w:360,rows:[['หัวข้อ','หัวข้อ','หัวข้อ'],['','',''],['','','']]}; doc.els.push(tb); state.deSel=tb.id; saveDB(); render(); deScrollToSel(); toast('เพิ่มตารางแล้ว (ต่อจากด้านล่าง)'); }
-    else if(act==='del' && elm){ if(confirm('ลบสิ่งนี้?')){ doc.els=doc.els.filter(function(x){return x.id!==elm.id;});
+    else if(act==='addtext'){ deCommitEditable(); var t={id:deUid(),type:'text',x:24,y:deNextY(),w:280,h:80,html:''}; liveDoc().els.push(t); state.deSel=t.id; saveDB(); render(); deScrollToSel(); toast('เพิ่มข้อความแล้ว (ต่อจากด้านล่าง)'); }
+    else if(act==='addtable'){ deCommitEditable(); var tb={id:deUid(),type:'table',x:24,y:deNextY(),w:360,rows:[['หัวข้อ','หัวข้อ','หัวข้อ'],['','',''],['','','']]}; liveDoc().els.push(tb); state.deSel=tb.id; saveDB(); render(); deScrollToSel(); toast('เพิ่มตารางแล้ว (ต่อจากด้านล่าง)'); }
+    else if(act==='del' && elm){ if(confirm('ลบสิ่งนี้?')){ var _ld=liveDoc(); _ld.els=_ld.els.filter(function(x){return x.id!==elm.id;});
         idbDel('deimg_'+elm.id).catch(function(){}); idbDel('depdf_'+elm.id).catch(function(){}); cloudDeletePlan('de_img_'+elm.id); cloudDeletePlan('de_pdf_'+elm.id); delete DE_IMG[elm.id]; delete DE_PDF[elm.id];
         state.deSel=null; saveDB(); render(); } }
     else if(act==='crop' && elm){ state.deSel=elm.id; state.deCrop=elm.id; elm._crop={x:0.1,y:0.1,w:0.8,h:0.8}; render(); }
@@ -4392,7 +4396,7 @@ function bindDetailEditor(){
       if(drag){ try{canvas.setPointerCapture(e.pointerId);}catch(x){} e.preventDefault(); return; }
     }
     if(elDiv && !b && !e.target.isContentEditable){
-      var em=findEl(elDiv.getAttribute('data-eid'));
+      var em=findEl(elDiv.getAttribute('data-eid')); if(!em) return;
       drag={mode:'move',elm:em,elDiv:elDiv,sx:e.clientX,sy:e.clientY,ox:em.x,oy:em.y};
       try{canvas.setPointerCapture(e.pointerId);}catch(x){} e.preventDefault();
     }
@@ -4400,6 +4404,11 @@ function bindDetailEditor(){
   canvas.addEventListener('pointermove',function(e){
     if(!drag) return;
     var dx=e.clientX-drag.sx, dy=e.clientY-drag.sy, el=drag.elm;
+    // ต้องลากเกิน 4px ก่อนจึงเริ่มย้ายจริง — คลิกเพื่อ "เลือก" เฉย ๆ จะไม่ทำให้รูป/ข้อความขยับ
+    if(drag.mode==='move' && !drag.moved){
+      if(Math.abs(dx)<4 && Math.abs(dy)<4) return;
+      drag.moved=true;
+    }
     if(drag.mode==='move'){ el.x=Math.max(0,drag.ox+dx); el.y=Math.max(0,drag.oy+dy); drag.elDiv.style.left=el.x+'px'; drag.elDiv.style.top=el.y+'px'; dePositionProps(); }
     else if(drag.mode==='colresize'){ var nw=Math.max(36, drag.w0+dx); if(!el.colW) el.colW=[]; el.colW[drag.ci]=nw; if(drag.col) drag.col.style.width=nw+'px'; }
     else if(drag.mode==='resize'){
@@ -4429,12 +4438,15 @@ function bindDetailEditor(){
   });
   canvas.addEventListener('pointerup',function(){
     if(!drag){ return; }
-    var wasResize=drag.mode==='resize', el=drag.elm; drag=null; saveDB();
+    var wasResize=drag.mode==='resize', el=drag.elm;
+    var changed=(drag.mode!=='move') || drag.moved;   // คลิกเลือกเฉย ๆ ไม่ต้องบันทึก (ตำแหน่งไม่เปลี่ยน)
+    drag=null;
+    if(changed) saveDB();
     dePositionProps();
     if(wasResize && el.type==='pdf') deRenderPdf(el);   // ขยายแล้วเรนเดอร์ให้คมขึ้น
   });
   // ---- โหลด/เรนเดอร์สื่อจาก IndexedDB + แถบเครื่องมือเริ่มต้น ----
-  deHydrate(doc);
+  deHydrate(liveDoc());
   deUpdateProps();
 }
 
