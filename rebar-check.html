@@ -4953,37 +4953,27 @@ function planShapesSVG(VW,VH){
     return state.unified ? !state.hiddenTypes[m.type] : (m.type===type);   // รวม = ทุกชนิดที่ไม่ได้ซ่อน
   });
   var shapes="";
-  // ── โซนความคืบหน้าเทคอนกรีต (แสดงเฉพาะหน้าอัพเดท) ──
+  // ── โซนความคืบหน้าเทคอนกรีต (แสดงเฉพาะหน้าอัพเดท) — ไฮไลท์สีสถานะล้วน ไม่มีกรอบ/ป้าย ──
   if(isProgress && state.showProgress){
     var zones=zonesOfPlan(f.id, _pid);
     zones.forEach(function(z){
-      var zp=z.plan||{}, stObj=getZoneStatus(f.id,_pid,z.status), col=stObj.color, label=stObj.label;
+      var zp=z.plan||{}, stObj=getZoneStatus(f.id,_pid,z.status), col=stObj.color;
       var zx=Math.min(zp.x1,zp.x2)*VW, zy=Math.min(zp.y1,zp.y2)*VH;
       var zw=Math.abs(zp.x2-zp.x1)*VW, zh=Math.abs(zp.y2-zp.y1)*VH;
-      var zcx=zx+zw/2, zcy=zy+zh/2;
       var isSel=(z.id===state.selZoneId);
+      var fillOp=isSel?0.5:0.32;
+      var selAttr=isSel?' stroke="var(--brand)" stroke-width="2.5" stroke-dasharray="9 5"':' stroke="none"';
       if(zp.kind==="poly" && zp.pts && zp.pts.length){
         var pstr=zp.pts.map(function(p){ return (zx+p[0]*zw).toFixed(1)+","+(zy+p[1]*zh).toFixed(1); }).join(" ");
-        shapes+='<polygon data-zid="'+z.id+'" points="'+pstr+'" fill="'+col+'" fill-opacity="0.08" stroke="'+col+'" stroke-width="'+(isSel?4:2)+'" stroke-linejoin="round" style="cursor:pointer"/>';
-        if(isSel) shapes+='<polygon points="'+pstr+'" fill="none" stroke="var(--brand)" stroke-width="2" stroke-dasharray="8 4" stroke-linejoin="round" style="pointer-events:none"/>';
+        shapes+='<polygon data-zid="'+z.id+'" points="'+pstr+'" fill="'+col+'" fill-opacity="'+fillOp+'"'+selAttr+' stroke-linejoin="round" style="cursor:pointer"/>';
       }else{
         shapes+='<rect data-zid="'+z.id+'" x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh
-          +'" rx="4" fill="'+col+'" fill-opacity="0.08" stroke="'+col+'" stroke-width="'+(isSel?4:2)+'" style="cursor:pointer"/>';
-        if(isSel) shapes+='<rect x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh
-          +'" rx="4" fill="none" stroke="var(--brand)" stroke-width="2" stroke-dasharray="8 4" style="pointer-events:none"/>';
+          +'" rx="3" fill="'+col+'" fill-opacity="'+fillOp+'"'+selAttr+' style="cursor:pointer"/>';
       }
-      // Stamp badge (กลางรูป)
-      var badgeW=Math.max(96, Math.min(180, label.length*11+40)), badgeH=z.date?44:30;
-      var bx=zcx-badgeW/2, by=zcy-badgeH/2;
-      shapes+='<g class="zone-stamp" data-zid="'+z.id+'" style="cursor:pointer">'
-        +'<rect x="'+bx+'" y="'+by+'" width="'+badgeW+'" height="'+badgeH+'" rx="8" fill="var(--surface,#fff)" stroke="'+col+'" stroke-width="2"/>'
-        +'<circle cx="'+(bx+14)+'" cy="'+(zcy-(z.date?6:0))+'" r="5" fill="'+col+'"/>'
-        +'<text x="'+(zcx+7)+'" y="'+(zcy-(z.date?6:0))+'" text-anchor="middle" dominant-baseline="central" font-size="15" font-weight="700" fill="'+col
-        +'" font-family="system-ui,sans-serif">'+esc(label)+'</text>';
-      if(z.date) shapes+='<text x="'+zcx+'" y="'+(zcy+14)+'" text-anchor="middle" dominant-baseline="central" font-size="12" fill="var(--text-dim,#888)" font-family="system-ui,sans-serif">'+esc(z.date)+'</text>';
-      shapes+='</g>';
-      // Zone name label
-      shapes+='<text x="'+(zx+8)+'" y="'+(zy+18)+'" font-size="15" font-weight="700" fill="'+col+'" font-family="system-ui,sans-serif" style="pointer-events:none">'+esc(z.name||"")+'</text>';
+      // ป้ายชื่อโซนเล็ก ๆ มุมซ้ายบน (มีขอบขาวให้อ่านง่ายบนแปลนที่ลายเยอะ) — ไม่มีป้ายสถานะกลางโซน
+      var nm=(z.name||"")+(z.date?"  ·  "+z.date:"");
+      if(nm) shapes+='<text x="'+(zx+7)+'" y="'+(zy+19)+'" font-size="15" font-weight="800" fill="'+col
+        +'" stroke="var(--surface,#fff)" stroke-width="3.5" paint-order="stroke" font-family="system-ui,sans-serif" style="pointer-events:none">'+esc(nm)+'</text>';
     });
   }
   members.forEach(function(m){
