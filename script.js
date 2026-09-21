@@ -4342,6 +4342,13 @@ function bindDetailEditor(){
     });
     return maxY>0?maxY:20;
   }
+  // ---- เลื่อนหน้าจอไปยัง element ที่เพิ่งเลือก (ให้ผู้ใช้เห็นสิ่งที่เพิ่งเพิ่ม) ----
+  function deScrollToSel(){
+    setTimeout(function(){
+      var el=canvas.querySelector('.de-el[data-eid="'+state.deSel+'"]');
+      if(el && el.scrollIntoView) el.scrollIntoView({behavior:'smooth', block:'center'});
+    }, 60);
+  }
   // ---- toolbar / element buttons (click) ----
   var card=canvas.closest('.card');
   card.addEventListener('click',function(e){
@@ -4350,8 +4357,8 @@ function bindDetailEditor(){
     var elDiv=b.closest('.de-el'), elm=elDiv?findEl(elDiv.getAttribute('data-eid')):null;
     if(act==='upload'){ deCommitEditable(); fileInput.click(); }
     else if(act==='uploadpdf'){ deCommitEditable(); pdfInput.click(); }
-    else if(act==='addtext'){ deCommitEditable(); var t={id:deUid(),type:'text',x:24,y:deNextY(),w:280,h:80,html:'ใส่ข้อความ...'}; doc.els.push(t); state.deSel=t.id; saveDB(); render(); }
-    else if(act==='addtable'){ deCommitEditable(); var tb={id:deUid(),type:'table',x:24,y:deNextY(),w:360,rows:[['หัวข้อ','หัวข้อ','หัวข้อ'],['','',''],['','','']]}; doc.els.push(tb); state.deSel=tb.id; saveDB(); render(); }
+    else if(act==='addtext'){ deCommitEditable(); var t={id:deUid(),type:'text',x:24,y:deNextY(),w:280,h:80,html:''}; doc.els.push(t); state.deSel=t.id; saveDB(); render(); deScrollToSel(); toast('เพิ่มข้อความแล้ว (ต่อจากด้านล่าง)'); }
+    else if(act==='addtable'){ deCommitEditable(); var tb={id:deUid(),type:'table',x:24,y:deNextY(),w:360,rows:[['หัวข้อ','หัวข้อ','หัวข้อ'],['','',''],['','','']]}; doc.els.push(tb); state.deSel=tb.id; saveDB(); render(); deScrollToSel(); toast('เพิ่มตารางแล้ว (ต่อจากด้านล่าง)'); }
     else if(act==='del' && elm){ if(confirm('ลบสิ่งนี้?')){ doc.els=doc.els.filter(function(x){return x.id!==elm.id;});
         idbDel('deimg_'+elm.id).catch(function(){}); idbDel('depdf_'+elm.id).catch(function(){}); cloudDeletePlan('de_img_'+elm.id); cloudDeletePlan('de_pdf_'+elm.id); delete DE_IMG[elm.id]; delete DE_PDF[elm.id];
         state.deSel=null; saveDB(); render(); } }
