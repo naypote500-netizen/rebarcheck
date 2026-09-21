@@ -4621,7 +4621,26 @@ function viewProgress(){
    ผูก event ของเอดิเตอร์แปลน: นำเข้ารูป + วาด + เลือก + อินพุตตรวจเหล็ก
    ------------------------------------------------------------------------ */
 /* ---- ซูม/เลื่อนแปลน: ใช้ transform บน #planCanvas (transform-origin 0 0) ---- */
+/** ขนาดกรอบแปลน — แคชไว้ 1 เฟรม กันอ่าน clientWidth ซ้ำ ๆ (บังคับ layout reflow = ต้นเหตุกระตุก) */
+var _szCache=null, _szAt=0;
+function _stageWH(){
+  var now=(window.performance&&performance.now)?performance.now():Date.now();
+  if(_szCache && (now-_szAt)<16) return _szCache;        // ใช้ซ้ำได้ ~1 เฟรม
+  var st=$("#planStage"); if(!st) return null;
+  _szCache={w:st.clientWidth, h:st.clientHeight}; _szAt=now;
+  return _szCache;
+}
+/** ทาทรานส์ฟอร์มแบบจำกัด 1 ครั้งต่อเฟรม (rAF) — ล้อเมาส์ยิงถี่แค่ไหนก็ไม่กระตุก */
+var _ptRaf=0, _ptPending=false;
 function planApplyTransform(){
+  if(_ptRaf){ _ptPending=true; return; }          // มีคิวในเฟรมนี้แล้ว → รอรอบหน้า
+  _planTransformNow();
+  _ptRaf=requestAnimationFrame(function(){
+    _ptRaf=0;
+    if(_ptPending){ _ptPending=false; planApplyTransform(); }   // ทาค่าล่าสุดอีกรอบ
+  });
+}
+function _planTransformNow(){
   var c=$("#planCanvas"); if(!c) return;
   var t="translate("+state.panX+"px,"+state.panY+"px) scale("+state.zoom+")";
   c.style.transformOrigin="0 0"; c.style.transform=t;
@@ -4632,9 +4651,9 @@ function planApplyTransform(){
 /** วางเลเยอร์ภาพคม (#planDetail) ในพิกัดจอจริง — คมบน iOS เพราะไม่อยู่ใน transform ที่ถูกซูม */
 function positionDetail(){
   var det=$("#planDetail"); if(!det || det.style.display==="none") return;
-  var doc=PLAN_DOCS[planSourceKey()], st=$("#planStage");
-  if(!doc || !doc.detailBox || !st){ return; }
-  var sw=st.clientWidth, sh=st.clientHeight, z=state.zoom, px=state.panX, py=state.panY, b=doc.detailBox;
+  var doc=PLAN_DOCS[planSourceKey()], sz=_stageWH();
+  if(!doc || !doc.detailBox || !sz){ return; }
+  var sw=sz.w, sh=sz.h, z=state.zoom, px=state.panX, py=state.panY, b=doc.detailBox;
   det.style.left=(b.rx1*sw*z+px)+"px";
   det.style.top=(b.ry1*sh*z+py)+"px";
   det.style.width=((b.rx2-b.rx1)*sw*z)+"px";
@@ -4653,18 +4672,18 @@ function updateLabelScale(){
   });
 }
 function planClampPan(){
-  var st=$("#planStage"); if(!st) return;
-  var w=st.clientWidth, h=st.clientHeight, s=state.zoom;
+  var sz=_stageWH(); if(!sz) return;
+  var w=sz.w, h=sz.h, s=state.zoom;
   state.panX=Math.min(0, Math.max(w*(1-s), state.panX));   // กันเลื่อนจนภาพหลุดกรอบ
   state.panY=Math.min(0, Math.max(h*(1-s), state.panY));
 }
 /** ซูมสูงสุด: PDF เรนเดอร์ใหม่ได้ → ซูมลึก; รูปภาพ → ไม่เกินความละเอียดจริง (ไม่เบลอ) */
 function planMaxZoom(){
-  var st=$("#planStage"); if(!st||!st.clientWidth) return 8;
+  var sz=_stageWH(); if(!sz||!sz.w) return 8;
   var doc=PLAN_DOCS[planSourceKey()];
   if(doc && doc.kind==="pdf") return 10;                          // เวกเตอร์ เรนเดอร์ใหม่ตามซูม
   var natW = doc&&doc.natW ? doc.natW : (currentPlan()?currentPlan().w:0);
-  if(natW) return Math.max(2, Math.min(12, natW/st.clientWidth));
+  if(natW) return Math.max(2, Math.min(12, natW/sz.w));
   return 8;
 }
 /** ซูมโดยคงจุดใต้เคอร์เซอร์ (cx,cy = พิกัดเทียบมุมซ้ายบนของกรอบ) */
@@ -5914,28 +5933,34 @@ function renderVisibleRegion(){
   var rx2=Math.min(1,(sw-px)/(sw*z)), ry2=Math.min(1,(sh-py)/(sh*z));
   if(rx2-rx1<0.002 || ry2-ry1<0.002) return;
   var dpr=Math.min(window.devicePixelRatio||1, 3);
-  var SS=_mob?3.0:2.0, cap=_mob?3200:5200;   // มือถือเพดาน 3200px (ต่ำกว่าลิมิต iOS 4096 → เรนเดอร์ผ่านชัวร์ ไม่เบลอ)
-  var targetW=Math.max(1000, Math.min(cap, Math.round((rx2-rx1)*sw*z*dpr*SS)));
-  var sig=[rx1.toFixed(3),ry1.toFixed(3),rx2.toFixed(3),ry2.toFixed(3),targetW].join(",");
-  if(doc.regionSig===sig){                            // ส่วนเดิม/ความละเอียดเดิม
-    // แต่ถ้า #planDetail ถูกสร้างใหม่ (ว่าง) หลัง render (เช่นตอนเข้าโหมดวาด/วาดเสร็จ) → ทาภาพคมที่แคชไว้กลับทันที กันภาพเบลอ
-    if(doc.detailUrl && doc.detailBox && !det.getAttribute("src")){
-      det.src=doc.detailUrl; det.style.display="block"; positionDetail();
-    }
-    _planDbg("ใช้แคชคม (sig เดิม) tgt="+targetW);
+  var SS=_mob?3.0:2.8, cap=_mob?3200:6400;   // มือถือเพดาน 3200px (ต่ำกว่าลิมิต iOS 4096 → เรนเดอร์ผ่านชัวร์ ไม่เบลอ)
+  // เรนเดอร์เผื่อขอบรอบ ๆ ที่เห็น → เลื่อน/ซูมนิดหน่อยยังคม ไม่ต้องเรนเดอร์ใหม่ (ลดกระตุก + ลดภาพเบลอระหว่างซูม)
+  var mx=(rx2-rx1)*0.18, my=(ry2-ry1)*0.18;
+  var ex1=Math.max(0,rx1-mx), ey1=Math.max(0,ry1-my), ex2=Math.min(1,rx2+mx), ey2=Math.min(1,ry2+my);
+  var needPPU=sw*z*dpr*SS;                    // พิกเซลที่ต้องการต่อความกว้างแปลนเต็ม
+  var targetW=Math.max(1000, Math.min(cap, Math.round((ex2-ex1)*needPPU)));
+  // ใช้ภาพคมเดิมซ้ำได้ไหม — ต้องคลุมพื้นที่ที่เห็นอยู่ และความละเอียดยังพอ
+  var bx=doc.detailBox;
+  if(bx && doc.detailUrl
+     && bx.rx1<=rx1+1e-6 && bx.ry1<=ry1+1e-6 && bx.rx2>=rx2-1e-6 && bx.ry2>=ry2-1e-6
+     && (doc.detailPPU||0) >= needPPU*0.7){
+    if(!det.getAttribute("src")) det.src=doc.detailUrl;   // #planDetail ถูกสร้างใหม่หลัง render → ทาภาพคมที่แคชไว้กลับ
+    det.style.display="block"; positionDetail();
+    _planDbg("ใช้แคชคม (คลุมพื้นที่+ละเอียดพอ)");
     return;
   }
-  if(doc.regionRendering){ doc.regionPending=sig; _planDbg("กำลังเรนเดอร์อยู่ (คิว)"); return; }
-  doc.regionRendering=true; doc.regionSig=sig;
+  if(doc.regionRendering){ doc.regionPending=1; _planDbg("กำลังเรนเดอร์อยู่ (คิว)"); return; }
+  doc.regionRendering=true;
   _planDbg("กำลังเรนเดอร์คม tgt="+targetW+"px…");
-  renderPdfRegionToCanvas(doc.page, rx1,ry1,rx2,ry2, targetW).then(function(cv){
+  renderPdfRegionToCanvas(doc.page, ex1,ey1,ex2,ey2, targetW).then(function(cv){
     function finish(url){
       doc.regionRendering=false;
       if(planSourceKey()===key){
         if(doc.detailUrl){ try{ URL.revokeObjectURL(doc.detailUrl); }catch(e){} }
         if(url.indexOf("blob:")===0) doc.detailUrl=url;
         det.src=url;
-        doc.detailBox={rx1:rx1,ry1:ry1,rx2:rx2,ry2:ry2};   // ตำแหน่งภาพคม (พิกัดแปลน 0..1)
+        doc.detailBox={rx1:ex1,ry1:ey1,rx2:ex2,ry2:ey2};   // ตำแหน่งภาพคม (พิกัดแปลน 0..1)
+        doc.detailPPU=cv.width/Math.max(1e-6,(ex2-ex1));   // ความละเอียดจริงที่ได้ (px ต่อแปลนเต็ม)
         det.style.display="block";
         positionDetail();                                   // วางในพิกัดจอจริง (screen-space) → คมบน iOS
         planLog("🔍 คมส่วนที่เห็น "+cv.width+"×"+cv.height);
@@ -5946,7 +5971,7 @@ function renderVisibleRegion(){
     }
     if(cv.toBlob){ cv.toBlob(function(b){ finish(b?URL.createObjectURL(b):cv.toDataURL("image/png")); },"image/png"); }
     else finish(cv.toDataURL("image/png"));
-  }).catch(function(e){ doc.regionRendering=false; doc.regionSig=null; _planDbg("ERR "+(e&&e.message||e)); planLog("โซมชัดส่วนที่เห็นล้มเหลว: "+(e&&e.message||e),true); planTip("เรนเดอร์คมล้มเหลว: "+(e&&e.message||e),true); });
+  }).catch(function(e){ doc.regionRendering=false; _planDbg("ERR "+(e&&e.message||e)); planLog("โซมชัดส่วนที่เห็นล้มเหลว: "+(e&&e.message||e),true); planTip("เรนเดอร์คมล้มเหลว: "+(e&&e.message||e),true); });
 }
 // ชื่อเดิมยังถูกเรียกจากที่อื่น → ชี้มาที่ระบบ region ใหม่
 function ensurePdfResolution(){ renderVisibleRegion(); }
@@ -5962,13 +5987,13 @@ function applyBestImage(){
     if(doc.url && img.getAttribute("data-full")!==doc.url){ img.src=doc.url; img.setAttribute("data-full",doc.url); }
   }else{
     var _mobA=(window.innerWidth||1024)<760;
-    if(det && !_mobA){ doc.regionSig=null; }   // เดสก์ท็อป: บังคับเรนเดอร์ส่วนคมใหม่ · มือถือ: ใช้แคชกัน lag
-    // (1) ภาพคมทั้งหน้าความละเอียดสูง — เฉพาะเดสก์ท็อป (มือถือข้าม เพราะ 6000px เกินลิมิต iOS → ใช้ region ที่ปลอดภัยแทน)
+    // (1) ภาพฐานทั้งหน้า — เฉพาะเดสก์ท็อป ใช้ตอนซูมต่ำเท่านั้น (ตอนซูมเข้าใช้เลเยอร์ region ที่คมกว่า)
+    //     ไม่ต้องใหญ่ 6000px เพราะเรนเดอร์ทีเดียวหนักมาก = ค้างยาว; 3400px คมพอที่ซูม ≤1.05x
     if(!_mobA){
       if(doc.bigUrl){ if(img.src!==doc.bigUrl) img.src=doc.bigUrl; }
       else if(!doc.bigRendering){
         doc.bigRendering=true;
-        renderPdfToCanvas(doc.page, 6000).then(function(cv){
+        renderPdfToCanvas(doc.page, 3400).then(function(cv){
           var setu=function(u){ doc.bigRendering=false; doc.bigUrl=u;
             if(planSourceKey()===key){ var im=$(".plan-img"); if(im) im.src=u; }
             planLog("ภาพคมทั้งหน้า "+cv.width+"×"+cv.height+" ✓"); };
@@ -6023,7 +6048,7 @@ function loadPlanSource(key){
 }
 var _ensureT=null;
 /** เรียก applyBestImage แบบหน่วงเวลา (หลังหยุดซูม) เพื่อไม่เรนเดอร์ถี่เกินไป */
-function scheduleEnsure(){ clearTimeout(_ensureT); _ensureT=setTimeout(applyBestImage, 110); }
+function scheduleEnsure(){ clearTimeout(_ensureT); _ensureT=setTimeout(applyBestImage, 190); }
 
 /** เก็บภาพตัวอย่าง (base raster) — upsert ลง "แปลนที่กำลังเลือก" ใน planList (รองรับหลายแปลน) */
 function storePlan(src, w, hh, kind){
