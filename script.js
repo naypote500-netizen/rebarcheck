@@ -5210,11 +5210,6 @@ function rvPaletteHtml(type, m){
     var stTx = st==="pass"?'<span class="ok">● ผ่าน พร้อมเท</span>' : st==="fail"?'<span class="bad">● ต้องแก้ไข</span>' : '<span class="wait">● รอตรวจ</span>';
     h+='<div class="rv-type"><span class="rv-tdot" style="background:var(--t-'+TYPES[m.type].css+')"></span><div><b>'+esc(TYPES[m.type].label)+' · '+esc(m.code)+'</b><small>'+esc(shortSpec(m)||"")+'</small></div></div>';
     h+=typePaletteRowHtml(m);
-    h+=rvPh('ข้อมูลชิ้นส่วน');
-    h+=rvProw('ชนิด',esc(TYPES[m.type].label))+rvProw('เบอร์',esc(m.code),1)+(m.name&&m.name!==m.code?rvProw('ชื่อ',esc(m.name)):'')
-      +(m.grid?rvProw('แนว',esc(m.grid),1):'')+(m.type==="beam"&&m.span?rvProw('ช่วง',(num(m.span,0)/1000).toFixed(2)+' ม.',1):'');
-    var ms=memberSummaryHtml(m);
-    if(ms) h+=rvPh('เหล็กเสริม')+'<div class="rv-pfree">'+ms+'</div>';
     h+=rvPh('สถานะการตรวจ');
     h+=rvProw('ผลตรวจ',stTx)+(ins?rvProw('ผู้ตรวจ',esc(ins.inspector||"—"))+rvProw('วันที่',esc(new Date(ins.ts).toLocaleDateString('th-TH',{year:'2-digit',month:'short',day:'numeric'})),1):'');
     if(m.note) h+=rvProw('หมายเหตุ',esc(m.note));
