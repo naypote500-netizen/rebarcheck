@@ -960,10 +960,14 @@ body.plan-mode main#app{padding:0;max-width:none;margin:0}
 .rv-vt.on{background:#8e97a3;color:#fff;font-weight:700;border-color:#7d8794}
 .rv-vt.add{padding:0 9px;font-weight:800;font-size:13px}
 .rv-vinfo{font-size:11px;color:#4a5665;padding:0 4px 5px;white-space:nowrap}
-.rv-view{flex:1;min-height:0;padding:12px;overflow:auto;background:#8e97a3}
-.rv-view .plan-wrap{position:relative;display:flex;justify-content:center}
-.rv-view .plan-stage{width:min(100%, calc((100vh - 245px) * var(--plan-ar,1.4)));box-shadow:0 2px 14px rgba(0,0,0,.3);border:1px solid #6b7684;border-radius:2px}
-.rv-view .plan-stage.no-plan{width:100%;min-height:420px}
+/* พื้นที่วาด = viewport เต็มพื้นที่ (แบบ CAD) · แผ่นแปลนขาวคงสัดส่วนอยู่ข้างใน ซูม/เลื่อนได้ทั้งกรอบ */
+.rv-view{flex:1;min-height:0;padding:0;overflow:hidden;background:#8e97a3}
+.rv-view .plan-wrap{position:relative;height:100%}
+.rv-view .plan-stage{width:100%;height:100%;aspect-ratio:auto;background:#8e97a3;border:none;border-radius:0;box-shadow:none;min-height:0}
+.rv-view .plan-stage.no-plan{aspect-ratio:auto;min-height:0;background:#8e97a3}
+.rv-view .plan-canvas,.rv-view .plan-overlay{inset:auto;left:0;top:0}
+.rv-view .plan-canvas{background:#fff;box-shadow:0 2px 16px rgba(0,0,0,.38)}
+.rv-view .plan-grid{position:absolute;inset:0;background-color:#fff}
 /* แถบสถานะ */
 .rv-status{display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;background:#dfe4ea;border-top:1px solid #c3cad3;font-size:11.5px;color:#4a5665;flex:none;overflow-x:auto;scrollbar-width:none}
 .rv-smsg{font-weight:600;white-space:nowrap}
@@ -1000,8 +1004,7 @@ body.plan-mode main#app{padding:0;max-width:none;margin:0}
   .rv-side .rv-pal{max-height:40vh}
   .rv-br{height:auto;max-height:26vh}
   .rv-br.closed{height:26px}
-  .rv-view{padding:8px}
-  .rv-view .plan-stage{width:min(100%, calc((100vh - 330px) * var(--plan-ar,1.4)))}
+  .rv-view{padding:0}
   .rv-status{padding:0 8px}
   .rv-smsg{display:none}
 }

@@ -3878,14 +3878,14 @@ function memberStatus(m){ var ins=lastInspection(m.id); return !ins ? "todo" : (
 /** ซูมไปหาชิ้นส่วนบนแปลน (ให้อยู่กลางจอ ขนาดพอเห็นชัด) */
 function planZoomToMember(id){
   var m=getMember(id); if(!m||!m.plan) return;
-  var sz=_stageWH(); if(!sz||!sz.w) return;
+  var sz=_sheetWH(); if(!sz||!sz.w) return;
   var pl=m.plan, x1,y1,x2,y2;
   if(pl.kind==="point"){ x1=x2=pl.x||0.5; y1=y2=pl.y||0.5; }
   else { x1=Math.min(pl.x1,pl.x2); x2=Math.max(pl.x1,pl.x2); y1=Math.min(pl.y1,pl.y2); y2=Math.max(pl.y1,pl.y2); }
   var bw=Math.max(0.02,(x2-x1))*sz.w, bh=Math.max(0.02,(y2-y1))*sz.h;
-  var z=Math.max(1, Math.min(planMaxZoom(), Math.min(sz.w/(bw*2.6), sz.h/(bh*2.6))));
-  var cx=(x1+x2)/2*sz.w, cy=(y1+y2)/2*sz.h;
-  state.zoom=z; state.panX=sz.w/2-cx*z; state.panY=sz.h/2-cy*z;
+  var z=Math.max(1, Math.min(planMaxZoom(), Math.min(sz.W/(bw*2.6), sz.H/(bh*2.6))));
+  var cx=(x1+x2)/2*sz.w, cy=(y1+y2)/2*sz.h;   // จุดกึ่งกลางชิ้น (พิกัดแผ่น) → วางกลางกรอบ
+  state.zoom=z; state.panX=sz.W/2-cx*z; state.panY=sz.H/2-cy*z;
   planClampPan(); planApplyTransform(); scheduleEnsure();
 }
 /** ค้นหาเบอร์บนแปลนที่เปิดอยู่ → เลือก + ซูมไปหา */
@@ -3934,7 +3934,8 @@ function planStageHtml(){
 
   var _ar=(plan&&plan.w&&plan.h)?(plan.w/plan.h):(100/72);
   // --plan-ar ให้ CSS มือถือคำนวณความกว้างจากความสูงที่เหลือ โดยคงสัดส่วนเดิม (overlay ต้องทับรูปพอดี ห้ามยืด)
-  return '<div class="plan-stage'+(drawing?" is-draw":"")+(plan?"":" no-plan")+'" id="planStage" style="aspect-ratio:'+ (plan&&plan.w?plan.w+"/"+plan.h : "100/72") +';--plan-ar:'+_ar.toFixed(4)+'">'
+  // กรอบ = viewport เต็มพื้นที่ (ไม่ล็อกสัดส่วน) · แผ่นแปลนข้างในคงสัดส่วนด้วย --plan-ar (คำนวณใน _sheetWH)
+  return '<div class="plan-stage'+(drawing?" is-draw":"")+(plan?"":" no-plan")+'" id="planStage" style="--plan-ar:'+_ar.toFixed(4)+'">'
        + '<div class="plan-canvas" id="planCanvas">'+bg+'</div>'
        // เลเยอร์ความคม + ไฮไลท์ อยู่ "นอก" canvas ที่ถูกซูม → บน iOS ภาพคมไม่โดน CSS transform ขยายจนเบลอ
        +   '<img class="plan-detail" id="planDetail" alt="" draggable="false" style="display:none">'
@@ -5082,6 +5083,14 @@ function _stageWH(){
   _szCache={w:st.clientWidth, h:st.clientHeight}; _szAt=now;
   return _szCache;
 }
+/** ขนาด "แผ่นแปลน" ที่พอดีในกรอบ (zoom 1) — กรอบ = viewport เต็มพื้นที่, แผ่น = รูปแปลนคงสัดส่วน อยู่ข้างใน
+    คืน {w,h}=แผ่น, {W,H}=กรอบ · ทุกพิกัด 0..1 ของชิ้นส่วนอ้างอิงแผ่น ไม่ใช่กรอบ */
+function _sheetWH(){
+  var sz=_stageWH(); if(!sz||!sz.w||!sz.h) return null;
+  var st=$("#planStage"), ar=parseFloat(st&&st.style.getPropertyValue("--plan-ar"))||1.4;
+  var w=sz.w, h=w/ar; if(h>sz.h){ h=sz.h; w=h*ar; }
+  return {w:w, h:h, W:sz.w, H:sz.h};
+}
 /** ทาทรานส์ฟอร์มแบบจำกัด 1 ครั้งต่อเฟรม (rAF) — ล้อเมาส์ยิงถี่แค่ไหนก็ไม่กระตุก */
 var _ptRaf=0, _ptPending=false;
 function planApplyTransform(){
@@ -5094,16 +5103,18 @@ function planApplyTransform(){
 }
 function _planTransformNow(){
   var c=$("#planCanvas"); if(!c) return;
+  var sh=_sheetWH(), ov=$("#planOverlay");
+  if(sh){ c.style.width=sh.w+"px"; c.style.height=sh.h+"px"; if(ov){ ov.style.width=sh.w+"px"; ov.style.height=sh.h+"px"; } }   // แผ่นแปลนคงสัดส่วนในกรอบ
   var t="translate("+state.panX+"px,"+state.panY+"px) scale("+state.zoom+")";
   c.style.transformOrigin="0 0"; c.style.transform=t;
-  var ov=$("#planOverlay"); if(ov){ ov.style.transformOrigin="0 0"; ov.style.transform=t; }   // ไฮไลท์ (เวกเตอร์) ซูมตามได้ คมเสมอ
+  if(ov){ ov.style.transformOrigin="0 0"; ov.style.transform=t; }   // ไฮไลท์ (เวกเตอร์) ซูมตามได้ คมเสมอ
   positionDetail();      // เลเยอร์ภาพคม (screen-space) วางตามตำแหน่งจริงบนจอ
   updateLabelScale();
 }
 /** วางเลเยอร์ภาพคม (#planDetail) ในพิกัดจอจริง — คมบน iOS เพราะไม่อยู่ใน transform ที่ถูกซูม */
 function positionDetail(){
   var det=$("#planDetail"); if(!det || det.style.display==="none") return;
-  var doc=PLAN_DOCS[planSourceKey()], sz=_stageWH();
+  var doc=PLAN_DOCS[planSourceKey()], sz=_sheetWH();
   if(!doc || !doc.detailBox || !sz){ return; }
   var sw=sz.w, sh=sz.h, z=state.zoom, px=state.panX, py=state.panY, b=doc.detailBox;
   det.style.left=(b.rx1*sw*z+px)+"px";
@@ -5124,14 +5135,15 @@ function updateLabelScale(){
   });
 }
 function planClampPan(){
-  var sz=_stageWH(); if(!sz) return;
-  var w=sz.w, h=sz.h, s=state.zoom;
-  state.panX=Math.min(0, Math.max(w*(1-s), state.panX));   // กันเลื่อนจนภาพหลุดกรอบ
-  state.panY=Math.min(0, Math.max(h*(1-s), state.panY));
+  var s=_sheetWH(); if(!s) return;
+  var z=state.zoom||1, cw=s.w*z, ch=s.h*z;
+  // แผ่นเล็กกว่ากรอบ → วางกลาง · ใหญ่กว่า → เลื่อนได้แต่ไม่หลุดขอบ
+  state.panX = cw<=s.W ? (s.W-cw)/2 : Math.min(0, Math.max(s.W-cw, state.panX));
+  state.panY = ch<=s.H ? (s.H-ch)/2 : Math.min(0, Math.max(s.H-ch, state.panY));
 }
 /** ซูมสูงสุด: PDF เรนเดอร์ใหม่ได้ → ซูมลึก; รูปภาพ → ไม่เกินความละเอียดจริง (ไม่เบลอ) */
 function planMaxZoom(){
-  var sz=_stageWH(); if(!sz||!sz.w) return 8;
+  var sz=_sheetWH(); if(!sz||!sz.w) return 8;
   var doc=PLAN_DOCS[planSourceKey()];
   if(doc && doc.kind==="pdf") return 10;                          // เวกเตอร์ เรนเดอร์ใหม่ตามซูม
   var natW = doc&&doc.natW ? doc.natW : (currentPlan()?currentPlan().w:0);
@@ -5145,11 +5157,10 @@ function planZoomBy(f, cx, cy){
   state.panX = cx - (cx-state.panX)*(s2/s1);
   state.panY = cy - (cy-state.panY)*(s2/s1);
   state.zoom = s2;
-  if(Math.abs(s2-1)<0.001){ state.panX=0; state.panY=0; }
   planClampPan(); planApplyTransform();
   scheduleEnsure();   // เรนเดอร์ส่วนคม "หลังหยุดซูม" เท่านั้น (กันกระตุกระหว่างซูม)
 }
-function planFit(){ state.zoom=1; state.panX=0; state.panY=0; planApplyTransform(); }
+function planFit(){ state.zoom=1; state.panX=0; state.panY=0; planClampPan(); planApplyTransform(); scheduleEnsure(); }
 
 function bindPlanEditor(){
   // นำเข้าแปลน (รูป / PDF)
@@ -5276,7 +5287,7 @@ function bindPlanEditor(){
 
   var overlay=$("#planOverlay"), stage=$("#planStage");
   if(!overlay) return;
-  planApplyTransform();   // คงระดับซูม/ตำแหน่งเดิมหลังเรนเดอร์ใหม่
+  _szCache=null; planClampPan(); planApplyTransform();   // คงระดับซูม/ตำแหน่งเดิมหลังเรนเดอร์ใหม่ (จัดแผ่นให้อยู่กลาง/ในกรอบ)
   applyBestImage();       // แสดงภาพคมที่สุด (โหลดต้นฉบับจาก IDB ถ้าจำเป็น)
 
   var VW=+overlay.getAttribute("data-vw"), VH=+overlay.getAttribute("data-vh");
@@ -6524,13 +6535,14 @@ function renderVisibleRegion(){
   var det=$("#planDetail"), st=$("#planStage");
   if(!det||!st) return;
   if(!doc || doc.kind!=="pdf" || !doc.page){ det.style.display="none"; _planDbg("doc="+(doc?doc.kind:"null")+" (ไม่มี PDF page → ใช้ภาพฐาน)"); if(state.zoom>1.05) planTip("แปลนนี้ไม่ใช่ PDF เวกเตอร์ — ซูมได้เท่าความละเอียดรูป"); return; }
-  var sw=st.clientWidth, sh=st.clientHeight, z=state.zoom, px=state.panX, py=state.panY;
+  var _sh=_sheetWH(); if(!_sh){ _planDbg("stage 0px"); return; }
+  var sw=_sh.w, sh=_sh.h, VWp=_sh.W, VHp=_sh.H, z=state.zoom, px=state.panX, py=state.panY;   // sw/sh = แผ่นแปลน · VWp/VHp = กรอบที่มองเห็น
   if(!sw||!sh){ _planDbg("stage 0px"); return; }
   var _mob=(window.innerWidth||1024)<760;
   // มือถือ: เรนเดอร์ส่วนที่เห็นเสมอ (แม้ยังไม่ซูม) เพราะภาพเต็มหน้าความละเอียดสูงเกินลิมิต iOS แล้วเบลอ · เดสก์ท็อป: ซูมต่ำใช้ภาพฐานพอ
   if(z<=1.05 && !_mob){ det.style.display="none"; _planDbg("desktop z ต่ำ (ใช้ภาพฐาน)"); return; }
   var rx1=Math.max(0,(0-px)/(sw*z)), ry1=Math.max(0,(0-py)/(sh*z));
-  var rx2=Math.min(1,(sw-px)/(sw*z)), ry2=Math.min(1,(sh-py)/(sh*z));
+  var rx2=Math.min(1,(VWp-px)/(sw*z)), ry2=Math.min(1,(VHp-py)/(sh*z));
   if(rx2-rx1<0.002 || ry2-ry1<0.002) return;
   var dpr=Math.min(window.devicePixelRatio||1, 3);
   var SS=_mob?3.0:2.8, cap=_mob?3200:6400;   // มือถือเพดาน 3200px (ต่ำกว่าลิมิต iOS 4096 → เรนเดอร์ผ่านชัวร์ ไม่เบลอ)
@@ -7173,6 +7185,12 @@ function init(){
   });
   $("#overlay").addEventListener("click",function(e){ if(e.target.id==="overlay") closeSheet(); });
   var _rzT; window.addEventListener("resize",function(){ clearTimeout(_rzT); _rzT=setTimeout(function(){ try{ renderTabbar(); }catch(e){} },150); });
+  // กรอบแปลนเป็น viewport เต็มพื้นที่ → ขนาดจอเปลี่ยนต้องจัดแผ่นแปลนใหม่ (คงซูม/ตำแหน่งให้อยู่ในกรอบ)
+  var _rsT=null;
+  window.addEventListener("resize",function(){
+    if(state.screen!=="planEditor") return;
+    clearTimeout(_rsT); _rsT=setTimeout(function(){ _szCache=null; planClampPan(); planApplyTransform(); scheduleEnsure(); },80);
+  });
   document.addEventListener("keydown",function(e){
     if(e.key==="Escape"){ $("#lightbox").classList.remove("open"); closeSheet(); }
     // (หน้า login ใช้ <form> จริงแล้ว → Enter จะ submit เอง ไม่ต้องดักที่นี่)
