@@ -551,16 +551,23 @@ body.editor-wide header .hd-wrap{max-width:none}
 .de-tools{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;background:var(--surface-2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:8}
 .de-tbtn{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid var(--border);background:var(--surface,#fff);border-radius:9px;font-size:.84rem;font-weight:600;cursor:pointer;color:var(--text)}
 .de-tbtn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+.de-tbtn[disabled]{opacity:.42;cursor:default}
+.de-tsep{width:1px;align-self:stretch;margin:2px 2px;background:var(--border)}
 /* property bar — แถบลอยติดองค์ประกอบที่เลือก (ไม่กินพื้นที่) */
-.de-props{position:absolute;z-index:20;display:none;align-items:center;gap:6px;padding:6px 8px;
+.de-props{position:absolute;z-index:20;display:none;align-items:center;flex-wrap:wrap;gap:6px;padding:6px 8px;max-width:min(520px,92%);
   border:1px solid var(--border);border-radius:10px;background:var(--surface,#fff);box-shadow:0 6px 20px rgba(2,6,23,.18)}
 .de-props.on{display:inline-flex}
+.de-props>*{flex:none}
 .de-plabel{font-size:.74rem;font-weight:700;color:var(--brand)}
 .de-pb{font-size:.9rem;width:30px;height:28px;border:1px solid var(--border);border-radius:7px;background:var(--surface,#fff);cursor:pointer;color:var(--text)}
 .de-pb.on{background:var(--brand);color:#fff;border-color:var(--brand)}
 .de-psel{height:28px;border:1px solid var(--border);border-radius:7px;background:var(--surface,#fff);color:var(--text);font-size:.8rem;padding:0 4px;max-width:110px}
 .de-pcolor{display:inline-flex;align-items:center}
 .de-pcolor input[type=color]{width:28px;height:28px;padding:0;border:1px solid var(--border);border-radius:7px;background:none;cursor:pointer}
+.de-pdiv{width:1px;height:22px;background:var(--border);margin:0 1px}
+.de-pswrap{display:inline-flex;align-items:center;gap:6px}
+.de-psw{width:20px;height:20px;padding:0;border:1px solid rgba(2,6,23,.18);border-radius:50%;cursor:pointer}
+.de-psw:hover{transform:scale(1.15)}
 .de-canvas{flex:1 1 auto;min-width:0;position:relative;min-height:560px;overflow:auto;touch-action:none;background:var(--surface,#fff)}
 .de-hint{position:absolute;inset:0;display:grid;place-items:center;color:var(--text-dim);font-size:.9rem;pointer-events:none;text-align:center;padding:24px}
 .de-el{position:absolute;background:transparent;border:1px solid transparent;border-radius:8px;box-sizing:border-box}

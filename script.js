@@ -4147,10 +4147,28 @@ var DE_LIB_CATS=[
   {id:'stickers', label:'สติกเกอร์', icon:'✓', items:DE_STICKER_ITEMS, kind:'sticker'}
 ];
 function deLibCat(id){ return DE_LIB_CATS.filter(function(c){return c.id===id;})[0]||DE_LIB_CATS[0]; }
+/** สีด่วนในแถบเครื่องมือ — แดง/ส้ม/เขียว/น้ำเงิน/ม่วง/ดำ (พอสำหรับงานตรวจ) */
+var DE_SWATCH=['#dc2626','#f59e0b','#16a34a','#1d4ed8','#7c3aed','#111827'];
+/** สีพื้นรูปทรง = สี hex + ความทึบแยกกัน (ค่าเก่าที่เก็บเป็น rgba() ไว้แล้วยังใช้ได้) */
+function deShapeFill(elm){
+  var op=(elm.fillOpacity==null?0.14:+elm.fillOpacity);
+  if(op<=0) return 'none';
+  var hex=elm.fill;
+  if(!hex) return 'rgba(29,78,216,'+op+')';
+  if(hex.charAt(0)!=='#') return hex;
+  var n=parseInt(hex.slice(1),16);
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+op+')';
+}
+function deFillHex(elm){ return (elm.fill&&elm.fill.charAt(0)==='#')?elm.fill:'#1d4ed8'; }
+/** เปลี่ยนสี/เส้นแล้ววาด SVG ใหม่ในที่เดิม — ไม่ render ทั้งหน้า จะได้ไม่เสียตำแหน่งเลื่อน/ตัวที่เลือก */
+function deApplyShape(elm){
+  var host=document.querySelector('#deCanvas .de-el[data-eid="'+elm.id+'"] .de-shape'); if(!host) return;
+  host.innerHTML = elm.type==='line' ? deLineSvg(elm) : elm.type==='sticker' ? deStickerSvg(elm) : deShapeSvg(elm);
+}
 /** สร้าง SVG ของรูปทรง (viewBox scale ตาม w/h ปัจจุบัน) */
 function deShapeSvg(elm){
   var w=Math.max(20,elm.w||120), h=Math.max(20,elm.h||80);
-  var fill=elm.fill||'rgba(29,78,216,0.14)';
+  var fill=deShapeFill(elm);
   var stroke=elm.stroke||'#1d4ed8';
   var sw=+elm.strokeWidth||2;
   var dash=elm.dashed?' stroke-dasharray="8 5"':'';
@@ -4223,6 +4241,50 @@ function deStickerSvg(elm){
   s+=(ic[sub]||ic.check);
   return s+'</svg>';
 }
+/* ---- ย้อนกลับ / ทำซ้ำ — เก็บสแนปช็อต doc เป็น JSON แยกตามชิ้นส่วน ---- */
+var DE_UNDO={}, DE_REDO={}, DE_UNDO_MAX=40;
+function deSnap(mid){ var m=getMember(mid); if(!m) return null; try{ return JSON.stringify(memberDoc(m)); }catch(e){ return null; } }
+/** เรียกก่อนทุกการแก้ไข — เก็บสภาพ "ก่อนหน้า" ไว้ให้ย้อนได้ */
+function dePushUndo(mid){
+  var j=deSnap(mid); if(j==null) return;
+  var st=DE_UNDO[mid]||(DE_UNDO[mid]=[]);
+  if(st.length && st[st.length-1]===j) return;
+  st.push(j); if(st.length>DE_UNDO_MAX) st.shift();
+  DE_REDO[mid]=[];
+  deSyncUndoBtns();
+}
+/* พิมพ์ข้อความ/ลากกล่อง ไม่ได้ render ใหม่ — ปุ่มจึงต้องอัปเดตสถานะเอง ไม่งั้นค้าง disabled กดไม่ได้ */
+function deSyncUndoBtns(){
+  var mid=activeMemberId();
+  var u=document.querySelector('.de-tools [data-de="undo"]'), r=document.querySelector('.de-tools [data-de="redo"]');
+  if(u) u.disabled=!(DE_UNDO[mid]||[]).length;
+  if(r) r.disabled=!(DE_REDO[mid]||[]).length;
+}
+/* เขียนทับ els ในที่เดิม ห้ามสร้าง doc ใหม่ — ระบบล็อคคลาวด์ยึด object เดิมไว้ */
+function deRestoreSnap(mid, json){
+  var m=getMember(mid); if(!m) return false;
+  var snap; try{ snap=JSON.parse(json); }catch(e){ return false; }
+  var doc=memberDoc(m);
+  doc.els.length=0;
+  (snap.els||[]).forEach(function(e){ doc.els.push(e); });
+  return true;
+}
+function deUndo(){
+  var mid=activeMemberId(), st=DE_UNDO[mid];
+  if(!st||!st.length){ toast('ไม่มีอะไรให้ย้อนกลับ'); return; }
+  var cur=deSnap(mid);
+  if(!deRestoreSnap(mid, st.pop())) return;
+  if(cur!=null) (DE_REDO[mid]||(DE_REDO[mid]=[])).push(cur);
+  state.deSel=null; saveDB(); render(); toast('ย้อนกลับแล้ว');
+}
+function deRedo(){
+  var mid=activeMemberId(), st=DE_REDO[mid];
+  if(!st||!st.length){ toast('ไม่มีอะไรให้ทำซ้ำ'); return; }
+  var cur=deSnap(mid);
+  if(!deRestoreSnap(mid, st.pop())) return;
+  if(cur!=null) (DE_UNDO[mid]||(DE_UNDO[mid]=[])).push(cur);
+  state.deSel=null; saveDB(); render(); toast('ทำซ้ำแล้ว');
+}
 function deElHtml(elm){
   var st='left:'+Math.round(elm.x||0)+'px;top:'+Math.round(elm.y||0)+'px;width:'+Math.round(elm.w||300)+'px;'+(elm.h?('height:'+Math.round(elm.h)+'px;'):'');
   var isMedia=(elm.type==='image'||elm.type==='pdf');
@@ -4279,6 +4341,11 @@ function detailEditorHtml(m){
     +   '<button class="de-tbtn" data-de="uploadpdf"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> นำเข้า PDF</button>'
     +   '<button class="de-tbtn" data-de="addtext"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V5h16v2M9 20h6M12 5v15"/></svg> + ข้อความ</button>'
     +   '<button class="de-tbtn" data-de="addtable"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg> + ตาราง</button>'
+    +   '<span class="de-tsep"></span>'
+    +   '<button class="de-tbtn" data-de="undo" title="ย้อนกลับ (Ctrl+Z)"'+((DE_UNDO[m.id]||[]).length?'':' disabled')+'><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/></svg> ย้อนกลับ</button>'
+    +   '<button class="de-tbtn" data-de="redo" title="ทำซ้ำ (Ctrl+Shift+Z)"'+((DE_REDO[m.id]||[]).length?'':' disabled')+'><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M21 13a9 9 0 1 1-3-7.7L21 8"/></svg> ทำซ้ำ</button>'
+    +   '<span class="de-tsep"></span>'
+    +   '<button class="de-tbtn" data-de="exportpdf" title="บันทึกหน้านี้เป็น PDF"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg> ออก PDF</button>'
     +   '<input type="file" id="deFile" accept="image/*" multiple hidden><input type="file" id="dePdf" accept="application/pdf" hidden>'
     + '</div>'
     + '<div class="de-workspace">'
@@ -4301,13 +4368,43 @@ function deUpdateProps(){
     h+='<select class="de-psel" data-dp="font">'+fonts.map(function(f){return '<option value="'+f[0]+'"'+((elm.font||'')===f[0]?' selected':'')+'>'+f[1]+'</option>';}).join('')+'</select>';
     h+='<select class="de-psel" data-dp="size">'+sizes.map(function(s){return '<option value="'+s+'"'+((elm.size||16)==s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>';
     h+='<label class="de-pcolor"><input type="color" data-dp="color" value="'+(elm.color||'#1f2937')+'"></label>';
+    h+=deSwatchRow();
   }else if(elm.type==='image'||elm.type==='pdf'){
     var fw=(elm.frame&&elm.frame.w)||0;
     h+='<span class="de-plabel">กรอบ</span>';
     h+='<select class="de-psel" data-dp="frame">'+[[0,'ไม่มี'],[1,'บาง'],[2,'กลาง'],[4,'หนา'],[8,'หนามาก']].map(function(o){return '<option value="'+o[0]+'"'+(fw==o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>';
     h+='<label class="de-pcolor"><input type="color" data-dp="framecolor" value="'+((elm.frame&&elm.frame.color)||'#1f2937')+'"></label>';
+  }else if(elm.type==='shape'){
+    var fop=(elm.fillOpacity==null?0.14:+elm.fillOpacity);
+    h+='<span class="de-plabel">พื้น</span>';
+    h+='<label class="de-pcolor"><input type="color" data-dp="fill" value="'+deFillHex(elm)+'"></label>';
+    h+='<select class="de-psel" data-dp="fillop">'+[[0,'โปร่ง'],[0.14,'จาง'],[0.4,'กลาง'],[1,'ทึบ']].map(function(o){return '<option value="'+o[0]+'"'+(fop==o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>';
+    h+='<span class="de-pdiv"></span><span class="de-plabel">เส้น</span>';
+    h+='<label class="de-pcolor"><input type="color" data-dp="stroke" value="'+(elm.stroke||'#1d4ed8')+'"></label>';
+    h+=deStrokeCtl(elm,2)+deSwatchRow();
+  }else if(elm.type==='line'){
+    h+='<span class="de-plabel">เส้น</span>';
+    h+='<label class="de-pcolor"><input type="color" data-dp="stroke" value="'+(elm.stroke||'#1f2937')+'"></label>';
+    h+=deStrokeCtl(elm,3)+deSwatchRow();
+  }else if(elm.type==='sticker'){
+    h+='<span class="de-plabel">สี</span>';
+    h+='<label class="de-pcolor"><input type="color" data-dp="stickercolor" value="'+(elm.color||'#1d4ed8')+'"></label>';
+    h+=deSwatchRow();
   }
   bar.innerHTML=h; bar.classList.add('on'); dePositionProps();
+}
+/** ความหนาเส้น + ปุ่มเส้นประ (ใช้ร่วมกันระหว่างรูปทรงกับเส้น) */
+function deStrokeCtl(elm, def){
+  var cur=+elm.strokeWidth||def;
+  return '<select class="de-psel" data-dp="sw" title="ความหนาเส้น">'
+    + [1,2,3,4,6,8,12].map(function(n){ return '<option value="'+n+'"'+(cur==n?' selected':'')+'>'+n+'px</option>'; }).join('')
+    + '</select><button class="de-pb'+(elm.dashed?' on':'')+'" data-dp="dashed" title="เส้นประ">╌ ╌</button>';
+}
+/** สีด่วน — กดทีเดียวเปลี่ยนทั้งชิ้น (เขียว=ผ่าน แดง=ไม่ผ่าน เหลือง=ระวัง) */
+function deSwatchRow(){
+  return '<span class="de-pdiv"></span><span class="de-pswrap">'+DE_SWATCH.map(function(c){
+    return '<button class="de-psw" data-dp="swatch" data-c="'+c+'" style="background:'+c+'"></button>';
+  }).join('')+'</span>';
 }
 /** วางตำแหน่งแถบลอยเหนือกล่องที่เลือก (ถ้าชนขอบบนให้ไปอยู่ใต้กล่อง) */
 function dePositionProps(){
@@ -4358,6 +4455,7 @@ function deApplyCrop(elm, done){
     }));
   }
 }
+var _deKeyHandler=null;
 function bindDetailEditor(){
   var canvas=$('#deCanvas'); if(!canvas) return;
   var m=getMember(activeMemberId()); if(!m) return;
@@ -4386,15 +4484,33 @@ function bindDetailEditor(){
       else if(dp==='color'){ elm.color=t.value; deApplyTextStyle(elm); }
       else if(dp==='frame'){ elm.frame=elm.frame||{}; elm.frame.w=+t.value; if(!elm.frame.color) elm.frame.color='#1f2937'; deApplyFrame(elm); }
       else if(dp==='framecolor'){ elm.frame=elm.frame||{}; elm.frame.color=t.value; deApplyFrame(elm); }
+      else if(dp==='fill'){ elm.fill=t.value; deApplyShape(elm); }
+      else if(dp==='fillop'){ elm.fillOpacity=+t.value; deApplyShape(elm); }
+      else if(dp==='stroke'){ elm.stroke=t.value; deApplyShape(elm); }
+      else if(dp==='sw'){ elm.strokeWidth=+t.value; deApplyShape(elm); }
+      else if(dp==='stickercolor'){ elm.color=t.value; deApplyShape(elm); }
       saveDB();
     }
     props.addEventListener('change',onProp);
     props.addEventListener('input',onProp);
+    // เก็บสภาพก่อนแตะแถบเครื่องมือ (ครั้งเดียวต่อการปรับ — ลากแถบสีไม่ทำให้สแตกบวม)
+    props.addEventListener('pointerdown',function(e){ if(e.target.closest('[data-dp]')) dePushUndo(_mid); });
     props.addEventListener('click',function(e){
-      var b=e.target.closest('[data-dp="bold"]'); if(!b) return;
-      var elm=deCurSel(); if(!elm) return;
-      elm.weight = (elm.weight==700? undefined : 700); deApplyTextStyle(elm);
-      b.classList.toggle('on', elm.weight==700); saveDB();
+      var b=e.target.closest('button[data-dp]'); if(!b) return;
+      var dp=b.getAttribute('data-dp'), elm=deCurSel(); if(!elm) return;
+      if(dp==='bold'){ elm.weight=(elm.weight==700?undefined:700); deApplyTextStyle(elm); b.classList.toggle('on', elm.weight==700); }
+      else if(dp==='dashed'){ elm.dashed=!elm.dashed; deApplyShape(elm); b.classList.toggle('on', !!elm.dashed); }
+      else if(dp==='swatch'){
+        var c=b.getAttribute('data-c');
+        if(elm.type==='sticker') elm.color=c;
+        else if(elm.type==='line') elm.stroke=c;
+        else if(elm.type==='text'){ elm.color=c; deApplyTextStyle(elm); }
+        else { elm.fill=c; elm.stroke=c; }
+        if(elm.type!=='text') deApplyShape(elm);
+        deUpdateProps();
+      }
+      else return;
+      saveDB();
     });
   }
   // ---- upload image → เก็บใน IndexedDB (รองรับเลือกหลายรูปพร้อมกัน) ----
@@ -4402,6 +4518,7 @@ function bindDetailEditor(){
     var files=e.target.files ? Array.prototype.slice.call(e.target.files) : [];
     e.target.value='';
     if(!files.length) return;
+    dePushUndo(_mid);
     var n=files.length;
     toast(n>1 ? ('กำลังย่อรูป '+n+' รูป...') : 'กำลังย่อรูป...');
     // จุดวางถัดไป — ต่อจากด้านล่างสุดของทุก element ที่มีอยู่ (กันวางทับ)
@@ -4438,6 +4555,7 @@ function bindDetailEditor(){
   // ---- import PDF → เก็บไฟล์ต้นฉบับใน IndexedDB (เรนเดอร์คมตามซูม) ----
   if(pdfInput) pdfInput.addEventListener('change',function(e){
     var f=e.target.files&&e.target.files[0]; if(!f){ return; }
+    dePushUndo(_mid);
     toast('กำลังอ่าน PDF...');
     loadPdfJs().then(function(lib){
       var reader=new FileReader();
@@ -4500,8 +4618,12 @@ function bindDetailEditor(){
     var act=b.getAttribute('data-de');
     var elDiv=b.closest('.de-el'), elm=elDiv?findEl(elDiv.getAttribute('data-eid')):null;
     if(act==='libcat'){ state.deLibCat=b.getAttribute('data-cat')||'shapes'; render(); return; }
+    else if(act==='undo'){ deCommitEditable(); deUndo(); return; }
+    else if(act==='redo'){ deCommitEditable(); deRedo(); return; }
+    else if(act==='exportpdf'){ deCommitEditable(); deExportPDF(); return; }
     else if(act==='libadd'){
       var _mmL=getMember(_mid); if(!_mmL){ toast('ไม่พบข้อมูลชิ้นส่วน — รีเฟรชแล้วลองใหม่',true); return; }
+      dePushUndo(_mid);
       var _dL=memberDoc(_mmL);
       var kind=b.getAttribute('data-kind'), sub=b.getAttribute('data-sub');
       var w=+b.getAttribute('data-w')||120, h=+b.getAttribute('data-h')||100;
@@ -4517,24 +4639,39 @@ function bindDetailEditor(){
     else if(act==='addtext'){
       deCommitEditable();
       var _mm=getMember(_mid); if(!_mm){ toast('ไม่พบข้อมูลชิ้นส่วน — รีเฟรชหน้าและลองใหม่',true); return; }
+      dePushUndo(_mid);
       var _d=memberDoc(_mm); var t={id:deUid(),type:'text',x:24,y:deNextY(),w:280,h:80,html:''};
       _d.els.push(t); state.deSel=t.id; saveDB(); render(); deScrollToSel(); toast('เพิ่มข้อความแล้ว (ต่อจากด้านล่าง)');
     }
     else if(act==='addtable'){
       deCommitEditable();
       var _mm2=getMember(_mid); if(!_mm2){ toast('ไม่พบข้อมูลชิ้นส่วน — รีเฟรชหน้าและลองใหม่',true); return; }
+      dePushUndo(_mid);
       var _d2=memberDoc(_mm2); var tb={id:deUid(),type:'table',x:24,y:deNextY(),w:360,rows:[['หัวข้อ','หัวข้อ','หัวข้อ'],['','',''],['','','']]};
       _d2.els.push(tb); state.deSel=tb.id; saveDB(); render(); deScrollToSel(); toast('เพิ่มตารางแล้ว (ต่อจากด้านล่าง)');
     }
-    else if(act==='del' && elm){ if(confirm('ลบสิ่งนี้?')){ var _ld=liveDoc(); _ld.els=_ld.els.filter(function(x){return x.id!==elm.id;});
+    else if(act==='del' && elm){ if(confirm('ลบสิ่งนี้?')){ dePushUndo(_mid); var _ld=liveDoc(); _ld.els=_ld.els.filter(function(x){return x.id!==elm.id;});
         idbDel('deimg_'+elm.id).catch(function(){}); idbDel('depdf_'+elm.id).catch(function(){}); cloudDeletePlan('de_img_'+elm.id); cloudDeletePlan('de_pdf_'+elm.id); delete DE_IMG[elm.id]; delete DE_PDF[elm.id];
         state.deSel=null; saveDB(); render(); } }
     else if(act==='crop' && elm){ state.deSel=elm.id; state.deCrop=elm.id; elm._crop={x:0.1,y:0.1,w:0.8,h:0.8}; render(); }
     else if(act==='cropcancel' && elm){ state.deCrop=null; delete elm._crop; render(); }
-    else if(act==='cropok' && elm){ toast('กำลังครอบตัด (คมสูง)...'); deApplyCrop(elm,function(){ state.deCrop=null; delete elm._crop; saveDB(); render(); }); }
-    else if(act==='addrow' && elm){ var cols=(elm.rows[0]||['']).length; var nr=[]; for(var k=0;k<cols;k++) nr.push(''); elm.rows.push(nr); saveDB(); render(); }
-    else if(act==='addcol' && elm){ elm.rows.forEach(function(r){ r.push(''); }); saveDB(); render(); }
+    else if(act==='cropok' && elm){ dePushUndo(_mid); toast('กำลังครอบตัด (คมสูง)...'); deApplyCrop(elm,function(){ state.deCrop=null; delete elm._crop; saveDB(); render(); }); }
+    else if(act==='addrow' && elm){ dePushUndo(_mid); var cols=(elm.rows[0]||['']).length; var nr=[]; for(var k=0;k<cols;k++) nr.push(''); elm.rows.push(nr); saveDB(); render(); }
+    else if(act==='addcol' && elm){ dePushUndo(_mid); elm.rows.forEach(function(r){ r.push(''); }); saveDB(); render(); }
   });
+  // เริ่มพิมพ์ในกล่องข้อความ/ตาราง = การแก้ไข 1 ครั้ง (ไม่ใช่ทีละตัวอักษร)
+  canvas.addEventListener('focusin',function(e){ if(e.target.isContentEditable) dePushUndo(_mid); });
+  // Ctrl+Z / Ctrl+Shift+Z — ผูกที่ document จึงต้องถอดตัวเก่าก่อน ไม่งั้นซ้อนกันทุกครั้งที่ render
+  if(_deKeyHandler) document.removeEventListener('keydown',_deKeyHandler);
+  _deKeyHandler=function(e){
+    if(state.screen!=='memberDetail') return;
+    if(!(e.ctrlKey||e.metaKey)) return;
+    var k=(e.key||'').toLowerCase(); if(k!=='z'&&k!=='y') return;
+    if(e.target && e.target.isContentEditable) return;   // ในกล่องข้อความ ปล่อยให้เบราว์เซอร์ย้อนตัวอักษรเอง
+    e.preventDefault();
+    if(k==='y'||e.shiftKey) deRedo(); else deUndo();
+  };
+  document.addEventListener('keydown',_deKeyHandler);
   // ---- edit text / table cells ----
   canvas.addEventListener('input',function(e){
     var t=e.target, elDiv=t.closest('.de-el'); if(!elDiv) return;
@@ -4572,6 +4709,7 @@ function bindDetailEditor(){
       if(Math.abs(dx)<4 && Math.abs(dy)<4) return;
       drag.moved=true;
     }
+    if(!drag.snapped){ drag.snapped=true; dePushUndo(_mid); }   // เก็บสภาพก่อนลาก/ย่อขยาย ครั้งเดียวต่อการลาก
     if(drag.mode==='move'){ el.x=Math.max(0,drag.ox+dx); el.y=Math.max(0,drag.oy+dy); drag.elDiv.style.left=el.x+'px'; drag.elDiv.style.top=el.y+'px'; dePositionProps(); }
     else if(drag.mode==='colresize'){ var nw=Math.max(36, drag.w0+dx); if(!el.colW) el.colW=[]; el.colW[drag.ci]=nw; if(drag.col) drag.col.style.width=nw+'px'; }
     else if(drag.mode==='resize'){
@@ -6129,6 +6267,194 @@ function exportPlanPDF(){
     _downloadBlob(blob, fname);
     toast("บันทึก PDF แล้ว ✓");
   }).catch(function(e){ toast("สร้าง PDF ไม่สำเร็จ: "+(e&&e.message||e),true); });
+}
+
+/** ห่อหลายหน้าเป็น PDF — 1 หน้า = 1 ภาพเต็มหน้า (ใช้กับชีตรายละเอียดที่ยาวเกิน A4) */
+function _pdfFromPages(pw, ph, pages){
+  var chunks=[], offsets=[], pos=0;
+  function put(s){ var a=new Uint8Array(s.length); for(var i=0;i<s.length;i++) a[i]=s.charCodeAt(i)&0xff; chunks.push(a); pos+=a.length; }
+  function putBytes(u8){ chunks.push(u8); pos+=u8.length; }
+  function mark(n){ offsets[n]=pos; }
+  pw=Math.round(pw*100)/100; ph=Math.round(ph*100)/100;
+  var N=pages.length, kids=[];
+  for(var i=0;i<N;i++) kids.push((3+i*3)+" 0 R");
+  put("%PDF-1.3\n%\xE2\xE3\xCF\xD3\n");
+  mark(1); put("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+  mark(2); put("2 0 obj\n<< /Type /Pages /Kids ["+kids.join(" ")+"] /Count "+N+" >>\nendobj\n");
+  pages.forEach(function(pg,i){
+    var pgO=3+i*3, cO=pgO+1, iO=pgO+2;
+    mark(pgO); put(pgO+" 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 "+pw+" "+ph+"] /Resources << /XObject << /Im0 "+iO+" 0 R >> >> /Contents "+cO+" 0 R >>\nendobj\n");
+    var content="q\n"+pw+" 0 0 "+ph+" 0 0 cm\n/Im0 Do\nQ\n";
+    mark(cO); put(cO+" 0 obj\n<< /Length "+content.length+" >>\nstream\n"+content+"endstream\nendobj\n");
+    mark(iO); put(iO+" 0 obj\n<< /Type /XObject /Subtype /Image /Width "+pg.iw+" /Height "+pg.ih+" /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length "+pg.u8.length+" >>\nstream\n");
+    putBytes(pg.u8); put("\nendstream\nendobj\n");
+  });
+  var totalObjs=2+N*3, xrefPos=pos, xref="xref\n0 "+(totalObjs+1)+"\n0000000000 65535 f \n";
+  for(var k=1;k<=totalObjs;k++) xref+=("0000000000"+(offsets[k]||0)).slice(-10)+" 00000 n \n";
+  put(xref); put("trailer\n<< /Size "+(totalObjs+1)+" /Root 1 0 R >>\nstartxref\n"+xrefPos+"\n%%EOF");
+  var total=chunks.reduce(function(a,c){return a+c.length;},0), outU=new Uint8Array(total), off=0;
+  chunks.forEach(function(c){ outU.set(c,off); off+=c.length; });
+  return new Blob([outU],{type:"application/pdf"});
+}
+/* ---- นำออกชีตรายละเอียดเป็น PDF ---- */
+/** innerHTML ของกล่องข้อความ → บรรทัดข้อความล้วน */
+function _deTextLines(html){
+  var t=String(html||'').replace(/<br\s*\/?>/gi,'\n').replace(/<\/(div|p|li|h[1-6])>/gi,'\n').replace(/<[^>]+>/g,'');
+  var d=document.createElement('textarea'); d.innerHTML=t;
+  return d.value.replace(/\n{3,}/g,'\n\n').split('\n');
+}
+/** ตัดบรรทัดให้พอดีความกว้าง — ลองเว้นวรรคก่อน ถ้าไม่มี (เช่นภาษาไทย) ค่อยตัดทีละตัวอักษร */
+function _deWrap(ctx, line, maxW){
+  if(!line) return [''];
+  if(ctx.measureText(line).width<=maxW) return [line];
+  var out=[], cur='';
+  var parts=line.split(/(\s+)/);
+  parts.forEach(function(p){
+    if(ctx.measureText(cur+p).width<=maxW){ cur+=p; return; }
+    if(cur){ out.push(cur); cur=''; }
+    if(ctx.measureText(p).width<=maxW){ cur=p; return; }
+    for(var i=0;i<p.length;i++){                       // คำยาวกว่าบรรทัด → ตัดทีละตัว
+      if(ctx.measureText(cur+p[i]).width>maxW){ out.push(cur); cur=''; }
+      cur+=p[i];
+    }
+  });
+  if(cur) out.push(cur);
+  return out.length?out:[''];
+}
+/** วัดความสูงจริงของ text/table ด้วย CSS ตัวเดียวกับในหน้าจอ (ไม่ขึ้นกับขนาดจอ) */
+function _deMeasureH(elm){
+  if(elm.h>0 && elm.type!=='table') return elm.h;
+  var host=document.createElement('div');
+  host.style.cssText='position:absolute;left:-99999px;top:0;visibility:hidden;width:'+(elm.w||300)+'px';
+  if(elm.type==='text'){
+    var ts=''; if(elm.color)ts+='color:'+elm.color+';'; if(elm.font)ts+='font-family:'+elm.font+';';
+    if(elm.size)ts+='font-size:'+elm.size+'px;'; if(elm.weight)ts+='font-weight:'+elm.weight+';';
+    host.innerHTML='<div class="de-txt" style="'+ts+'">'+(elm.html||'&nbsp;')+'</div>';
+  }else if(elm.type==='table'){
+    host.innerHTML='<div class="de-tablewrap">'+deTableHtml(elm)+'</div>';
+  }else return elm.h||120;
+  document.body.appendChild(host);
+  var h=host.offsetHeight||elm.h||120;
+  document.body.removeChild(host);
+  return h;
+}
+/** SVG string → Image (สำหรับวาดลงแคนวาส) */
+function _deSvgImg(svg, w, h){
+  var s=svg.replace('width="100%" height="100%"','width="'+Math.round(w)+'" height="'+Math.round(h)+'"');
+  return new Promise(function(res,rej){
+    var im=new Image();
+    im.onload=function(){ res(im); }; im.onerror=function(){ rej(new Error('svg')); };
+    im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s);
+  });
+}
+function _deLoadImg(src){
+  return new Promise(function(res,rej){
+    var im=new Image(); im.onload=function(){ res(im); }; im.onerror=function(){ rej(new Error('img')); }; im.src=src;
+  });
+}
+/** นำออกหน้ารายละเอียด (รูป/PDF/ข้อความ/ตาราง/รูปทรง) เป็น PDF A4 — ยาวเกินหน้าเดียวจะตัดเป็นหลายหน้า */
+function deExportPDF(){
+  var m=getMember(activeMemberId()); if(!m){ toast('ไม่พบข้อมูลชิ้นส่วน',true); return; }
+  var els=memberDoc(m).els.slice();
+  if(!els.length){ toast('ยังไม่มีเนื้อหาให้นำออก',true); return; }
+  toast('กำลังสร้าง PDF…');
+
+  var S=2.2, PAD=28, HEAD=74;                          // สเกลเพื่อความคม · ขอบกระดาษ · แถบหัวเรื่อง (หน่วย px ก่อนคูณ S)
+  var geo=els.map(function(el){
+    var w=el.w||300, h=(el.type==='text'||el.type==='table')?_deMeasureH(el):(el.h||w*0.7);
+    return {el:el, x:el.x||0, y:el.y||0, w:w, h:h};
+  });
+  var cw=0, ch=0;
+  geo.forEach(function(g){ cw=Math.max(cw,g.x+g.w); ch=Math.max(ch,g.y+g.h); });
+  cw=Math.max(cw,520);
+
+  var cv=document.createElement('canvas');
+  cv.width=Math.round((cw+PAD*2)*S);
+  cv.height=Math.round((ch+PAD*2+HEAD)*S);
+  var ctx=cv.getContext('2d');
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,cv.width,cv.height);
+
+  var proj=getProject(state.projectId), flr=getFloor(state.floorId);
+  var sub=[proj&&proj.name, flr&&flr.name, (TYPES[m.type]&&TYPES[m.type].label)].filter(Boolean).join('  ·  ');
+  ctx.textBaseline='top'; ctx.fillStyle='#0f172a';
+  ctx.font='700 '+(22*S)+'px Sarabun, sans-serif';
+  ctx.fillText('รายละเอียด '+(m.code||''), PAD*S, 18*S);
+  ctx.fillStyle='#64748b'; ctx.font=(12.5*S)+'px Sarabun, sans-serif';
+  ctx.fillText(sub, PAD*S, 48*S);
+  var dstr=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'short',day:'numeric'});
+  ctx.textAlign='right'; ctx.fillText('ออกเอกสาร '+dstr, cv.width-PAD*S, 48*S); ctx.textAlign='left';
+  ctx.strokeStyle='#e2e8f0'; ctx.lineWidth=1*S;
+  ctx.beginPath(); ctx.moveTo(PAD*S, (HEAD-8)*S); ctx.lineTo(cv.width-PAD*S, (HEAD-8)*S); ctx.stroke();
+
+  function ox(v){ return (v+PAD)*S; }
+  function oy(v){ return (v+PAD+HEAD)*S; }
+
+  var jobs=geo.map(function(g){
+    var el=g.el, X=ox(g.x), Y=oy(g.y), W=g.w*S, H=g.h*S;
+    if(el.type==='image'||el.type==='pdf'){
+      var src=DE_IMG[el.id] || (DE_PDF[el.id]&&DE_PDF[el.id].raster&&DE_PDF[el.id].raster.url);
+      if(!src) return Promise.resolve();
+      return _deLoadImg(src).then(function(im){
+        ctx.drawImage(im, X, Y, W, H);
+        if(el.frame&&el.frame.w>0){ ctx.strokeStyle=el.frame.color||'#1f2937'; ctx.lineWidth=el.frame.w*S; ctx.strokeRect(X,Y,W,H); }
+      }).catch(function(){});
+    }
+    if(el.type==='shape'||el.type==='line'||el.type==='sticker'){
+      var svg = el.type==='line'?deLineSvg(el) : el.type==='sticker'?deStickerSvg(el) : deShapeSvg(el);
+      return _deSvgImg(svg, W, H).then(function(im){ ctx.drawImage(im, X, Y, W, H); }).catch(function(){});
+    }
+    if(el.type==='text'){
+      var size=(el.size||16)*S, pad=12*S, lh=size*1.65;
+      ctx.font=(el.weight==700?'700 ':'')+size+'px '+(el.font||'Sarabun, sans-serif');
+      ctx.fillStyle=el.color||'#1f2937'; ctx.textBaseline='top';
+      var cy=Y+pad;
+      _deTextLines(el.html).forEach(function(line){
+        _deWrap(ctx, line, W-pad*2).forEach(function(seg){ ctx.fillText(seg, X+pad, cy); cy+=lh; });
+      });
+      return Promise.resolve();
+    }
+    if(el.type==='table'){
+      var rows=el.rows||[], ncol=(rows[0]||[]).length||1, tot=0, colW=[];
+      for(var i=0;i<ncol;i++){ var c=(el.colW&&el.colW[i])||(g.w/ncol); colW.push(c); tot+=c; }
+      var k=g.w/(tot||1); colW=colW.map(function(c){ return c*k*S; });
+      var fs=13*S, rh=Math.max(fs*2.2, 30*S), cy2=Y;
+      ctx.textBaseline='middle';
+      rows.forEach(function(r,ri){
+        var cx=X;
+        r.forEach(function(cell,ci){
+          var w2=colW[ci]||0;
+          ctx.fillStyle=ri===0?'#f1f5f9':'#ffffff'; ctx.fillRect(cx,cy2,w2,rh);
+          ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1*S; ctx.strokeRect(cx,cy2,w2,rh);
+          ctx.fillStyle='#1f2937'; ctx.font=(ri===0?'700 ':'')+fs+'px Sarabun, sans-serif';
+          var txt=String(cell||'');
+          while(txt && ctx.measureText(txt).width>w2-12*S) txt=txt.slice(0,-1);
+          ctx.fillText(txt, cx+7*S, cy2+rh/2);
+          cx+=w2;
+        });
+        cy2+=rh;
+      });
+      ctx.textBaseline='top';
+      return Promise.resolve();
+    }
+    return Promise.resolve();
+  });
+
+  Promise.all(jobs).then(function(){
+    var Wpt=595.28, Hpt=841.89;                        // A4 แนวตั้ง (จุด)
+    var pageH=Math.round(cv.width*(Hpt/Wpt));          // ความสูง 1 หน้าในหน่วยพิกเซลของแคนวาสนี้
+    var nPages=Math.max(1, Math.ceil(cv.height/pageH));
+    var pages=[];
+    for(var p=0;p<nPages;p++){
+      var pc=document.createElement('canvas'); pc.width=cv.width; pc.height=pageH;
+      var pctx=pc.getContext('2d');
+      pctx.fillStyle='#ffffff'; pctx.fillRect(0,0,pc.width,pc.height);
+      pctx.drawImage(cv, 0, p*pageH, cv.width, pageH, 0, 0, cv.width, pageH);
+      pages.push({u8:_jpegBytes(pc,0.92), iw:pc.width, ih:pc.height});
+    }
+    var blob=_pdfFromPages(Wpt, Hpt, pages);
+    _downloadBlob(blob, 'RebarCheck-'+_safeName(proj&&proj.name)+'-'+_safeName(m.code)+'.pdf');
+    toast('บันทึก PDF แล้ว ✓'+(nPages>1?(' ('+nPages+' หน้า)'):''));
+  }).catch(function(e){ toast('สร้าง PDF ไม่สำเร็จ: '+(e&&e.message||e),true); });
 }
 
 /** นำออก PDF ความคืบหน้าเทคอนกรีต — แปลน + โซนสี + ป้ายสถานะ */
