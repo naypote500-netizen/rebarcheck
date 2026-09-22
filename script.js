@@ -1887,28 +1887,8 @@ function bindInspectionInputs(){
   refreshChecklistUI();
 }
 
-function viewDetail(){
-  var m=getMember(state.memberId);
-  if(!m) return emptyBox('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>',"ไม่พบชิ้นส่วน","");
-  var f=getFloor(m.floorId);
-
-  var h='<div style="display:flex;align-items:center;gap:11px;margin-bottom:10px">'
-      +   chipHtml(m.code, TYPES[m.type].css)
-      +   '<div style="min-width:0"><div style="font-size:1.25rem;font-weight:800;line-height:1.25">'+esc(m.name||m.code)+'</div>'
-      +     '<div class="small muted">'+esc(TYPES[m.type].label)+' · รหัส '+esc(m.code)+'</div></div></div>';
-  h+='<div class="stat-row"><span class="badge"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 8h.01M15 8h.01M9 12h.01M15 12h.01M9 16h6"/></svg> '+esc(f?f.name:"-")+'</span>'
-    + (m.grid?'<span class="badge"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg> แนว '+esc(m.grid)+'</span>':'')+'</div>';
-  if(m.note) h+='<div class="note-warn" style="margin-top:0;margin-bottom:12px"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg> '+esc(m.note)+'</div>';
-
-  h+=inspectionBlockHtml(m);
-  h+='<hr class="sep">'
-    +'<div class="row-end"><button class="btn soft" data-act="editMember"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> แก้ไขข้อมูลชิ้นส่วน</button>'
-    +'<button class="btn danger" data-act="delMember"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/><path d="M10 11v6M14 11v6"/></svg> ลบชิ้นส่วนนี้</button></div>';
-  return h;
-}
-
-/** ชิ้นส่วนที่กำลังตรวจอยู่ — planEditor ใช้ selMemberId, หน้า detail ใช้ memberId */
-function activeMemberId(){ return state.screen==="planEditor" ? state.selMemberId : state.memberId; }
+/** ชิ้นส่วนที่กำลังตรวจอยู่ — หน้าแปลนใช้ selMemberId, หน้ารายละเอียดใช้ memberId */
+function activeMemberId(){ return state.screen==="planEditor" ? state.selMemberId : (state.memberId||state.selMemberId); }
 
 /** อัปเดตสีปุ่มเช็คลิสต์ + แถบสรุปผล + สถานะปุ่มยืนยัน */
 function refreshChecklistUI(){
@@ -2987,9 +2967,11 @@ var state = {
   tool:"select",         // เครื่องมือ: select | draw
   drawShape:"rect",      // รูปทรงที่จะวาด (พื้นที่): rect | oval | poly
   zoneShape:"rect",      // รูปทรงที่จะวาดโซนเท: rect | poly
-  showLegend:false, legendPos:null,   // ตารางสีบนแปลน (Legend)
-  floatStyleOpen:false, floatStylePos:null,  // หน้าต่างลอยสไตล์กรอบ
-  showProgress:true, selZoneId:null, floatProgressOpen:false, floatProgressPos:null,  // ความคืบหน้าเทคอนกรีต
+  showLegend:false,                   // ตารางสีบนแปลน (ตรึงมุมขวาล่าง)
+  planMode:"inspect",                 // โหมดหน้าแปลน: inspect (ตรวจเหล็ก) | progress (เทคอนกรีต)
+  statusFilter:null,                  // กรองจากแถบสถานะ: pass | fail | todo | null
+  rpSheet:"peek",                     // มือถือ: พาเนลล่าง peek | open
+  showProgress:true, selZoneId:null,  // ความคืบหน้าเทคอนกรีต
   rightTab:"palette",    // แท็บพาเนลขวา: palette | spec | inspect
   selMemberId:null,      // ชิ้นส่วนที่เลือกบนแปลน
   colorMode:"plain",     // ลงสีตาม: status | plain — ค่าเริ่มต้น = สีประจำประเภท
@@ -3009,9 +2991,7 @@ function backTarget(){
     case "floors":     return "home";
     case "categories": return "floors";
     case "planEditor": return "categories";
-    case "progress":   return "home";
     case "members":    return "categories";
-    case "detail":     return "planEditor";
     case "memberDetail": return "planEditor";
     case "pickType":   return "categories";
     case "memberForm": return state.editId ? "planEditor" : "planEditor";
@@ -3024,7 +3004,7 @@ function navigate(screen){
   // ก่อนออกจากหน้าแก้ไข member — flush งานที่ค้างขึ้นคลาวด์ทันที (ไม่รอ debounce 450ms)
   // เพื่อกัน race: กลับเข้ามาแล้วเจอ snapshot เก่าทับข้อมูลใหม่
   var leaving=state.screen;
-  if(leaving==='memberDetail' || leaving==='memberForm' || leaving==='planEditor' || leaving==='progress'){
+  if(leaving==='memberDetail' || leaving==='memberForm' || leaving==='planEditor'){
     try{ if(typeof _syncT!=='undefined' && _syncT){ clearTimeout(_syncT); _syncT=null; cloudSyncNow(); } }catch(e){}
   }
   state.screen=screen; render();
@@ -3044,10 +3024,8 @@ function headerInfo(){
   switch(state.screen){
     case "floors":     return [p?p.name:"โครงการ", p&&p.location?p.location:"เลือกชั้น"];
     case "categories": return [f?f.name:"ชั้น", p?p.name:""];
-    case "planEditor": return [(TYPES[state.catType]?TYPES[state.catType].label:"หมวด"), f?f.name:""];
-    case "progress":   return ["อัพเดทความคืบหน้า", f?f.name:(p?p.name:"")];
+    case "planEditor": return [state.planMode==="progress"?"ความคืบหน้าเทคอนกรีต":"แปลน · "+(TYPES[state.catType]?TYPES[state.catType].label:"หมวด"), (f?f.name:"")+(p?" · "+p.name:"")];
     case "members":    return [f?f.name:"ชั้น", p?p.name:""];
-    case "detail":     return [m?m.code:"ชิ้นส่วน", (m?m.name:"")||(f?f.name:"")];
     case "memberDetail": return [m?("รายละเอียด "+m.code):"รายละเอียด", (m?m.name:"")||(f?f.name:"")];
     case "pickType":   return ["เพิ่มชิ้นส่วน", f?f.name:""];
     case "memberForm": return [(state.editId?"แก้ไข":"เพิ่ม")+(TYPES[state.addType]?TYPES[state.addType].label:""), f?f.name:""];
@@ -3064,9 +3042,7 @@ function render(){
     case "floors":     html=viewFloors();     break;
     case "categories": html=viewCategories(); break;
     case "planEditor": html=viewPlanEditor(); break;
-    case "progress":   html=viewProgress();   break;
     case "members":    html=viewMembers();    break;
-    case "detail":     html=viewDetail();     break;
     case "memberDetail": html=viewMemberDetail(); break;
     case "pickType":   html=viewPickType();   break;
     case "memberForm": html=viewMemberForm(); break;
@@ -3076,7 +3052,8 @@ function render(){
   $("#app").innerHTML=html;
 
   // เอดิเตอร์แปลนใช้พื้นที่กว้างกว่าหน้าอื่น เพื่อให้กรอบแปลนใหญ่ ดูชัด
-  document.body.classList.toggle("editor-wide", state.screen==="planEditor" || state.screen==="memberDetail" || state.screen==="memberForm" || state.screen==="progress");
+  document.body.classList.toggle("editor-wide", state.screen==="planEditor" || state.screen==="memberDetail" || state.screen==="memberForm");
+  document.body.classList.toggle("plan-mode", state.screen==="planEditor");
   document.body.classList.toggle("home-mode", state.screen==="home");   // ซ่อน header เดิม โชว์ dashboard เต็ม
   document.body.classList.remove("auth-mode");   // เข้าแอปแล้ว → เลิกโหมด login
 
@@ -3090,7 +3067,7 @@ function render(){
   bindScreen();
 }
 /** แถบเมนูล่าง + ปุ่มลอย — โชว์เฉพาะมือถือ (ดีไซน์แนวแอป) */
-var TABBAR_HIDE={planEditor:1, progress:1, memberDetail:1, memberForm:1, pickType:1};
+var TABBAR_HIDE={planEditor:1, memberDetail:1, memberForm:1, pickType:1};
 function renderTabbar(){
   var tb=document.getElementById("tabbar"), fab=document.getElementById("fab"); if(!tb) return;
   var mob=(window.innerWidth||1024)<760;
@@ -3127,16 +3104,10 @@ function bindScreen(){
     var qh=$("#qh");
     if(qh) qh.addEventListener("input",function(){ state.qh=qh.value; rerenderKeepFocus("#qh"); });
   }
-  if(state.screen==="detail"){
-    bindInspectionInputs();
-  }
   if(state.screen==="memberDetail"){
     bindDetailEditor();
   }
   if(state.screen==="planEditor"){
-    bindPlanEditor();
-  }
-  if(state.screen==="progress"){
     bindPlanEditor();
   }
   if(state.screen==="memberForm"){
@@ -3179,8 +3150,10 @@ document.addEventListener("click",function(e){
       var _pf=getFloor(state.floorId);
       if(!_pf){ var _pp=getProject(state.projectId)||(DB.projects||[])[0]; if(_pp){ _pf=floorsOf(_pp.id)[0]; } }
       if(!_pf){ toast("ยังไม่มีชั้น/แปลนให้อัพเดท — สร้างโครงการและชั้นก่อน",true); navigate("home"); break; }
-      go("progress",{projectId:_pf.projectId, floorId:_pf.id, tool:"select", selZoneId:null,
-                     floatProgressOpen:true, showProgress:true, zoom:1, panX:0, panY:0});
+      var _pm=membersOfFloor(_pf.id)[0];
+      go("planEditor",{projectId:_pf.projectId, floorId:_pf.id, catType:(_pm&&_pm.type)||state.catType||"beam", unified:true,
+                       planMode:"progress", tool:"select", selZoneId:null, selMemberId:null, rightTab:"props",
+                       showProgress:true, zoom:1, panX:0, panY:0});
       break;
     }
     case "tabInspect":  { var _pj=(DB.projects||[])[0]; if(_pj) go("floors",{projectId:_pj.id, floorId:null, q:"", typeFilter:"all"}); else navigate("home"); break; }
@@ -3206,9 +3179,12 @@ document.addEventListener("click",function(e){
                        zoom:1, panX:0, panY:0});
       break;
     }
-    case "openMember":
-      go("detail",{memberId:id, answers:{}, photos:[], note:""});   // เริ่มเช็คลิสต์ใหม่ทุกครั้ง
+    case "openMember": {   // จากรายการชั้น → เปิดแปลนแล้วไปแท็บตรวจเหล็กของชิ้นนั้น
+      var om=getMember(id); if(!om) break;
+      go("planEditor",{floorId:om.floorId, catType:om.type, unified:true, planMode:"inspect", selMemberId:om.id, memberId:om.id,
+                       tool:"select", rightTab:"inspect", answers:{}, photos:[], note:"", zoom:1, panX:0, panY:0});
       break;
+    }
     case "history":     go("history",{qh:""}); break;
     case "filterType":  state.typeFilter=el.getAttribute("data-type"); render(); break;
 
@@ -3226,8 +3202,18 @@ document.addEventListener("click",function(e){
       var sm=getMember(state.selMemberId); if(sm && state.hiddenTypes[sm.type]) state.selMemberId=null;   // ซ่อนตัวที่เลือก → เลิกเลือก
       render(); break;
     }
-    case "setRightTab": state.rightTab=el.getAttribute("data-tab"); render(); break;
-    case "setRibbonTab": state.ribbonTab=el.getAttribute("data-rtab"); render(); break;
+    case "setRightTab": state.rightTab=el.getAttribute("data-tab"); state.rpCollapsed=false; state.rpSheet="open"; render(); break;
+    case "setStageMode": {   // สลับ ตรวจเหล็ก ↔ เทคอนกรีต ในหน้าเดียวกัน
+      var _sm=el.getAttribute("data-mode")||"inspect";
+      state.planMode=_sm; state.tool="select"; state.selZoneId=null; state.statusFilter=null;
+      if(_sm==="progress"){ state.showProgress=true; state.rightTab="props"; }
+      else if(state.rightTab==="props" && !getMember(state.selMemberId)) state.rightTab="items";
+      render(); break;
+    }
+    case "statusFilter": { var _sf=el.getAttribute("data-st"); state.statusFilter=(state.statusFilter===_sf||_sf==="all")?null:_sf; render(); break; }
+    case "planUndo": plUndo(); break;
+    case "planRedo": plRedo(); break;
+    case "toggleSheet": state.rpSheet=(state.rpSheet==="open"?"peek":"open"); render(); break;
     case "toggleSnap":   state.snap=!state.snap; render(); break;
     case "toggleLabels": state.showLabels=!state.showLabels; render(); break;
     case "selectPlanMember":
@@ -3236,7 +3222,7 @@ document.addEventListener("click",function(e){
       break;
     case "toggleHide": {
       var hm=getMember(id);
-      if(hm){ hm.hidden=!hm.hidden; saveDB();
+      if(hm){ plPushUndo(); hm.hidden=!hm.hidden; saveDB();
         if(hm.hidden && state.selMemberId===id) state.selMemberId=null;
         render(); toast(hm.hidden?"ซ่อน "+hm.code+" บนแปลนแล้ว":"แสดง "+hm.code+" แล้ว"); }
       break;
@@ -3244,6 +3230,7 @@ document.addEventListener("click",function(e){
     case "dupMember": {
       var src=getMember(id);
       if(src){
+        plPushUndo();
         var cp=JSON.parse(JSON.stringify(src));
         cp.id=uid("m"); cp.hidden=false;
         if(cp.plan){                                  // ขยับตำแหน่งเล็กน้อยไม่ให้ทับตัวเดิม
@@ -3261,7 +3248,7 @@ document.addEventListener("click",function(e){
     }
     case "editListMember": {
       var lm=getMember(id);
-      if(lm){ state.selMemberId=id; go("detail",{memberId:lm.id, answers:{}, photos:[], note:""}); }   // แตะรายการ → ไปหน้าตรวจเหล็ก
+      if(lm){ state.selMemberId=id; state.memberId=id; state.rightTab="inspect"; state.answers={}; state.photos=[]; state.note=""; state.rpCollapsed=false; render(); planZoomToMember(id); }   // แตะรายการ → ตรวจเหล็กในพาเนล + ซูมไปหา
       break;
     }
     case "showDetails": {
@@ -3285,22 +3272,16 @@ document.addEventListener("click",function(e){
     }
     case "zoomFit": planFit(); break;
     case "toggleRp": state.rpCollapsed=!state.rpCollapsed; render(); break;
-    case "hideFloatTools": state.floatToolsHidden=true; render(); break;
-    case "showFloatTools": state.floatToolsHidden=false; render(); break;
-    case "toggleFloatStyle": state.floatStyleOpen=!state.floatStyleOpen; render(); break;
-    case "closeFloatStyle": state.floatStyleOpen=false; render(); break;
     case "toggleProgress": state.showProgress=!state.showProgress; render(); break;
-    case "toggleProgressPanel": state.floatProgressOpen=!state.floatProgressOpen; render(); break;
-    case "closeProgressPanel": state.floatProgressOpen=false; render(); break;
-    case "drawZoneStart": { var _zs=el.getAttribute("data-shape"); if(_zs) state.zoneShape=_zs; state.tool="drawZone"; state.floatProgressOpen=true; render(); break; }
+    case "drawZoneStart": { var _zs=el.getAttribute("data-shape"); if(_zs) state.zoneShape=_zs; state.tool="drawZone"; render(); break; }
     case "manageZoneStatus": dlgZoneStatus(); break;
     case "zsAddStatus": zsAddStatus(); break;
     case "zsDelStatus": zsDelStatus(el.getAttribute("data-sid")); break;
     case "zsSaveStatus": zsSaveStatus(); break;
-    case "selectZone": state.selZoneId=el.getAttribute("data-zid"); state.floatProgressOpen=true; render(); break;
+    case "selectZone": state.selZoneId=el.getAttribute("data-zid"); state.rightTab="props"; state.rpCollapsed=false; render(); break;
     case "deleteZone": {
       var zid=el.getAttribute("data-zid")||state.selZoneId;
-      if(zid && confirm("ลบโซนนี้?")){ DB.zones=DB.zones.filter(function(z){return z.id!==zid;}); state.selZoneId=null; saveDB(); render(); }
+      if(zid && confirm("ลบโซนนี้?")){ plPushUndo(); DB.zones=DB.zones.filter(function(z){return z.id!==zid;}); state.selZoneId=null; saveDB(); render(); }
       break;
     }
     case "exportProgressPdf": exportProgressPDF(); break;
@@ -3470,6 +3451,7 @@ document.addEventListener("click",function(e){
     case "delMember": {
       var m=getMember(activeMemberId());
       if(m && confirm('ลบชิ้นส่วน "'+(m.name||m.code)+'" และประวัติการตรวจของชิ้นส่วนนี้?')){
+        plPushUndo();
         DB.members=DB.members.filter(function(x){ return x.id!==m.id; });
         DB.inspections=DB.inspections.filter(function(x){ return x.memberId!==m.id; });
         saveDB(); closeSheet();
@@ -3675,7 +3657,7 @@ function rotPt(px,py,cx,cy,deg){
 }
 /** สร้าง SVG ของชิ้นส่วนทั้งหมดบนแปลน (รวมจุดจับ ลด/ขยาย/หมุน ของคานที่เลือก) */
 /** โหมดของเวทีแปลน: "progress" = หน้าอัพเดทความคืบหน้า (โซน), อื่นๆ = หน้าแก้ไขแปลน (ชิ้นส่วนเหล็ก) */
-function stageMode(){ return state.screen==="progress" ? "progress" : "inspect"; }
+function stageMode(){ return state.planMode==="progress" ? "progress" : "inspect"; }
 function planShapesSVG(VW,VH){
   var f=getFloor(state.floorId), type=state.catType;
   var _pid=curPlanId();
@@ -3722,7 +3704,8 @@ function planShapesSVG(VW,VH){
   members.forEach(function(m){
     var col=planColor(m), sel=(m.id===state.selMemberId), pl=m.plan;
     // โหมดรวม: ชนิดที่ไม่ได้กำลังวาด/เลือก ทำให้จางลงนิด เพื่อให้ชนิดที่โฟกัสเด่น (เลือกไว้ = เด่นเสมอ)
-    var dim=(state.unified && !sel && state.catType && m.type!==state.catType);
+    var dim=(state.unified && !sel && state.catType && m.type!==state.catType)
+         || (!!state.statusFilter && !sel && memberStatus(m)!==state.statusFilter);   // กรองจากแถบสถานะ → ตัวที่ไม่ตรงจางลง
     var sw=sel?16:11, op=sel?1:(dim?0.5:0.92);
     var lx, ly;   // จุดวางป้ายเบอร์
     if(pl.kind==="line"){
@@ -3798,114 +3781,102 @@ function planShapesSVG(VW,VH){
   return shapes;
 }
 
-/** หน้าต่างเครื่องมือลอย — โผล่ตอนซ่อนพาเนล (จอเต็ม) เพื่อให้ยังวาดได้ ลากย้ายได้ */
-function floatToolsHtml(){
-  var type=state.catType; if(!type||!TYPES[type]) return "";
-  var isD=function(sh){ return state.tool==="draw" && (state.drawShape||"rect")===sh; };
-  var b=function(on,act,attr,svg,title){ return '<button class="ftl-b'+(on?" on":"")+'" data-act="'+act+'" '+attr+' title="'+title+'">'+svg+'</button>'; };
-  var pos=state.floatToolsPos||{x:14,y:14};
-  var ICsel='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 4 7 17 2.5-7.5L21 11Z"/></svg>';
-  var ICrect='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="1.5"/></svg>';
-  var ICpoly='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 6-3 10H7L4 9z"/></svg>';
-  var ICoval='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>';
-  return '<div class="plan-floattools" id="floatTools" style="left:'+pos.x+'px;top:'+pos.y+'px">'
-    + '<div class="ftl-head" id="floatToolsDrag"><svg class="ftl-grip" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>เครื่องมือวาด<button class="ftl-x" data-act="hideFloatTools" title="ซ่อน">✕</button></div>'
-    + '<div class="ftl-body">'
-    +   '<div class="ftl-row">'
-    +     b(state.tool==="select","setTool",'data-tool="select"',ICsel,"เลือก/ย้าย")
-    +     b(isD("rect"),"setShape",'data-shape="rect"',ICrect,"สี่เหลี่ยม")
-    +     b(isD("poly"),"setShape",'data-shape="poly"',ICpoly,"หลายเหลี่ยม")
-    +     b(isD("oval"),"setShape",'data-shape="oval"',ICoval,"วงรี")
-    +   '</div>'
-    +   '<div class="sel-wrap ftl-sel"><span class="sel-dot" style="background:var(--t-'+TYPES[type].css+')"></span>'
-    +     '<select id="drawTypeSelF" class="rp-select">'+TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPE_EN[t]||TYPES[t].label)+'</option>'; }).join("")+'</select></div>'
-    + '</div></div>';
+/* ---- ย้อนกลับ/ทำซ้ำ บนแปลน — สแนปช็อตชิ้นส่วน+โซนของชั้นที่เปิดอยู่ (เป็น JSON) ---- */
+var PL_UNDO={}, PL_REDO={}, PL_UNDO_MAX=40, _plPend=null;
+function plSnap(){
+  var fid=state.floorId; if(!fid) return null;
+  try{
+    return JSON.stringify({
+      m:DB.members.filter(function(x){ return x.floorId===fid; }),
+      z:(DB.zones||[]).filter(function(x){ return x.floorId===fid; })
+    });
+  }catch(e){ return null; }
 }
-/** หน้าต่างลอย: ความคืบหน้าเทคอนกรีต (รายการโซน + แก้ไข + วาดโซนใหม่) */
-function floatProgressHtml(){
-  if(!state.floatProgressOpen) return "";
-  var f=getFloor(state.floorId); if(!f) return "";
-  var _pid=curPlanId();
-  var zones=zonesOfPlan(f.id, _pid);
-  var stList=zoneStatuses(f.id,_pid);
-  var stMap={}; stList.forEach(function(s){ stMap[s.id]=s; });
-  var pos=state.floatProgressPos||{x:14,y:60};
-  var selZ=state.selZoneId?getZone(state.selZoneId):null;
-
-  // สรุป: จำนวนต่อสถานะ (ไม่ใช้ %)
-  var counts={}; zones.forEach(function(z){ counts[z.status]=(counts[z.status]||0)+1; });
-  var body='<div class="ftp-summary"><span>'+zones.length+' โซน</span></div>';
-  body+='<div class="ftp-stat-counts">';
-  stList.forEach(function(s){ body+='<span class="ftp-sc"><span class="ftp-sc-dot" style="background:'+s.color+'"></span>'+esc(s.label)+' '+(counts[s.id]||0)+'</span>'; });
-  body+='</div>';
-
-  // Zone list
-  zones.forEach(function(z){
-    var s=stMap[z.status]||stList[0]||{label:z.status||"—",color:"#94a3b8"}, isSel=(z.id===state.selZoneId);
-    body+='<button class="ftp-zone'+(isSel?" sel":"")+'" data-act="selectZone" data-zid="'+esc(z.id)+'">'
-      +'<span class="ftp-z-badge" style="background:'+s.color+'"></span>'
-      +'<span class="ftp-z-info"><span class="ftp-z-name">'+esc(z.name)+'</span><span class="ftp-z-sub">'+esc(s.label)+(z.date?' · '+esc(z.date):'')+'</span></span>'
-      +'</button>';
-  });
-
-  // Edit form for selected zone
-  if(selZ){
-    body+='<div class="ftp-edit">'
-      +'<div class="ftp-edit-row"><span>ชื่อ</span><input type="text" id="zoneNameInput" value="'+esc(selZ.name)+'" class="ftp-input"></div>'
-      +'<div class="ftp-edit-row"><span>สถานะ</span><select id="zoneStatusSel" class="ftp-input">'
-        + stList.map(function(s){ return '<option value="'+esc(s.id)+'"'+(selZ.status===s.id?" selected":"")+'>'+esc(s.label)+'</option>'; }).join("")
-      +'</select></div>'
-      +'<div class="ftp-edit-row"><span>วันที่</span><input type="date" id="zoneDateInput" value="'+esc(selZ.date||"")+'" class="ftp-input"></div>'
-      +'<button class="ftp-del" data-act="deleteZone" data-zid="'+esc(selZ.id)+'"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg> ลบโซน</button>'
-      +'</div>';
+function plPushJson(j){
+  var fid=state.floorId; if(!fid||j==null) return;
+  var st=PL_UNDO[fid]||(PL_UNDO[fid]=[]);
+  if(st.length && st[st.length-1]===j) return;
+  st.push(j); if(st.length>PL_UNDO_MAX) st.shift();
+  PL_REDO[fid]=[];
+  plSyncUndoBtns();
+}
+/** เรียกก่อนทุกการแก้ไขที่เกิดทันที (วาด/ลบ/ทำซ้ำ/ซ่อน/สี/โซน) */
+function plPushUndo(){ plPushJson(plSnap()); }
+/** การลาก: เก็บสภาพไว้ตอนกด แล้วยืนยันตอนปล่อยเฉพาะเมื่อมีการเปลี่ยนจริง */
+function plCommitPend(){ if(_plPend){ plPushJson(_plPend); _plPend=null; } }
+/* คืนค่าโดยแก้ในที่เดิมทีละ id — ไม่สร้าง array ใหม่ ระบบ sync คลาวด์ยังจับ object เดิมได้ */
+function plRestore(j){
+  var fid=state.floorId; if(!fid) return false;
+  var snap; try{ snap=JSON.parse(j); }catch(e){ return false; }
+  function merge(arr, want){
+    var keep={}; want.forEach(function(w){ keep[w.id]=w; });
+    for(var i=arr.length-1;i>=0;i--){ var x=arr[i]; if(x.floorId!==fid) continue; if(!keep[x.id]) arr.splice(i,1); }
+    var have={}; arr.forEach(function(x){ have[x.id]=x; });
+    want.forEach(function(w){
+      var ex=have[w.id];
+      if(ex){ Object.keys(ex).forEach(function(k){ delete ex[k]; }); Object.assign(ex,w); }
+      else arr.push(w);
+    });
   }
-
-  // ปุ่มจัดการสถานะ (กำหนดเอง)
-  body+='<button class="ftp-managest" data-act="manageZoneStatus"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8 2 2 0 1 1-2.8 2.8 1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0 1.6 1.6 0 0 0-2.6-1.1 2 2 0 1 1-2.8-2.8A1.6 1.6 0 0 0 3.9 15a2 2 0 0 1 0-4 1.6 1.6 0 0 0 1.1-2.6A2 2 0 1 1 7.8 5.6 1.6 1.6 0 0 0 10 5.3V5a2 2 0 0 1 4 0 1.6 1.6 0 0 0 2.2.3 2 2 0 1 1 2.8 2.8A1.6 1.6 0 0 0 20.7 11a2 2 0 0 1 0 4Z"/></svg> จัดการสถานะ + สี</button>';
-
-  // Action buttons
-  body+='<div class="ftp-actions">'
-    +'<button class="ftp-btn ftp-btn-draw" data-act="drawZoneStart"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="6" width="18" height="12" rx="1.5"/><path d="M12 6v12M3 12h18"/></svg> วาดโซนใหม่</button>'
-    +'<button class="ftp-btn" data-act="exportProgressPdf"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 3v5h5"/><path d="M9 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5H9"/><path d="M12 18v-6M9 15l3 3 3-3"/></svg> PDF อัพเดท</button>'
-    +'</div>';
-
-  return '<div class="plan-floatprogress" id="floatProgress" style="left:'+pos.x+'px;top:'+pos.y+'px">'
-    +'<div class="ftp-head" id="floatProgressDrag">'
-    +'<svg class="ftl-grip" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>'
-    +'ความคืบหน้าเท'
-    +'<button class="ftl-x" data-act="closeProgressPanel" title="ปิด">✕</button>'
-    +'</div>'
-    +'<div class="ftp-body">'+body+'</div>'
-    +'</div>';
+  merge(DB.members, snap.m||[]);
+  if(!DB.zones) DB.zones=[];
+  merge(DB.zones, snap.z||[]);
+  if(state.selMemberId && !getMember(state.selMemberId)) state.selMemberId=null;
+  if(state.selZoneId && !getZone(state.selZoneId)) state.selZoneId=null;
+  return true;
 }
-/** หน้าต่างลอยสไตล์กรอบ (สี/ความเข้ม/ความหนาเส้น/สีใช้บ่อย) — วางบนแปลน */
-function floatStyleHtml(){
-  var type=state.catType;
-  if(!state.floatStyleOpen || drawKind(type)!=="rect") return "";
-  var selM=getMember(state.selMemberId);
-  var selRect=(selM&&isBox(selM.plan))?selM:null;
-  var sc=selRect?(selRect.plan.fill||"#f59e0b"):state.fillColor;
-  var sa=selRect?(selRect.plan.fillA!=null?selRect.plan.fillA:0.28):state.fillAlpha;
-  var sww=selRect?(selRect.plan.strokeW!=null?selRect.plan.strokeW:10):state.strokeW;
-  var pos=state.floatStylePos||{x:14,y:60};
-  var title=selRect?'สไตล์ · '+esc(selRect.code):'สไตล์กรอบ';
-  return '<div class="plan-floatstyle" id="floatStyle" style="left:'+pos.x+'px;top:'+pos.y+'px">'
-    + '<div class="fts-head" id="floatStyleDrag">'
-    +   '<svg class="ftl-grip" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>'
-    +   title
-    +   '<button class="ftl-x" data-act="closeFloatStyle" title="ปิด">✕</button>'
-    + '</div>'
-    + '<div class="fts-body">'
-    +   '<div class="fts-row">'
-    +     '<input type="color" id="drawColor" value="'+esc(sc)+'" class="rbn-color" title="สีกรอบ">'
-    +     '<div id="drawSwatch" class="rbn-swatch" style="background:'+esc(sc)+';opacity:'+sa+'"></div>'
-    +   '</div>'
-    +   '<div class="fts-slider"><span>ความเข้ม</span><input type="range" id="drawAlpha" min="0" max="100" value="'+Math.round(sa*100)+'"></div>'
-    +   '<div class="fts-slider"><span>เส้นกรอบ</span><input type="range" id="drawStroke" min="0" max="30" value="'+Math.round(sww)+'"></div>'
-    +   '<div class="fts-swatches">'+PRESET_COLORS.map(function(c){ return '<button class="swatch'+(sc.toLowerCase()===c?" on":"")+'" data-swatch="'+c+'" title="'+c+'" style="background:'+c+'"></button>'; }).join("")+'</div>'
-    + '</div></div>';
+function plUndo(){
+  var fid=state.floorId, st=PL_UNDO[fid];
+  if(!st||!st.length){ toast("ไม่มีอะไรให้ย้อนกลับ"); return; }
+  var cur=plSnap(); if(!plRestore(st.pop())) return;
+  if(cur!=null) (PL_REDO[fid]||(PL_REDO[fid]=[])).push(cur);
+  saveDB(); render(); toast("ย้อนกลับแล้ว");
 }
-
+function plRedo(){
+  var fid=state.floorId, st=PL_REDO[fid];
+  if(!st||!st.length){ toast("ไม่มีอะไรให้ทำซ้ำ"); return; }
+  var cur=plSnap(); if(!plRestore(st.pop())) return;
+  if(cur!=null) (PL_UNDO[fid]||(PL_UNDO[fid]=[])).push(cur);
+  saveDB(); render(); toast("ทำซ้ำแล้ว");
+}
+function plSyncUndoBtns(){
+  var fid=state.floorId;
+  var u=document.querySelector('[data-act="planUndo"]'), r=document.querySelector('[data-act="planRedo"]');
+  if(u) u.disabled=!(PL_UNDO[fid]||[]).length;
+  if(r) r.disabled=!(PL_REDO[fid]||[]).length;
+}
+/** สถานะตรวจของชิ้นส่วน → "pass" | "fail" | "todo" (ใช้กรองบนแถบสถานะ) */
+function memberStatus(m){ var ins=lastInspection(m.id); return !ins ? "todo" : (ins.status==="pass" ? "pass" : "fail"); }
+/** ซูมไปหาชิ้นส่วนบนแปลน (ให้อยู่กลางจอ ขนาดพอเห็นชัด) */
+function planZoomToMember(id){
+  var m=getMember(id); if(!m||!m.plan) return;
+  var sz=_stageWH(); if(!sz||!sz.w) return;
+  var pl=m.plan, x1,y1,x2,y2;
+  if(pl.kind==="point"){ x1=x2=pl.x||0.5; y1=y2=pl.y||0.5; }
+  else { x1=Math.min(pl.x1,pl.x2); x2=Math.max(pl.x1,pl.x2); y1=Math.min(pl.y1,pl.y2); y2=Math.max(pl.y1,pl.y2); }
+  var bw=Math.max(0.02,(x2-x1))*sz.w, bh=Math.max(0.02,(y2-y1))*sz.h;
+  var z=Math.max(1, Math.min(planMaxZoom(), Math.min(sz.w/(bw*2.6), sz.h/(bh*2.6))));
+  var cx=(x1+x2)/2*sz.w, cy=(y1+y2)/2*sz.h;
+  state.zoom=z; state.panX=sz.w/2-cx*z; state.panY=sz.h/2-cy*z;
+  planClampPan(); planApplyTransform(); scheduleEnsure();
+}
+/** ค้นหาเบอร์บนแปลนที่เปิดอยู่ → เลือก + ซูมไปหา */
+function planSearch(q){
+  q=String(q||"").trim().toLowerCase(); if(!q) return;
+  var f=getFloor(state.floorId); if(!f) return;
+  var pid=curPlanId();
+  var hits=membersOfFloor(f.id).filter(function(m){ return m.plan && memberPlanId(m)===pid && (String(m.code).toLowerCase().indexOf(q)>=0 || String(m.name||"").toLowerCase().indexOf(q)>=0); });
+  if(!hits.length){ toast('ไม่พบ "'+q+'" บนแปลนนี้',true); return; }
+  var exact=hits.filter(function(m){ return String(m.code).toLowerCase()===q; })[0]||hits[0];
+  if(state.hiddenTypes && state.hiddenTypes[exact.type]) delete state.hiddenTypes[exact.type];
+  exact.hidden=false;
+  state.selMemberId=exact.id; state.memberId=exact.id; state.selZoneId=null;
+  if(state.rightTab!=="inspect") state.rightTab="props";
+  render();
+  planZoomToMember(exact.id);
+  var q2=$("#planSearch"); if(q2){ q2.value=q; }
+  if(hits.length>1) toast("พบ "+hits.length+" รายการ — แสดง "+exact.code);
+}
 function planStageHtml(){
   var f=getFloor(state.floorId), type=state.catType;
   var isProgress=stageMode()==="progress";
@@ -3933,14 +3904,15 @@ function planStageHtml(){
     + '<button class="danger" data-act="delMember" title="ลบ"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg></button>'
     + '</div>' : '';
 
-  return '<div class="plan-stage'+(drawing?" is-draw":"")+(plan?"":" no-plan")+'" id="planStage" style="aspect-ratio:'+ (plan&&plan.w?plan.w+"/"+plan.h : "100/72") +'">'
+  var _ar=(plan&&plan.w&&plan.h)?(plan.w/plan.h):(100/72);
+  // --plan-ar ให้ CSS มือถือคำนวณความกว้างจากความสูงที่เหลือ โดยคงสัดส่วนเดิม (overlay ต้องทับรูปพอดี ห้ามยืด)
+  return '<div class="plan-stage'+(drawing?" is-draw":"")+(plan?"":" no-plan")+'" id="planStage" style="aspect-ratio:'+ (plan&&plan.w?plan.w+"/"+plan.h : "100/72") +';--plan-ar:'+_ar.toFixed(4)+'">'
        + '<div class="plan-canvas" id="planCanvas">'+bg+'</div>'
        // เลเยอร์ความคม + ไฮไลท์ อยู่ "นอก" canvas ที่ถูกซูม → บน iOS ภาพคมไม่โดน CSS transform ขยายจนเบลอ
        +   '<img class="plan-detail" id="planDetail" alt="" draggable="false" style="display:none">'
        +   '<svg class="plan-overlay" id="planOverlay" viewBox="0 0 '+VW+' '+VH+'" '
        +     'data-vw="'+VW+'" data-vh="'+VH+'" preserveAspectRatio="none">'+shapes+'</svg>'
        + selbar
-       + (isProgress ? floatProgressHtml() : floatStyleHtml())
        + (!isProgress && state.showLegend ? legendHtml(members) : '')
        + (isProgress
             ? (zonesOfPlan(f.id,_pid2).length===0 && !drawing ? '<div class="plan-hint">ยังไม่มีโซนเท — กด “วาดโซนใหม่” แล้วลากคลุมพื้นที่บนแปลน</div>' : '')
@@ -3957,13 +3929,11 @@ function legendHtml(members){
     if(!groups[c]){ groups[c]=[]; order.push(c); }
     if(groups[c].indexOf(m.code)<0) groups[c].push(m.code);
   });
-  var pos=state.legendPos||{x:12,y:12};
   var rows=order.length ? order.map(function(c){
     return '<div class="lg-row"><span class="lg-sw" style="background:'+esc(c)+'"></span><span class="lg-tx">'+esc(groups[c].join(", "))+'</span></div>';
   }).join("") : '<div class="lg-row"><span class="tiny muted">ยังไม่มีคานบนแปลน</span></div>';
-  return '<div class="plan-legend" id="planLegend" style="right:auto;left:'+pos.x+'px;top:'+pos.y+'px">'
-    + '<div class="lg-head" id="legendDrag">ตารางสี (Legend) <button class="lg-x" data-act="toggleLegend" title="ซ่อน">✕</button></div>'
-    + '<div class="lg-body">'+rows+'</div></div>';
+  // ตรึงมุมขวาล่างของแปลน (ไม่ลาก) — เปิด/ปิดจากแท็บ "คุณสมบัติ"
+  return '<div class="plan-legend" id="planLegend"><div class="lg-head">ตารางสี</div><div class="lg-body">'+rows+'</div></div>';
 }
 
 /** หน้าจอรายละเอียดเต็ม (เปิดจากปุ่ม "รายละเอียด") — หน้าตัดทุกสถานี + span + สเปก จัดสองคอลัมน์ */
@@ -4455,7 +4425,7 @@ function deApplyCrop(elm, done){
     }));
   }
 }
-var _deKeyHandler=null;
+var _deKeyHandler=null, _plKeyHandler=null;
 function bindDetailEditor(){
   var canvas=$('#deCanvas'); if(!canvas) return;
   var m=getMember(activeMemberId()); if(!m) return;
@@ -4755,191 +4725,258 @@ function bindDetailEditor(){
 function rpSec(title, badge, body, open){
   return '<details class="rp-sec"'+(open?' open':'')+'><summary><span class="rp-sec-t">'+esc(title)+'</span>'+(badge||'')+'</summary><div class="rp-sec-b">'+body+'</div></details>';
 }
-function rightPanelHtml(){
-  var type=state.catType, m=getMember(state.selMemberId);
-  var tab=state.rightTab;
-  if(tab==="spec") tab="list";              // แท็บเดิม "รายละเอียด" ย้ายไปเป็นปุ่มบนแถบเครื่องมือ
-  if(tab!=="palette"&&tab!=="list"&&tab!=="inspect") tab="palette";
-  var h='<div class="rp-tabs">'
-      + '<button data-act="setRightTab" data-tab="palette" aria-selected="'+(tab==="palette")+'"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.8" r="1.1" fill="currentColor" stroke="none"/><circle cx="17.4" cy="10.6" r="1.1" fill="currentColor" stroke="none"/><circle cx="8.4" cy="7.4" r="1.1" fill="currentColor" stroke="none"/><circle cx="6.6" cy="12.4" r="1.1" fill="currentColor" stroke="none"/><path d="M12 2a10 10 0 1 0 0 20 2.5 2.5 0 0 0 2-4 2.5 2.5 0 0 1 2-4h1a4 4 0 0 0 4-4 10 10 0 0 0-9-8Z"/></svg> สไตล์/ลาย</button>'
-      + '<button data-act="setRightTab" data-tab="list" aria-selected="'+(tab==="list")+'"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg> '+(state.unified?'รายการ':'รายการ'+esc(TYPES[type].label))+'</button>'
-      + '<button data-act="setRightTab" data-tab="inspect" aria-selected="'+(tab==="inspect")+'"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 5-5"/></svg> ตรวจเหล็ก</button>'
-      + '</div><div class="rp-body">';
-
-  if(tab==="palette"){
-    var _flr=getFloor(state.floorId), _allM=_flr?membersOfFloor(_flr.id):[];
-    var eyeO='<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
-    var eyeX='<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 4.2A9.8 9.8 0 0 1 12 4c6.5 0 10 7 10 7a13 13 0 0 1-2.3 3M6.6 6.6A13 13 0 0 0 2 12s3.5 7 10 7a9.5 9.5 0 0 0 4.3-1M3 3l18 18"/></svg>';
-    // เครื่องมือวาด / โหมด / ชนิดที่วาด / สไตล์กรอบ ย้ายไปที่แถบริบบอนด้านบนแล้ว — พาเนลนี้เหลือ เลเยอร์
-    h+='<div class="note-info" style="margin-top:0;display:flex;gap:8px;align-items:flex-start"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:1px"><path d="M12 8h.01M11 12h1v4h1"/><circle cx="12" cy="12" r="9"/></svg><span>เครื่องมือวาด · สไตล์กรอบ · โหมด · ป้าย/สี อยู่ที่<b>แถบริบบอนด้านบน</b> (แท็บ “วาด” / “มุมมอง”) — ตรงนี้ปรับ<b>เลเยอร์</b></span></div>';
-
-    // ── เลเยอร์ (พับ) ──
-    if(state.unified){
-      var shown=TYPE_ORDER.filter(function(t){return !state.hiddenTypes[t];}).length;
-      var layerChips=TYPE_ORDER.map(function(t){
-        var cnt=_allM.filter(function(mm){return mm.type===t && mm.plan;}).length, vis=!state.hiddenTypes[t];
-        return '<button class="tchip lay'+(vis?" on":"")+'" data-act="toggleLayer" data-type="'+t+'" title="'+(vis?"ซ่อน":"แสดง")+'"><span class="tc-eye">'+(vis?eyeO:eyeX)+'</span><span class="tc-sw" style="background:var(--t-'+TYPES[t].css+')"></span>'+esc(TYPE_EN[t]||TYPES[t].label)+' <b>'+cnt+'</b></button>';
-      }).join("");
-      h+=rpSec('เลเยอร์ที่แสดง','<span class="sec-badge">'+shown+'/'+TYPE_ORDER.length+'</span>','<div class="type-chips">'+layerChips+'</div>',false);
-    }
-
-    // (ย้าย "การแสดงผลบนแปลน" ไปริบบอนแท็บ "มุมมอง" และ "สไตล์กรอบ" ไปริบบอนแท็บ "วาด")
-
-  }else if(tab==="list"){
-    // รายการชิ้นส่วน — โหมดรวมมีดรอปดาวน์กรองชนิด, โหมดโฟกัสโชว์เฉพาะหมวด
-    var lf=state.unified?(state.listFilter||"all"):type;
-    var _lpid=curPlanId();
-    var listAll=membersOfFloor(state.floorId).filter(function(x){ return memberPlanId(x)===_lpid && (state.unified ? true : x.type===type); });
-    var list=listAll.filter(function(x){ return lf==="all"||x.type===lf; })
-      .sort(function(a,b){ return (TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type)) || String(a.code).localeCompare(String(b.code)); });
-    if(state.unified){
-      h+='<div class="fld" style="margin-bottom:10px"><span class="fld-l">แสดงชนิด</span><div class="sel-wrap">'
-        +'<select id="listFilterSel" class="rp-select"><option value="all"'+(lf==="all"?" selected":"")+'>ทุกชนิด ('+listAll.length+')</option>'
-        + TYPE_ORDER.map(function(t){ var n=listAll.filter(function(x){return x.type===t;}).length; return n?('<option value="'+t+'"'+(lf===t?" selected":"")+'>'+esc(TYPES[t].label)+' ('+n+')</option>'):''; }).join("")
-        +'</select></div></div>';
-    }
-    h+='<div class="note-info" style="margin-top:0">แตะรายการเพื่อ<b>ตรวจเหล็ก</b> · กด “รายละเอียด” บนแถบเครื่องมือเพื่อดู/แก้รูปแบบ</div>';
-    h+='<div class="card"><div class="card-b" style="padding:8px">';
-    if(list.length===0){
-      h+='<div class="empty small">ยังไม่มี — วาดบนแปลน หรือกด “เพิ่ม…”</div>';
+/* ===========================================================================
+   หน้าแปลน — โครง 3 โซน: แถบเครื่องมือแถวเดียว / แปลน+แถบสถานะ / พาเนลขวา 3 แท็บ
+   (ไม่มีหน้าต่างลอย · โหมด ตรวจเหล็ก/เทคอนกรีต อยู่หน้าเดียวกัน)
+   ========================================================================== */
+var PT_IC={
+  sel:'<svg viewBox="0 0 24 24"><path d="m4 4 7 17 2.5-7.5L21 11Z"/></svg>',
+  rect:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1.5"/></svg>',
+  poly:'<svg viewBox="0 0 24 24"><path d="M12 3l8 6-3 10H7L4 9z"/></svg>',
+  oval:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>',
+  line:'<svg viewBox="0 0 24 24"><path d="M4 20 20 4"/><circle cx="4" cy="20" r="2"/><circle cx="20" cy="4" r="2"/></svg>',
+  point:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>',
+  snap:'<svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="3"/></svg>',
+  undo:'<svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/></svg>',
+  redo:'<svg viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M21 13a9 9 0 1 1-3-7.7L21 8"/></svg>',
+  fit:'<svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>',
+  pdf:'<svg viewBox="0 0 24 24"><path d="M14 3v5h5"/><path d="M9 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5H9"/><path d="M12 18v-6M9 15l3 3 3-3"/></svg>',
+  search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  panel:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>',
+  zone:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1.5"/><path d="M12 6v12M3 12h18"/></svg>',
+  eye:'<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeOff:'<svg viewBox="0 0 24 24"><path d="M9.9 4.2A9.8 9.8 0 0 1 12 4c6.5 0 10 7 10 7a13 13 0 0 1-2.3 3M6.6 6.6A13 13 0 0 0 2 12s3.5 7 10 7a9.5 9.5 0 0 0 4.3-1M3 3l18 18"/></svg>',
+  list:'<svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+  props:'<svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>',
+  check:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 5-5"/></svg>',
+  edit:'<svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>',
+  img:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 15 5-5 4 4 3-3 6 6"/><circle cx="9" cy="9" r="1.6"/></svg>',
+  copy:'<svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+  trash:'<svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg>',
+  gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8 2 2 0 1 1-2.8 2.8 1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0 1.6 1.6 0 0 0-2.6-1.1 2 2 0 1 1-2.8-2.8A1.6 1.6 0 0 0 3.9 15a2 2 0 0 1 0-4 1.6 1.6 0 0 0 1.1-2.6A2 2 0 1 1 7.8 5.6 1.6 1.6 0 0 0 10 5.3V5a2 2 0 0 1 4 0 1.6 1.6 0 0 0 2.2.3 2 2 0 1 1 2.8 2.8A1.6 1.6 0 0 0 20.7 11a2 2 0 0 1 0 4Z"/></svg>'
+};
+function ptBtn(on,act,attr,ic,label,title,dis){
+  return '<button class="pt-btn'+(on?" on":"")+'" data-act="'+act+'" '+(attr||"")+' title="'+esc(title||label)+'"'+(dis?' disabled':'')+'>'+ic+'<span class="pt-lb">'+esc(label)+'</span></button>';
+}
+/* ---- แถบเครื่องมือแถวเดียว ---- */
+function planToolbarHtml(type, planMenu){
+  var prog=stageMode()==="progress";
+  var isD=function(sh){ return state.tool==="draw" && (state.drawShape||"rect")===sh; };
+  var sep='<span class="pt-sep"></span>';
+  var fid=state.floorId, canU=(PL_UNDO[fid]||[]).length>0, canR=(PL_REDO[fid]||[]).length>0;
+  var h='<div class="pl-toolbar" id="planToolbar">';
+  h+='<div class="pt-seg" title="โหมดของหน้าแปลน">'
+    +'<button data-act="setStageMode" data-mode="inspect" aria-pressed="'+(!prog)+'">ตรวจเหล็ก</button>'
+    +'<button data-act="setStageMode" data-mode="progress" aria-pressed="'+(prog)+'">เทคอนกรีต</button></div>';
+  h+=sep;
+  h+=ptBtn(state.tool==="select","setTool",'data-tool="select"',PT_IC.sel,'เลือก','เลือก/ย้าย  (V)');
+  if(!prog){
+    var dk=drawKind(type);
+    if(dk==="rect"){
+      h+=ptBtn(isD("rect"),"setShape",'data-shape="rect"',PT_IC.rect,'สี่เหลี่ยม','วาดสี่เหลี่ยม  (R)');
+      h+=ptBtn(isD("poly"),"setShape",'data-shape="poly"',PT_IC.poly,'หลายเหลี่ยม','วาดหลายเหลี่ยม  (P)');
+      h+=ptBtn(isD("oval"),"setShape",'data-shape="oval"',PT_IC.oval,'วงรี','วาดวงรี  (O)');
     }else{
-      var eyeOpen='<svg class="ic" viewBox="0 0 24 24" width="1.15em" height="1.15em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
-      var eyeOff='<svg class="ic" viewBox="0 0 24 24" width="1.15em" height="1.15em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 4.2A9.8 9.8 0 0 1 12 4c6.5 0 10 7 10 7a13 13 0 0 1-2.3 3M6.6 6.6A13 13 0 0 0 2 12s3.5 7 10 7a9.5 9.5 0 0 0 4.3-1M3 3l18 18"/></svg>';
-      var copyIc='<svg class="ic" viewBox="0 0 24 24" width="1.15em" height="1.15em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
-      var grouped=(lf==="all"), curType=null;
-      list.forEach(function(x){
-        if(grouped && x.type!==curType){ curType=x.type; var gc=list.filter(function(y){return y.type===x.type;}).length;
-          h+='<div class="lst-group"><span class="lst-g-sw" style="background:var(--t-'+TYPES[x.type].css+')"></span>'+esc(TYPES[x.type].label)+' <span class="muted">('+gc+')</span></div>'; }
-        h+='<div class="row-item lst'+(x.hidden?" is-hidden":"")+(x.id===state.selMemberId?" sel":"")+'" style="margin-bottom:6px">'
-          +  '<button class="lst-main" data-act="editListMember" data-id="'+esc(x.id)+'">'
-          +    chipHtml(x.code,TYPES[x.type].css)
-          +    '<div class="body"><div class="t1">'+esc(x.name||x.code)+'</div>'
-          +      '<div class="t2 mono">'+esc(shortSpec(x))+'</div>'
-          +      '<div class="t2">'+(x.plan?'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg> วางบนแปลนแล้ว':'<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2.5"/></svg> ยังไม่วางบนแปลน')+'</div></div></button>'
-          +  '<button class="lst-ic" data-act="toggleHide" data-id="'+esc(x.id)+'" title="'+(x.hidden?"แสดงบนแปลน":"ซ่อนบนแปลน")+'">'+(x.hidden?eyeOff:eyeOpen)+'</button>'
-          +  '<button class="lst-ic" data-act="dupMember" data-id="'+esc(x.id)+'" title="ทำซ้ำชิ้นนี้ (เบอร์เดียวกัน คนละตำแหน่ง)">'+copyIc+'</button>'
-          +  '</div>';
-      });
+      h+=ptBtn(state.tool==="draw","setShape",'data-shape="rect"',dk==="point"?PT_IC.point:PT_IC.line, dk==="point"?'วางจุด':'วาดแนว','วาด  (R)');
     }
-    h+='<button class="add-row" data-act="addInCat" style="margin-top:2px">+ เพิ่ม'+esc(TYPES[type].label)+'ด้วยฟอร์ม</button>';
-    h+='</div></div>';
-
-  }else if(tab==="spec"){
-    if(!m){
-      h+=emptyBox('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2M11.5 9.5l2-2M8.5 6.5l2-2M17.5 15.5l2-2"/></svg>',"ยังไม่ได้เลือก"+TYPES[type].label,"แตะที่รูปบนแปลน หรือเลือกจากแท็บ “สไตล์/ลาย”");
-    }else{
-      h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'+chipHtml(m.code,TYPES[m.type].css)
-        +'<div style="min-width:0"><div style="font-size:1.1rem;font-weight:800">'+esc(m.name||m.code)+'</div>'
-        +'<div class="small muted">'+esc(TYPES[m.type].label)+(m.grid?" · แนว "+esc(m.grid):"")+'</div></div></div>';
-      if(m.note) h+='<div class="note-warn" style="margin-top:0;margin-bottom:10px"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg> '+esc(m.note)+'</div>';
-      h+=sectionCardHtml(m)+spanCardHtml(m)+summaryCardHtml(m)+spRebarCardHtml(m)+specCardHtml(m);
-      if(isBox(m.plan)){
-        h+='<div class="card"><div class="card-h">สไตล์กรอบบนแปลน</div><div class="card-b">'
-          +'<div style="display:flex;align-items:center;gap:12px">'
-          +'<input type="color" id="memFill" value="'+esc(m.plan.fill||"#f59e0b")+'" style="width:54px;height:42px;padding:2px;border-radius:9px">'
-          +'<div style="flex:1"><div class="tiny muted" style="margin-bottom:3px">ความเข้มสีด้านใน</div>'
-          +'<input type="range" id="memAlpha" min="0" max="100" value="'+Math.round((m.plan.fillA!=null?m.plan.fillA:0.28)*100)+'" style="width:100%"></div>'
-          +'</div>'
-          +'<div style="margin-top:10px"><div class="tiny muted" style="margin-bottom:3px">ความหนาเส้นกรอบ (0 = ไม่มีเส้น)</div>'
-          +'<input type="range" id="memStroke" min="0" max="30" value="'+Math.round(m.plan.strokeW!=null?m.plan.strokeW:10)+'" style="width:100%"></div>'
-          +'</div></div>';
-      }
-      h+='<hr class="sep"><div class="row-end">'
-        +'<button class="btn soft" data-act="editMember"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> แก้ไขสเปก</button>'
-        +'<button class="btn danger" data-act="delMember"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/><path d="M10 11v6M14 11v6"/></svg> ลบ</button></div>';
-    }
-  }else{ // inspect
-    if(!m){
-      h+=emptyBox('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 5-5"/></svg>',"ยังไม่ได้เลือก"+TYPES[type].label,"แตะที่รูปบนแปลนเพื่อดูข้อมูล + ตรวจเหล็ก");
-    }else{
-      h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'+chipHtml(m.code,TYPES[m.type].css)
-        +'<div style="min-width:0"><div style="font-size:1.1rem;font-weight:800">'+esc(m.name||m.code)+'</div>'
-        +'<div class="small muted">'+esc(TYPES[m.type].label)+(m.grid?" · แนว "+esc(m.grid):"")+'</div></div></div>';
-      if(m.note) h+='<div class="note-warn" style="margin-top:0;margin-bottom:10px"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg> '+esc(m.note)+'</div>';
-      h+=inspectionBlockHtml(m);   // เหลือแค่เช็คลิสต์ตรวจเหล็ก + หลักฐาน/ยืนยัน
-    }
+    h+='<label class="pt-type" title="ชนิดที่วาด"><span class="sel-dot" style="background:var(--t-'+TYPES[type].css+')"></span>'
+      +'<select id="drawTypeSel" class="pt-select">'+TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPE_EN[t]||TYPES[t].label)+'</option>'; }).join("")+'</select></label>';
+  }else{
+    h+=ptBtn(state.tool==="drawZone"&&state.zoneShape!=="poly","drawZoneStart",'data-shape="rect"',PT_IC.zone,'โซน','วาดโซนเทสี่เหลี่ยม  (R)');
+    h+=ptBtn(state.tool==="drawZone"&&state.zoneShape==="poly","drawZoneStart",'data-shape="poly"',PT_IC.poly,'โซนหลายเหลี่ยม','วาดโซนหลายเหลี่ยม  (P)');
+    h+=ptBtn(!!state.showProgress,"toggleProgress",'',state.showProgress?PT_IC.eye:PT_IC.eyeOff,'แสดงโซน','ซ่อน/แสดงโซน');
   }
+  h+=ptBtn(!!state.snap,"toggleSnap",'',PT_IC.snap,'สแนป','ดูดเข้าเส้นแปลน  (S)');
+  h+=sep;
+  h+=ptBtn(false,"planUndo",'',PT_IC.undo,'ย้อนกลับ','ย้อนกลับ  (Ctrl+Z)',!canU);
+  h+=ptBtn(false,"planRedo",'',PT_IC.redo,'ทำซ้ำ','ทำซ้ำ  (Ctrl+Shift+Z)',!canR);
+  h+=sep;
+  if(!prog) h+='<label class="pt-search" title="ค้นหาเบอร์  (Ctrl+F)">'+PT_IC.search+'<input id="planSearch" type="search" placeholder="ค้นหาเบอร์…" autocomplete="off" enterkeyhint="search"></label>';
+  h+=ptBtn(false,"zoomFit",'',PT_IC.fit,'พอดีจอ','ซูมพอดีจอ  (0)');
+  h+='<span class="pt-sp"></span>';
+  h+='<div class="pt-plan">'+planMenu+'</div>';
+  h+=ptBtn(false,prog?"exportProgressPdf":"exportPdf",'',PT_IC.pdf,'PDF',prog?'ออก PDF ความคืบหน้า':'ออก PDF แปลน');
+  h+=ptBtn(!state.rpCollapsed,"toggleRp",'',PT_IC.panel,'พาเนล',state.rpCollapsed?'แสดงพาเนล':'ซ่อนพาเนล');
   return h+'</div>';
 }
-
-/* ---- ริบบอนบนสุดของเอดิเตอร์ (แนว Office/Revit) — เดสก์ท็อป ---- */
-function planRibbonHtml(type, planMenu, sm, selM){
-  var rt=state.ribbonTab||"home";
-  var isD=function(sh){ return state.tool==="draw" && (state.drawShape||"rect")===sh; };
-  var ICsel='<svg viewBox="0 0 24 24"><path d="m4 4 7 17 2.5-7.5L21 11Z"/></svg>';
-  var ICrect='<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1.5"/></svg>';
-  var ICpoly='<svg viewBox="0 0 24 24"><path d="M12 3l8 6-3 10H7L4 9z"/></svg>';
-  var ICoval='<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>';
-  var ICsnap='<svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="3"/></svg>';
-  var ICpdf='<svg viewBox="0 0 24 24"><path d="M14 3v5h5"/><path d="M9 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5H9"/><path d="M12 18v-6M9 15l3 3 3-3"/></svg>';
-  var ICtag='<svg viewBox="0 0 24 24"><path d="M20.6 13.4 13 21a2 2 0 0 1-2.8 0L3 13.8V4h9.8l7.8 7.8a2 2 0 0 1 0 1.6Z"/><circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none"/></svg>';
-  var ICgrid='<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>';
-
-  var rbtn=function(on,act,attr,svg,label){ return '<button class="rbn-btn'+(on?" on":"")+'" data-act="'+act+'" '+(attr||"")+'>'+svg+'<span>'+esc(label)+'</span></button>'; };
-  var grp=function(cap,inner){ return '<div class="rbn-grp"><div class="rbn-grp-row">'+inner+'</div><div class="rbn-grp-cap">'+esc(cap)+'</div></div>'; };
-
-  var body='';
-  if(rt==="home"){
-    body+=grp('แปลน', planMenu);
-    body+=grp('โหมดแสดง','<div class="rbn-seg">'
-      +'<button data-act="setPlanMode" data-mode="unified" aria-pressed="'+(state.unified)+'">รวมทุกชนิด</button>'
-      +'<button data-act="setPlanMode" data-mode="focus" aria-pressed="'+(!state.unified)+'">เฉพาะ '+esc(TYPE_EN[type]||TYPES[type].label)+'</button></div>');
-    body+=grp('ชนิดที่วาด','<div class="sel-wrap rbn-sel"><span class="sel-dot" style="background:var(--t-'+TYPES[type].css+')"></span>'
-      +'<select id="drawTypeSel" class="rp-select">'+TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPE_EN[t]||TYPES[t].label)+'</option>'; }).join("")+'</select></div>');
-    body+=grp('นำออก', rbtn(false,"exportPdf",'title="นำออกแปลน + ไฮไลท์ เป็น PDF"',ICpdf,'ออก PDF'));
-  }else if(rt==="draw"){
-    body+=grp('เลือก', rbtn(state.tool==="select","setTool",'data-tool="select"',ICsel,'เลือก/ย้าย'));
-    body+=grp('วาดรูป', rbtn(isD("rect"),"setShape",'data-shape="rect"',ICrect,'สี่เหลี่ยม')
-      +rbtn(isD("poly"),"setShape",'data-shape="poly"',ICpoly,'หลายเหลี่ยม')
-      +rbtn(isD("oval"),"setShape",'data-shape="oval"',ICoval,'วงรี'));
-    body+=grp('ตัวช่วย', rbtn(!!state.snap,"toggleSnap",'',ICsnap,'สแนบเส้น'));
-    // ปุ่มเปิดหน้าต่างลอยสไตล์กรอบ (สี/ความเข้ม/ความหนาเส้น)
-    if(drawKind(type)==="rect"){
-      var selRect=(selM&&isBox(selM.plan))?selM:null;
-      var sc=selRect?(selRect.plan.fill||"#f59e0b"):state.fillColor;
-      var styleBtnInner='<div class="rbn-swatch" style="background:'+esc(sc)+';opacity:'+(selRect?(selRect.plan.fillA!=null?selRect.plan.fillA:0.28):state.fillAlpha)+';width:28px;height:28px;border-radius:6px"></div>';
-      body+=grp('สไตล์กรอบ', '<button class="rbn-style-toggle'+(state.floatStyleOpen?" on":"")+'" data-act="toggleFloatStyle" title="ตั้งค่าสไตล์กรอบ">'
-        +styleBtnInner
-        +'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a7 7 0 0 0 0-14H4"/><path d="M7.5 3 4 6.5 7.5 10"/></svg>'
-        +'</button>');
-    }
-  }else{ // view
-    body+=grp('ลงสีตาม','<div class="rbn-seg">'
-      +'<button data-act="colorMode" data-mode="status" aria-pressed="'+(state.colorMode==="status")+'">สถานะ</button>'
-      +'<button data-act="colorMode" data-mode="plain" aria-pressed="'+(state.colorMode==="plain")+'">ประเภท</button></div>');
-    body+=grp('บนแปลน', rbtn(!!state.showLabels,"toggleLabels",'',ICtag,'ป้ายเบอร์')
-      +rbtn(!!state.showLegend,"toggleLegend",'',ICgrid,'ตารางสี'));
+/* ---- แถบสถานะใต้แปลน: ตัวเลข (กดกรองได้) + ซูม ---- */
+function planStatusBarHtml(vm){
+  var prog=stageMode()==="progress", f=getFloor(state.floorId);
+  var h='<div class="plan-statusbar">';
+  if(!prog){
+    var sm=summarize(vm), sf=state.statusFilter||null;
+    var chip=function(id,lbl,n,cls){ return '<button class="ps-chip '+cls+((sf===id)||(id==="all"&&!sf)?" on":"")+'" data-act="statusFilter" data-st="'+id+'" title="กดเพื่อกรอง"><b>'+n+'</b>'+lbl+'</button>'; };
+    h+=chip("all","ทั้งหมด",sm.total,"")+chip("pass","ผ่าน",sm.pass,"ok")+chip("fail","ไม่ผ่าน",sm.fail,"bad")+chip("todo","รอตรวจ",sm.todo,"wait");
+  }else{
+    var zones=zonesOfPlan(f.id,curPlanId()), stl=zoneStatuses(f.id,curPlanId()), cnt={};
+    zones.forEach(function(z){ cnt[z.status]=(cnt[z.status]||0)+1; });
+    h+='<span class="ps-chip static"><b>'+zones.length+'</b>โซน</span>';
+    stl.forEach(function(s){ h+='<span class="ps-chip static"><span class="ps-dot" style="background:'+s.color+'"></span><b>'+(cnt[s.id]||0)+'</b>'+esc(s.label)+'</span>'; });
   }
-
-  var tab=function(id,label){ return '<button class="rbn-tab" data-act="setRibbonTab" data-rtab="'+id+'" aria-selected="'+(rt===id)+'">'+esc(label)+'</button>'; };
-  var stats='<div class="tb-stats">'
-    +'<span class="tb-chip"><b>'+sm.total+'</b> ชิ้น</span>'
-    +'<span class="tb-chip ok"><b>'+sm.pass+'</b> ผ่าน</span>'
-    +'<span class="tb-chip bad"><b>'+sm.fail+'</b> ไม่ผ่าน</span>'
-    +'<span class="tb-chip wait"><b>'+sm.todo+'</b> รอตรวจ</span></div>';
-  var collapse='<button class="btn soft rbn-collapse tb-collapse'+(state.rpCollapsed?" on":"")+'" data-act="toggleRp" title="'+(state.rpCollapsed?"แสดงพาเนลข้อมูล":"ซ่อนพาเนลข้อมูล")+'"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>'+(state.rpCollapsed?'<path d="m9 9 2 3-2 3"/>':'<path d="m11 9-2 3 2 3"/>')+'</svg> <span class="tbc-tx">'+(state.rpCollapsed?"แสดงพาเนล":"ซ่อนพาเนล")+'</span></button>';
-
-  return '<div class="ribbon">'
-    + '<div class="rbn-tabs">'+tab("home","หน้าแรก")+tab("draw","วาด")+tab("view","มุมมอง")+'<span class="rbn-tabs-sp"></span>'+stats+collapse+'</div>'
-    + '<div class="rbn-body">'+body+'</div>'
-    + '</div>';
+  h+='<span class="pt-sp"></span>';
+  h+='<span class="ps-zoom"><button data-act="zoomOut" title="ซูมออก  (−)">−</button><span id="zoomLabel">'+Math.round((state.zoom||1)*100)+'%</span><button data-act="zoomIn" title="ซูมเข้า  (+)">+</button></span>';
+  return h+'</div>';
 }
-
+/* ---- พาเนลขวา: ชิ้นส่วน / คุณสมบัติ / ตรวจเหล็ก (โหมดเท: โซน / คุณสมบัติ) ---- */
+function rightPanelHtml(){
+  var type=state.catType, prog=stageMode()==="progress";
+  var m=getMember(state.selMemberId); if(m && !state.unified && m.type!==type) m=null;
+  var tab=state.rightTab;
+  if(tab==="palette"||tab==="spec") tab="props"; else if(tab==="list") tab="items";
+  if(prog && tab==="inspect") tab="props";
+  if(tab!=="items"&&tab!=="props"&&tab!=="inspect") tab="props";
+  var tb=function(id,ic,label){ return '<button data-act="setRightTab" data-tab="'+id+'" aria-selected="'+(tab===id)+'">'+ic+' '+esc(label)+'</button>'; };
+  var h='<div class="rp-tabs">'+tb("items",PT_IC.list,prog?"โซน":"ชิ้นส่วน")+tb("props",PT_IC.props,"คุณสมบัติ")+(prog?'':tb("inspect",PT_IC.check,"ตรวจเหล็ก"))+'</div><div class="rp-body">';
+  if(prog) h+= tab==="items" ? rpZoneListHtml() : rpZonePropsHtml();
+  else if(tab==="items") h+=rpItemsHtml(type);
+  else if(tab==="props") h+=rpPropsHtml(type,m);
+  else h+=rpInspectHtml(type,m);
+  return h+'</div>';
+}
+/** แท็บ ชิ้นส่วน = รายการ + เลเยอร์ (รวมสองอย่างที่เคยแยก) */
+function rpItemsHtml(type){
+  var h='';
+  var _flr=getFloor(state.floorId), _allM=_flr?membersOfFloor(_flr.id):[];
+  if(state.unified){
+    var shown=TYPE_ORDER.filter(function(t){return !state.hiddenTypes[t];}).length;
+    var layerChips=TYPE_ORDER.map(function(t){
+      var cnt=_allM.filter(function(mm){return mm.type===t && mm.plan;}).length, vis=!state.hiddenTypes[t];
+      return '<button class="tchip lay'+(vis?" on":"")+'" data-act="toggleLayer" data-type="'+t+'" title="'+(vis?"ซ่อน":"แสดง")+'"><span class="tc-eye">'+(vis?PT_IC.eye:PT_IC.eyeOff)+'</span><span class="tc-sw" style="background:var(--t-'+TYPES[t].css+')"></span>'+esc(TYPE_EN[t]||TYPES[t].label)+' <b>'+cnt+'</b></button>';
+    }).join("");
+    h+=rpSec('เลเยอร์','<span class="sec-badge">'+shown+'/'+TYPE_ORDER.length+'</span>','<div class="type-chips">'+layerChips+'</div>',false);
+  }
+  var lf=state.unified?(state.listFilter||"all"):type;
+  var _lpid=curPlanId();
+  var listAll=membersOfFloor(state.floorId).filter(function(x){ return memberPlanId(x)===_lpid && (state.unified ? true : x.type===type); });
+  var list=listAll.filter(function(x){ return lf==="all"||x.type===lf; })
+    .sort(function(a,b){ return (TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type)) || String(a.code).localeCompare(String(b.code)); });
+  if(state.unified){
+    h+='<div class="fld" style="margin:8px 0 10px"><span class="fld-l">แสดงชนิด</span><div class="sel-wrap">'
+      +'<select id="listFilterSel" class="rp-select"><option value="all"'+(lf==="all"?" selected":"")+'>ทุกชนิด ('+listAll.length+')</option>'
+      + TYPE_ORDER.map(function(t){ var n=listAll.filter(function(x){return x.type===t;}).length; return n?('<option value="'+t+'"'+(lf===t?" selected":"")+'>'+esc(TYPES[t].label)+' ('+n+')</option>'):''; }).join("")
+      +'</select></div></div>';
+  }
+  h+='<div class="card"><div class="card-b" style="padding:8px">';
+  if(list.length===0){
+    h+='<div class="empty small">ยังไม่มี — กดปุ่มวาดบนแถบเครื่องมือ แล้วลากบนแปลน</div>';
+  }else{
+    var grouped=(lf==="all"), curType=null;
+    list.forEach(function(x){
+      if(grouped && x.type!==curType){ curType=x.type; var gc=list.filter(function(y){return y.type===x.type;}).length;
+        h+='<div class="lst-group"><span class="lst-g-sw" style="background:var(--t-'+TYPES[x.type].css+')"></span>'+esc(TYPES[x.type].label)+' <span class="muted">('+gc+')</span></div>'; }
+      var st=memberStatus(x);
+      h+='<div class="row-item lst'+(x.hidden?" is-hidden":"")+(x.id===state.selMemberId?" sel":"")+'" style="margin-bottom:6px">'
+        +  '<button class="lst-main" data-act="editListMember" data-id="'+esc(x.id)+'" title="ตรวจเหล็ก + ซูมไปหา">'
+        +    chipHtml(x.code,TYPES[x.type].css)
+        +    '<div class="body"><div class="t1">'+esc(x.name||x.code)+' <span class="dot'+(st==="pass"?" pass":st==="fail"?" fail":"")+'"></span></div>'
+        +      '<div class="t2 mono">'+esc(shortSpec(x))+'</div></div></button>'
+        +  '<button class="lst-ic" data-act="toggleHide" data-id="'+esc(x.id)+'" title="'+(x.hidden?"แสดงบนแปลน":"ซ่อนบนแปลน")+'">'+(x.hidden?PT_IC.eyeOff:PT_IC.eye)+'</button>'
+        +  '<button class="lst-ic" data-act="dupMember" data-id="'+esc(x.id)+'" title="ทำซ้ำ (เบอร์เดียวกัน คนละตำแหน่ง)">'+PT_IC.copy+'</button>'
+        +  '</div>';
+    });
+  }
+  h+='<button class="add-row" data-act="addInCat" style="margin-top:2px">+ เพิ่ม'+esc(TYPES[type].label)+'ด้วยฟอร์ม</button>';
+  h+='</div></div>';
+  return h;
+}
+/** แท็บ คุณสมบัติ — เปลี่ยนตามบริบทเหมือน Inspector: ไม่เลือก = ตั้งค่ามุมมอง / เลือก = สไตล์ + ข้อมูล + ปุ่มจัดการ */
+function rpPropsHtml(type, m){
+  var h='';
+  var styleCard=function(title, sc, sa, sww, note){
+    return '<div class="card"><div class="card-h">'+esc(title)+'</div><div class="card-b">'
+      +(note?'<div class="tiny muted" style="margin-bottom:8px">'+esc(note)+'</div>':'')
+      +'<div class="fts-row"><input type="color" id="drawColor" value="'+esc(sc)+'" class="rbn-color" title="สีกรอบ"><div id="drawSwatch" class="rbn-swatch" style="background:'+esc(sc)+';opacity:'+sa+'"></div>'
+      +'<div class="fts-swatches" style="flex:1">'+PRESET_COLORS.map(function(c){ return '<button class="swatch'+(sc.toLowerCase()===c?" on":"")+'" data-swatch="'+c+'" title="'+c+'" style="background:'+c+'"></button>'; }).join("")+'</div></div>'
+      +'<div class="fts-slider"><span>ความเข้มสีด้านใน</span><input type="range" id="drawAlpha" min="0" max="100" value="'+Math.round(sa*100)+'"></div>'
+      +'<div class="fts-slider"><span>ความหนาเส้นกรอบ (0 = ไม่มี)</span><input type="range" id="drawStroke" min="0" max="30" value="'+Math.round(sww)+'"></div>'
+      +'</div></div>';
+  };
+  if(m){
+    h+='<div class="rp-head">'+chipHtml(m.code,TYPES[m.type].css)
+      +'<div style="min-width:0;flex:1"><div class="rp-head-t">'+esc(m.name||m.code)+'</div>'
+      +'<div class="small muted">'+esc(TYPES[m.type].label)+(m.grid?" · แนว "+esc(m.grid):"")+'</div></div>'+dotFor(m)+'</div>';
+    if(m.note) h+='<div class="note-warn" style="margin-top:0;margin-bottom:10px">'+esc(m.note)+'</div>';
+    h+='<div class="rp-actions">'
+      +'<button class="btn" data-act="goInspect">'+PT_IC.check+' ตรวจเหล็ก</button>'
+      +'<button class="btn soft" data-act="showDetails">'+PT_IC.img+' รายละเอียด</button>'
+      +'<button class="btn soft" data-act="editMember">'+PT_IC.edit+' แก้สเปก</button>'
+      +'<button class="btn soft" data-act="dupMember" data-id="'+esc(m.id)+'">'+PT_IC.copy+' ทำซ้ำ</button>'
+      +'<button class="btn soft" data-act="toggleHide" data-id="'+esc(m.id)+'">'+(m.hidden?PT_IC.eyeOff:PT_IC.eye)+' '+(m.hidden?'แสดง':'ซ่อน')+'</button>'
+      +'<button class="btn danger" data-act="delMember">'+PT_IC.trash+' ลบ</button>'
+      +'</div>';
+    if(isBox(m.plan)) h+=styleCard('สไตล์กรอบของ '+m.code, m.plan.fill||"#f59e0b", (m.plan.fillA!=null?m.plan.fillA:0.28), (m.plan.strokeW!=null?m.plan.strokeW:10), null);
+    h+='<div class="card"><div class="card-h">สรุปสเปก</div><div class="card-b"><div class="mono small">'+esc(shortSpec(m)||"—")+'</div></div></div>';
+  }else{
+    h+='<div class="card"><div class="card-h">มุมมอง</div><div class="card-b">'
+      +'<div class="fld"><span class="fld-l">แสดง</span><div class="rbn-seg">'
+      +'<button data-act="setPlanMode" data-mode="unified" aria-pressed="'+(state.unified)+'">รวมทุกชนิด</button>'
+      +'<button data-act="setPlanMode" data-mode="focus" aria-pressed="'+(!state.unified)+'">เฉพาะ '+esc(TYPE_EN[type]||TYPES[type].label)+'</button></div></div>'
+      +'<div class="fld"><span class="fld-l">ลงสีตาม</span><div class="rbn-seg">'
+      +'<button data-act="colorMode" data-mode="status" aria-pressed="'+(state.colorMode==="status")+'">สถานะตรวจ</button>'
+      +'<button data-act="colorMode" data-mode="plain" aria-pressed="'+(state.colorMode!=="status")+'">สีที่ตั้งเอง</button></div></div>'
+      +'<div class="fld"><span class="fld-l">บนแปลน</span><div class="rp-toggles">'
+      +'<button class="tchip'+(state.showLabels?" on":"")+'" data-act="toggleLabels">ป้ายเบอร์</button>'
+      +'<button class="tchip'+(state.showLegend?" on":"")+'" data-act="toggleLegend">ตารางสี</button></div></div>'
+      +'</div></div>';
+    if(drawKind(type)==="rect") h+=styleCard('สไตล์กรอบเริ่มต้น', state.fillColor, state.fillAlpha, state.strokeW, 'ใช้กับ'+(TYPES[type].label)+'ที่วาดใหม่ — เลือกกรอบบนแปลนเพื่อปรับเฉพาะตัว');
+    h+='<div class="note-info" style="margin-top:10px">แตะกรอบบนแปลน หรือเลือกจากแท็บ “ชิ้นส่วน” เพื่อดูคุณสมบัติของชิ้นนั้น</div>';
+  }
+  return h;
+}
+function rpInspectHtml(type, m){
+  if(!m) return emptyBox(PT_IC.check,"ยังไม่ได้เลือก"+TYPES[type].label,"แตะที่กรอบบนแปลน หรือแตะรายการในแท็บ “ชิ้นส่วน”");
+  var h='<div class="rp-head">'+chipHtml(m.code,TYPES[m.type].css)
+    +'<div style="min-width:0;flex:1"><div class="rp-head-t">'+esc(m.name||m.code)+'</div>'
+    +'<div class="small muted">'+esc(TYPES[m.type].label)+(m.grid?" · แนว "+esc(m.grid):"")+'</div></div></div>';
+  if(m.note) h+='<div class="note-warn" style="margin-top:0;margin-bottom:10px">'+esc(m.note)+'</div>';
+  return h+inspectionBlockHtml(m);
+}
+/* โหมดเทคอนกรีต */
+function rpZoneListHtml(){
+  var f=getFloor(state.floorId), _pid=curPlanId();
+  var zones=zonesOfPlan(f.id,_pid), stList=zoneStatuses(f.id,_pid), stMap={}; stList.forEach(function(s){ stMap[s.id]=s; });
+  var h='';
+  if(!zones.length) h+='<div class="empty small">ยังไม่มีโซนเท — กด “โซน” บนแถบเครื่องมือ แล้วลากคลุมพื้นที่บนแปลน</div>';
+  zones.forEach(function(z){
+    var s=stMap[z.status]||stList[0]||{label:z.status||"—",color:"#94a3b8"}, isSel=(z.id===state.selZoneId);
+    h+='<button class="ftp-zone'+(isSel?" sel":"")+'" data-act="selectZone" data-zid="'+esc(z.id)+'">'
+      +'<span class="ftp-z-badge" style="background:'+s.color+'"></span>'
+      +'<span class="ftp-z-info"><span class="ftp-z-name">'+esc(z.name)+'</span><span class="ftp-z-sub">'+esc(s.label)+(z.date?' · '+esc(z.date):'')+'</span></span></button>';
+  });
+  return '<div class="ftp-list">'+h+'</div>';
+}
+function rpZonePropsHtml(){
+  var f=getFloor(state.floorId), _pid=curPlanId();
+  var stList=zoneStatuses(f.id,_pid);
+  var selZ=state.selZoneId?getZone(state.selZoneId):null;
+  var h='';
+  if(selZ){
+    h+='<div class="rp-head"><span class="ftp-z-badge" style="background:'+((stList.filter(function(s){return s.id===selZ.status;})[0]||{color:"#94a3b8"}).color)+';width:28px;height:28px"></span><div class="rp-head-t">'+esc(selZ.name)+'</div></div>';
+    h+='<div class="card"><div class="card-h">ข้อมูลโซน</div><div class="card-b ftp-edit" style="border:none;background:none;padding:0">'
+      +'<div class="ftp-edit-row"><span>ชื่อ</span><input type="text" id="zoneNameInput" value="'+esc(selZ.name)+'" class="ftp-input"></div>'
+      +'<div class="ftp-edit-row"><span>สถานะ</span><select id="zoneStatusSel" class="ftp-input">'
+      + stList.map(function(s){ return '<option value="'+esc(s.id)+'"'+(selZ.status===s.id?" selected":"")+'>'+esc(s.label)+'</option>'; }).join("")
+      +'</select></div>'
+      +'<div class="ftp-edit-row"><span>วันที่</span><input type="date" id="zoneDateInput" value="'+esc(selZ.date||"")+'" class="ftp-input"></div>'
+      +'<button class="ftp-del" data-act="deleteZone" data-zid="'+esc(selZ.id)+'">'+PT_IC.trash+' ลบโซน</button>'
+      +'</div></div>';
+  }else{
+    h+='<div class="note-info" style="margin-top:0">แตะโซนบนแปลน หรือเลือกจากแท็บ “โซน” เพื่อแก้ชื่อ/สถานะ/วันที่</div>';
+  }
+  h+='<button class="ftp-managest" data-act="manageZoneStatus">'+PT_IC.gear+' จัดการสถานะ + สี</button>';
+  return h;
+}
 function viewPlanEditor(){
   var f=getFloor(state.floorId), type=state.catType;
   if(!f||!type) return emptyBox('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>',"ไม่พบหมวด","");
   var plan=getFloorPlan(f);
-  var kindWord = drawKind(type)==="point" ? "จุด" : drawKind(type)==="rect" ? "พื้นที่" : "แนว";
-  var selM=getMember(state.selMemberId); if(selM && !state.unified && selM.type!==type) selM=null;   // โหมดรวมเลือกได้ทุกชนิด
-  // สรุปสถานะของชิ้นส่วนบนแปลนปัจจุบัน (ใช้ทำชิปบนแถบเครื่องมือ)
   var _pidTB=curPlanId();
   var _vm=membersOfFloor(f.id).filter(function(m){ return m.plan && memberPlanId(m)===_pidTB && (state.unified ? !state.hiddenTypes[m.type] : m.type===type); });
-  var sm=summarize(_vm);
 
   var _plans=floorPlans(f), _icPlan='<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="m21 15-5-5L5 21"/></svg>';
-  var planMenu='<details class="tb-menu"><summary class="btn soft" style="margin:0">'+_icPlan+' '
+  var planMenu='<details class="tb-menu"><summary class="pt-btn" style="margin:0" title="แปลนของชั้นนี้">'+_icPlan+'<span class="pt-lb">'
       + (plan? esc(plan.name||"แปลน")+(_plans.length>1?' <span class="tb-badge">'+_plans.length+'</span>':'') : 'นำเข้าแปลน')
-      + ' <span class="caret">▾</span></summary><div class="tb-menu-b">';
+      + ' ▾</span></summary><div class="tb-menu-b">';
   if(_plans.length){
     planMenu+='<div class="tbm-h">แปลนในชั้นนี้</div>';
     _plans.forEach(function(pp){ planMenu+='<button class="tbm-item'+(pp.id===f.activePlanId?" on":"")+'" data-act="switchPlan" data-pid="'+esc(pp.id)+'">'+_icPlan+' <span class="tbm-t">'+esc(pp.name||"แปลน")+'</span>'+(pp.id===f.activePlanId?'<span class="tbm-ck">✓</span>':'')+'</button>'; });
@@ -4947,83 +4984,30 @@ function viewPlanEditor(){
   }
   planMenu+='<button class="tbm-item" data-act="addPlan"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> <span class="tbm-t">นำเข้าแปลนใหม่ (รูป / PDF)</span></button>';
   if(plan){
-    planMenu+='<button class="tbm-item" id="btnPickPlan"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> <span class="tbm-t">เปลี่ยนรูปแปลนนี้</span></button>';
-    planMenu+='<button class="tbm-item danger" data-act="removePlan"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg> <span class="tbm-t">ลบแปลนนี้</span></button>';
+    planMenu+='<button class="tbm-item" id="btnPickPlan">'+PT_IC.edit+' <span class="tbm-t">เปลี่ยนรูปแปลนนี้</span></button>';
+    planMenu+='<button class="tbm-item danger" data-act="removePlan">'+PT_IC.trash+' <span class="tbm-t">ลบแปลนนี้</span></button>';
   }
   planMenu+='</div></details>';
+
+  var hint='';
+  if(state.tool==="drawZone") hint='<div class="plan-tip zone">วาดโซนเท: '+(state.zoneShape==="poly"?'คลิกทีละจุด — ดับเบิลคลิกเพื่อปิดรูป':'ลากคลุมพื้นที่บนแปลน')+' แล้วตั้งชื่อโซน · Esc ยกเลิก</div>';
+  else if(state.tool==="draw") hint='<div class="plan-tip">'
+    + (drawKind(type)==="point" ? 'แตะบนแปลนเพื่อวาง'+esc(TYPES[type].label)
+      : drawKind(type)!=="rect" ? 'ลากบนแปลนเพื่อกำหนดแนว'+esc(TYPES[type].label)
+      : state.drawShape==="poly" ? 'คลิกทีละจุด — ดับเบิลคลิกหรือคลิกจุดแรกเพื่อปิดรูป'
+      : 'ลากบนแปลนเพื่อวาด'+(state.drawShape==="oval"?'วงรี':'สี่เหลี่ยม'))
+    + ' แล้วใส่เบอร์ · Esc ยกเลิก</div>';
 
   var left='<div class="editor-left">'
-    + planRibbonHtml(type, planMenu, sm, selM)
+    + planToolbarHtml(type, planMenu)
     + '<input type="file" id="planFile" accept="image/*,application/pdf,.pdf" hidden>'
-    + (state.tool==="drawZone" ? '<div class="note-info" style="margin:0 0 8px;border-color:#22c55e;background:rgba(34,197,94,0.06)">วาดโซนเท: ลากสี่เหลี่ยมคลุมพื้นที่บนแปลน แล้วตั้งชื่อโซน</div>'
-       : state.tool==="draw" ? '<div class="note-info" style="margin:0 0 8px">โหมดวาด: '
-        + (drawKind(type)==="point" ? 'แตะบนแปลนเพื่อวาง'+esc(TYPES[type].label)
-          : drawKind(type)!=="rect" ? 'ลากบนแปลนเพื่อกำหนดแนว'+esc(TYPES[type].label)
-          : state.drawShape==="poly" ? 'คลิกทีละจุด — ดับเบิลคลิกหรือคลิกที่จุดแรกเพื่อปิดรูป'
-          : 'ลากบนแปลนเพื่อวาด'+(state.drawShape==="oval"?'วงรี':'สี่เหลี่ยม'))
-        + ' แล้วใส่เบอร์</div>' : '')
-    + planStageHtml()
+    + '<div class="plan-wrap">'+planStageHtml()+hint+'</div>'
+    + planStatusBarHtml(_vm)
     + '</div>';
-
-  var right='<div class="editor-right">'+rightPanelHtml()+'</div>';
+  var sheet=state.rpSheet||"peek";
+  var right='<div class="editor-right rp-'+sheet+'"><button class="rp-handle" data-act="toggleSheet" title="เปิด/ย่อพาเนล"><span></span></button>'+rightPanelHtml()+'</div>';
   var split='<div class="rp-splitter" id="rpSplitter" title="ลากเพื่อปรับความกว้างพาเนล"></div>';
   return '<div class="editor'+(state.rpCollapsed?" rp-collapsed":"")+'" id="editorGrid" style="--rp-w:'+(state.rpWidth||380)+'px">'+left+split+right+'</div>';
-}
-
-/* ---------------------------------------------------------------------------
-   หน้าจอ: อัพเดทความคืบหน้าเทคอนกรีต — แยกจากหน้าแก้ไขแปลน (โชว์เฉพาะโซน)
-   ------------------------------------------------------------------------ */
-function viewProgress(){
-  var f=getFloor(state.floorId), p=getProject(state.projectId);
-  if(!f) return emptyBox('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18M9 21V9"/></svg>',"ยังไม่ได้เลือกชั้น","เปิดโครงการและชั้นก่อน แล้วกด “อัพเดทความคืบหน้า”");
-  var plan=getFloorPlan(f);
-  var _pidP=curPlanId();
-  var zones=zonesOfPlan(f.id, _pidP);
-  var stListP=zoneStatuses(f.id,_pidP);
-  var countsP={}; zones.forEach(function(z){ countsP[z.status]=(countsP[z.status]||0)+1; });
-
-  var _icPlan='<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="m21 15-5-5L5 21"/></svg>';
-  var _plans=floorPlans(f);
-  var planMenu='<details class="tb-menu"><summary class="btn soft" style="margin:0">'+_icPlan+' '
-      + (plan? esc(plan.name||"แปลน")+(_plans.length>1?' <span class="tb-badge">'+_plans.length+'</span>':'') : 'ยังไม่มีแปลน')
-      + ' <span class="caret">▾</span></summary><div class="tb-menu-b">';
-  if(_plans.length){
-    planMenu+='<div class="tbm-h">แปลนในชั้นนี้</div>';
-    _plans.forEach(function(pp){ planMenu+='<button class="tbm-item'+(pp.id===f.activePlanId?" on":"")+'" data-act="switchPlan" data-pid="'+esc(pp.id)+'">'+_icPlan+' <span class="tbm-t">'+esc(pp.name||"แปลน")+'</span>'+(pp.id===f.activePlanId?'<span class="tbm-ck">✓</span>':'')+'</button>'; });
-  }else{
-    planMenu+='<div class="tbm-h">ยังไม่มีแปลนในชั้นนี้ — เพิ่มแปลนจากหน้า “ตรวจสอบชิ้นส่วน”</div>';
-  }
-  planMenu+='</div></details>';
-
-  var ICpdf='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5"/><path d="M9 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5H9"/><path d="M12 18v-6M9 15l3 3 3-3"/></svg>';
-  var ICdraw='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="1.5"/><path d="M12 3v3M12 18v3"/></svg>';
-  var ICrect='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="1.5"/></svg>';
-  var ICpoly='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 6-3 10H7L4 9z"/></svg>';
-  var ICsnap='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="3"/></svg>';
-  var drawMenu='<details class="tb-menu"'+(state.tool==="drawZone"?' open':'')+'><summary class="btn'+(state.tool==="drawZone"?" on":"")+'" style="margin:0">'+ICdraw+' วาดโซนใหม่ <span class="caret">▾</span></summary><div class="tb-menu-b">'
-    +'<div class="tbm-h">รูปทรงโซน</div>'
-    +'<button class="tbm-item'+(state.tool==="drawZone"&&state.zoneShape==="rect"?" on":"")+'" data-act="drawZoneStart" data-shape="rect">'+ICrect+' <span class="tbm-t">สี่เหลี่ยม</span></button>'
-    +'<button class="tbm-item'+(state.tool==="drawZone"&&state.zoneShape==="poly"?" on":"")+'" data-act="drawZoneStart" data-shape="poly">'+ICpoly+' <span class="tbm-t">หลายเหลี่ยม (คลิกทีละจุด)</span></button>'
-    +'<div class="tbm-sep"></div>'
-    +'<button class="tbm-item'+(state.snap?" on":"")+'" data-act="toggleSnap">'+ICsnap+' <span class="tbm-t">สแนบเส้นแปลน</span>'+(state.snap?'<span class="tbm-ck">✓</span>':'')+'</button>'
-    +'</div></details>';
-  var ICeye=state.showProgress?'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>':'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.2A9.8 9.8 0 0 1 12 4c6.5 0 10 7 10 7a13 13 0 0 1-2.3 3M6.6 6.6A13 13 0 0 0 2 12s3.5 7 10 7a9.5 9.5 0 0 0 4.3-1M3 3l18 18"/></svg>';
-
-  var toolbar='<div class="prog-bar">'
-    + '<button class="btn soft prog-back" data-act="back" title="กลับ"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> กลับ</button>'
-    + '<div class="prog-title"><b>อัพเดทความคืบหน้าเทคอนกรีต</b><small>'+esc(p?p.name:"")+(f.name?' · '+esc(f.name):'')+'</small></div>'
-    + planMenu
-    + '<div class="prog-sp"></div>'
-    + '<span class="prog-counts">'+zones.length+' โซน'+stListP.map(function(s){ return ' · <span class="prog-c"><span class="prog-c-dot" style="background:'+s.color+'"></span>'+esc(s.label)+' '+(countsP[s.id]||0)+'</span>'; }).join("")+'</span>'
-    + drawMenu
-    + '<button class="btn soft'+(state.floatProgressOpen?" on":"")+'" data-act="toggleProgressPanel" title="รายการโซน / รายละเอียด"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>'
-    + '<button class="btn soft" data-act="toggleProgress" title="ซ่อน/แสดงโซน">'+ICeye+'</button>'
-    + '<button class="btn soft" data-act="exportProgressPdf">'+ICpdf+' PDF อัพเดท</button>'
-    + '</div>';
-
-  var hint = state.tool==="drawZone" ? '<div class="note-info" style="margin:0 0 8px;border-color:#22c55e;background:rgba(34,197,94,0.06)">วาดโซนเท: ลากสี่เหลี่ยมคลุมพื้นที่บนแปลน แล้วตั้งชื่อโซน</div>' : '';
-
-  return '<div class="prog-wrap">'+toolbar+hint+planStageHtml()+'</div>';
 }
 
 /* ---------------------------------------------------------------------------
@@ -5139,69 +5123,9 @@ function bindPlanEditor(){
     sp.addEventListener("pointermove",mv); sp.addEventListener("pointerup",up);
   });
 
-  // ลากย้ายตารางสี (Legend)
-  var lgd=$("#legendDrag"), lg=$("#planLegend"), lgStage=$("#planStage");
-  if(lgd && lg && lgStage){
-    lgd.addEventListener("pointerdown",function(ev){
-      if(ev.target.closest(".lg-x")) return;
-      ev.preventDefault(); var r=lgStage.getBoundingClientRect(), lr=lg.getBoundingClientRect();
-      var ox=ev.clientX-lr.left, oy=ev.clientY-lr.top;
-      try{ lgd.setPointerCapture(ev.pointerId); }catch(e){}
-      function mvL(e2){ var x=Math.max(0,Math.min(r.width-40, e2.clientX-r.left-ox)), y=Math.max(0,Math.min(r.height-30, e2.clientY-r.top-oy));
-        lg.style.left=x+"px"; lg.style.top=y+"px"; state.legendPos={x:Math.round(x),y:Math.round(y)}; }
-      function upL(){ lgd.removeEventListener("pointermove",mvL); lgd.removeEventListener("pointerup",upL); }
-      lgd.addEventListener("pointermove",mvL); lgd.addEventListener("pointerup",upL);
-    });
-  }
-
-  // หน้าต่างเครื่องมือลอย (ตอนซ่อนพาเนล): ดรอปดาวน์ชนิด + ลากย้าย
-  var dtsF=$("#drawTypeSelF");
-  if(dtsF) dtsF.addEventListener("change",function(){ state.catType=dtsF.value; if(state.hiddenTypes) delete state.hiddenTypes[dtsF.value]; render(); });
-  var ftd=$("#floatToolsDrag"), ftw=$("#floatTools"), ftStage=$("#planStage");
-  if(ftd && ftw && ftStage){
-    ftd.addEventListener("pointerdown",function(ev){
-      if(ev.target.closest(".ftl-x")) return;
-      ev.preventDefault(); var r=ftStage.getBoundingClientRect(), wr=ftw.getBoundingClientRect();
-      var ox=ev.clientX-wr.left, oy=ev.clientY-wr.top;
-      try{ ftd.setPointerCapture(ev.pointerId); }catch(e){}
-      function mvF(e2){ var x=Math.max(0,Math.min(r.width-60, e2.clientX-r.left-ox)), y=Math.max(0,Math.min(r.height-40, e2.clientY-r.top-oy));
-        ftw.style.left=x+"px"; ftw.style.top=y+"px"; state.floatToolsPos={x:Math.round(x),y:Math.round(y)}; }
-      function upF(){ ftd.removeEventListener("pointermove",mvF); ftd.removeEventListener("pointerup",upF); }
-      ftd.addEventListener("pointermove",mvF); ftd.addEventListener("pointerup",upF);
-    });
-  }
-
-  // หน้าต่างลอยสไตล์กรอบ: ลากย้ายได้
-  var fsd=$("#floatStyleDrag"), fsw=$("#floatStyle"), fsStage=$("#planStage");
-  if(fsd && fsw && fsStage){
-    fsd.addEventListener("pointerdown",function(ev){
-      if(ev.target.closest(".ftl-x")) return;
-      ev.preventDefault(); var r=fsStage.getBoundingClientRect(), wr=fsw.getBoundingClientRect();
-      var ox=ev.clientX-wr.left, oy=ev.clientY-wr.top;
-      try{ fsd.setPointerCapture(ev.pointerId); }catch(e){}
-      function mvS(e2){ var x=Math.max(0,Math.min(r.width-60, e2.clientX-r.left-ox)), y=Math.max(0,Math.min(r.height-40, e2.clientY-r.top-oy));
-        fsw.style.left=x+"px"; fsw.style.top=y+"px"; state.floatStylePos={x:Math.round(x),y:Math.round(y)}; }
-      function upS(){ fsd.removeEventListener("pointermove",mvS); fsd.removeEventListener("pointerup",upS); }
-      fsd.addEventListener("pointermove",mvS); fsd.addEventListener("pointerup",upS);
-    });
-  }
-
-  // ผูกลากหน้าต่างลอยความคืบหน้า
-  var fpd=$("#floatProgressDrag"), fpw=$("#floatProgress"), fpStage=$("#planStage");
-  if(fpd && fpw && fpStage){
-    fpd.addEventListener("pointerdown",function(ev){
-      if(ev.target.closest(".ftl-x")) return;
-      ev.preventDefault(); var r=fpStage.getBoundingClientRect(), wr=fpw.getBoundingClientRect();
-      var ox=ev.clientX-wr.left, oy=ev.clientY-wr.top;
-      try{ fpd.setPointerCapture(ev.pointerId); }catch(e){}
-      function mvP(e2){ var x=Math.max(0,Math.min(r.width-60, e2.clientX-r.left-ox)), y=Math.max(0,Math.min(r.height-40, e2.clientY-r.top-oy));
-        fpw.style.left=x+"px"; fpw.style.top=y+"px"; state.floatProgressPos={x:Math.round(x),y:Math.round(y)}; }
-      function upP(){ fpd.removeEventListener("pointermove",mvP); fpd.removeEventListener("pointerup",upP); }
-      fpd.addEventListener("pointermove",mvP); fpd.addEventListener("pointerup",upP);
-    });
-  }
   // ผูกอินพุตแก้ไขโซน
   var zni=$("#zoneNameInput"), zsi=$("#zoneStatusSel"), zdi=$("#zoneDateInput");
+  [zni,zsi,zdi].forEach(function(inp){ if(inp) inp.addEventListener("focus",function(){ plPushUndo(); }); });
   if(zni){ zni.addEventListener("input",function(){ var z=getZone(state.selZoneId); if(z){ z.name=zni.value; saveDB(); var ov=$("#planOverlay"); if(ov) ov.innerHTML=planShapesSVG(+ov.getAttribute("data-vw"),+ov.getAttribute("data-vh")); } }); }
   if(zsi){ zsi.addEventListener("change",function(){ var z=getZone(state.selZoneId); if(z){ z.status=zsi.value; saveDB(); render(); } }); }
   if(zdi){ zdi.addEventListener("change",function(){ var z=getZone(state.selZoneId); if(z){ z.date=zdi.value||null; saveDB(); render(); } }); }
@@ -5215,6 +5139,40 @@ function bindPlanEditor(){
   // toggle สแนบ (ในแท็บเครื่องมือวาด)
   var sc0=$("#snapSwitch");
   if(sc0) sc0.addEventListener("click",function(){ state.snap=!state.snap; var sw=sc0.querySelector(".rp-switch"); if(sw) sw.classList.toggle("off",!state.snap); });
+  // ค้นหาเบอร์บนแปลน (Enter / กดปุ่ม)
+  var psq=$("#planSearch");
+  if(psq) psq.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); planSearch(psq.value); } });
+  // คีย์ลัดแบบโปรแกรม — ผูกที่ document จึงต้องถอดตัวเก่าก่อน ไม่งั้นซ้อนทุกครั้งที่ render
+  if(_plKeyHandler) document.removeEventListener("keydown",_plKeyHandler);
+  _plKeyHandler=function(e){
+    if(state.screen!=="planEditor") return;
+    var t=e.target, tag=(t&&t.tagName||"").toLowerCase();
+    var typing = tag==="input"||tag==="textarea"||tag==="select"||(t&&t.isContentEditable);
+    var k=(e.key||""), kl=k.toLowerCase(), mod=(e.ctrlKey||e.metaKey);
+    if(mod && kl==="z"){ e.preventDefault(); if(e.shiftKey) plRedo(); else plUndo(); return; }
+    if(mod && kl==="y"){ e.preventDefault(); plRedo(); return; }
+    if(mod && kl==="f"){ var q=$("#planSearch"); if(q){ e.preventDefault(); q.focus(); q.select(); } return; }
+    if(k==="Escape"){
+      if(typing){ t.blur(); return; }
+      if(state.tool!=="select"){ state.tool="select"; render(); return; }
+      if(state.selMemberId||state.selZoneId){ state.selMemberId=null; state.selZoneId=null; render(); }
+      return;
+    }
+    if(typing || mod || e.altKey) return;
+    var prog=stageMode()==="progress";
+    if(kl==="v"){ state.tool="select"; render(); }
+    else if(kl==="r"){ if(prog){ state.zoneShape="rect"; state.tool="drawZone"; } else { state.tool="draw"; state.drawShape="rect"; } render(); }
+    else if(kl==="p"){ if(prog){ state.zoneShape="poly"; state.tool="drawZone"; } else if(drawKind(state.catType)==="rect"){ state.tool="draw"; state.drawShape="poly"; } render(); }
+    else if(kl==="o" && !prog && drawKind(state.catType)==="rect"){ state.tool="draw"; state.drawShape="oval"; render(); }
+    else if(kl==="s"){ state.snap=!state.snap; render(); }
+    else if(k==="0"){ planFit(); }
+    else if(k==="+"||k==="="||k==="-"){ var st=$("#planStage"); if(st){ var r=st.getBoundingClientRect(); planZoomBy(k==="-"?1/1.35:1.35, r.width/2, r.height/2); } }
+    else if(k==="Delete"||k==="Backspace"){
+      if(prog && state.selZoneId){ e.preventDefault(); var zb=document.querySelector('[data-act="deleteZone"]'); if(zb) zb.click(); else { if(confirm("ลบโซนนี้?")){ plPushUndo(); DB.zones=DB.zones.filter(function(z){return z.id!==state.selZoneId;}); state.selZoneId=null; saveDB(); render(); } } }
+      else if(!prog && state.selMemberId){ e.preventDefault(); var db=document.querySelector('[data-act="delMember"]'); if(db) db.click(); }
+    }
+  };
+  document.addEventListener("keydown",_plKeyHandler);
   // ดรอปดาวน์เลือกชนิดที่กำลังวาด
   var dts=$("#drawTypeSel");
   if(dts) dts.addEventListener("change",function(){ state.catType=dts.value; if(state.hiddenTypes) delete state.hiddenTypes[dts.value]; render(); });
@@ -5240,11 +5198,13 @@ function bindPlanEditor(){
     }
   }
   function saveStyle(){ applyStyle(); if(getMember(state.selMemberId)) saveDB(); }
+  [dc,da,ds].forEach(function(inp){ if(inp) inp.addEventListener("pointerdown",function(){ if(getMember(state.selMemberId)) plPushUndo(); }); });   // เก็บสภาพก่อนปรับ ครั้งเดียวต่อการลาก
   if(dc){ dc.addEventListener("input",applyStyle); dc.addEventListener("change",saveStyle); }
   if(da){ da.addEventListener("input",applyStyle); da.addEventListener("change",saveStyle); }
   if(ds){ ds.addEventListener("input",applyStyle); ds.addEventListener("change",saveStyle); }
   // จานสีใช้บ่อย — กดเลือกแล้วใช้ทันที
   $$(".swatch").forEach(function(b){ b.addEventListener("click",function(){
+    if(getMember(state.selMemberId)) plPushUndo();
     if(dc) dc.value=b.getAttribute("data-swatch");
     saveStyle();
     $$(".swatch").forEach(function(x){ x.classList.toggle("on", x===b); });
@@ -5257,27 +5217,6 @@ function bindPlanEditor(){
   if(!overlay) return;
   planApplyTransform();   // คงระดับซูม/ตำแหน่งเดิมหลังเรนเดอร์ใหม่
   applyBestImage();       // แสดงภาพคมที่สุด (โหลดต้นฉบับจาก IDB ถ้าจำเป็น)
-
-  // แก้สี/ความเข้ม/ความหนาเส้น ของคานที่เลือก (แท็บรายละเอียด) — อัปเดตสดบนแปลน + บันทึกเมื่อปล่อย
-  var mf=$("#memFill"), ma=$("#memAlpha"), ms=$("#memStroke");
-  function liveMem(){
-    var m=getMember(state.selMemberId); if(!m||!m.plan) return;
-    if(mf) m.plan.fill=mf.value;
-    if(ma) m.plan.fillA=(+ma.value)/100;
-    if(ms) m.plan.strokeW=+ms.value;
-    var r=overlay.querySelector('rect[data-mid="'+m.id+'"]');
-    if(r){
-      r.setAttribute("fill",m.plan.fill);
-      r.setAttribute("fill-opacity",m.plan.fillA);
-      var bw=m.plan.strokeW;
-      if(bw>0){ r.setAttribute("stroke",m.plan.fill); r.setAttribute("stroke-width",bw); }
-      else{ r.setAttribute("stroke","none"); }
-    }
-  }
-  function saveMem(){ liveMem(); saveDB(); }
-  if(mf){ mf.addEventListener("input",liveMem); mf.addEventListener("change",saveMem); }
-  if(ma){ ma.addEventListener("input",liveMem); ma.addEventListener("change",saveMem); }
-  if(ms){ ms.addEventListener("input",liveMem); ms.addEventListener("change",saveMem); }
 
   var VW=+overlay.getAttribute("data-vw"), VH=+overlay.getAttribute("data-vh");
   var NS="http://www.w3.org/2000/svg";
@@ -5366,6 +5305,7 @@ function bindPlanEditor(){
     });
     overlay.addEventListener("pointerdown",function(ev){
       if(window.__planPinch) return;   // กำลัง pinch สองนิ้ว → ไม่เริ่มลาก/เลือก
+      _plPend=plSnap();   // เก็บสภาพก่อนลาก — ยืนยันเข้าสแตกตอนปล่อยเฉพาะเมื่อมีการเปลี่ยนจริง
       // ผูก move/up ที่ window ระหว่างลาก (ไม่พึ่ง setPointerCapture ของ SVG ที่บางเบราว์เซอร์ไม่ทำงาน
       // → ทำให้ย้าย/ย่อขยาย/หมุนกรอบได้ชัวร์) เพิ่มตอนกด ถอดตอนปล่อยใน selUp จึงไม่ค้าง
       window.addEventListener("pointermove",selMove,true);
@@ -5494,21 +5434,21 @@ function bindPlanEditor(){
       window.removeEventListener("pointermove",selMove,true);
       window.removeEventListener("pointerup",selUp,true);
       window.removeEventListener("pointercancel",selUp,true);
-      if(lsz){ lsz=null; saveDB(); return; }
-      if(ml){ ml=null; saveDB(); return; }
-      if(tf){ tf=null; saveDB(); return; }
-      if(ztf){ ztf=null; saveDB(); return; }
+      if(lsz){ lsz=null; plCommitPend(); saveDB(); return; }
+      if(ml){ ml=null; plCommitPend(); saveDB(); return; }
+      if(tf){ tf=null; plCommitPend(); saveDB(); return; }
+      if(ztf){ ztf=null; plCommitPend(); saveDB(); return; }
       if(zmv){
         var wasZ=zmv.moved, zid=zmv.zid; zmv=null;
-        if(wasZ){ saveDB(); return; }        // ลากย้ายเสร็จ → บันทึก
-        state.selZoneId=zid; state.selMemberId=null; state.floatProgressOpen=true; render();   // แค่แตะ → เลือก
+        if(wasZ){ plCommitPend(); saveDB(); return; }        // ลากย้ายเสร็จ → บันทึก
+        state.selZoneId=zid; state.selMemberId=null; state.rightTab="props"; render();   // แค่แตะ → เลือก
         return;
       }
       if(mv){
         var wasMove=mv.moved, id=mv.mid; mv=null;
-        if(wasMove){ saveDB(); return; }        // ลากย้ายเสร็จ → บันทึก
-        state.selMemberId=id; state.selZoneId=null;  // แค่แตะ → เลือก (คงแท็บเดิมไว้ เพื่อให้เห็นไฮไลต์ในรายการคาน)
-        if(state.rightTab==="palette") state.rightTab="inspect";   // ถ้าอยู่แท็บสไตล์ ค่อยพาไปตรวจเหล็ก
+        if(wasMove){ plCommitPend(); saveDB(); return; }        // ลากย้ายเสร็จ → บันทึก
+        state.selMemberId=id; state.memberId=id; state.selZoneId=null;  // แค่แตะ → เลือก
+        if(state.rightTab!=="inspect") state.rightTab="props";   // เหมือน Inspector: เลือกแล้วโชว์คุณสมบัติ (ถ้ากำลังตรวจอยู่ คงแท็บตรวจ)
         state.answers={}; state.photos=[]; state.note=""; render();
         return;
       }
@@ -5697,6 +5637,7 @@ function bindPlanEditor(){
 /** สร้างชิ้นส่วนใหม่จากรูปที่วาด: ถามเบอร์ → บันทึก → เลือก */
 function finishDraw(geom){
   var type=state.catType;
+  plPushUndo();
   var suggest=nextCode(type);
   var code=window.prompt("ใส่เบอร์"+TYPES[type].label+" (Mark):", suggest);
   if(code===null) { render(); return; }        // ยกเลิก
@@ -5732,9 +5673,10 @@ function finishDrawZone(geom){
   var z={ id:uid("z"), projectId:state.projectId, floorId:state.floorId, planId:curPlanId(),
     name:name, status:_st0, date:null, plan:geom };
   if(!DB.zones) DB.zones=[];
+  plPushUndo();
   DB.zones.push(z);
   saveDB();
-  state.tool="select"; state.selZoneId=z.id; state.floatProgressOpen=true;
+  state.tool="select"; state.selZoneId=z.id; state.rightTab="props";
   render();
   toast("เพิ่มโซน "+name+" แล้ว");
 }
