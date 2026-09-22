@@ -309,7 +309,7 @@ var CHECKLIST = {
    4) ชั้นเก็บข้อมูล (localStorage) — ครอบ try/catch ทุกจุด
       โครงสร้าง: projects[] → floors[] (อ้าง projectId) → members[] (อ้าง floorId)
    ------------------------------------------------------------------------ */
-var DB = { projects:[], floors:[], members:[], inspections:[], zones:[], annots:[], inspector:"" };
+var DB = { projects:[], floors:[], members:[], inspections:[], types:[], zones:[], annots:[], inspector:"" };
 
 function loadDB(){
   try{
@@ -321,6 +321,7 @@ function loadDB(){
         floors:      Array.isArray(p.floors)      ? p.floors      : [],
         members:     Array.isArray(p.members)     ? p.members     : [],
         inspections: Array.isArray(p.inspections) ? p.inspections : [],
+        types:       Array.isArray(p.types)       ? p.types       : [],   // ประเภทชิ้นส่วน (แผ่นรายละเอียดใช้ร่วมกัน)
         inspector:   typeof p.inspector === "string" ? p.inspector : ""
       };
       return;
@@ -382,6 +383,57 @@ function membersOfFloor(fid){   return DB.members.filter(function(m){ return m.f
 function membersOfProject(pid){ return DB.members.filter(function(m){ return m.projectId===pid; }); }
 function getZone(id){    return DB.zones.filter(function(z){ return z.id===id; })[0] || null; }
 function zonesOfFloor(fid){ return (DB.zones||[]).filter(function(z){ return z.floorId===fid; }); }
+/* ---- ประเภทชิ้นส่วน (Type) — "แผ่นรายละเอียด" ที่หลายชิ้นใช้ร่วมกัน: แก้ที่ชิ้นไหนก็เปลี่ยนทุกชิ้น
+       { id, projectId, mtype:"beam"|..., name, color, doc:{els:[]}, createdAt }  · ชิ้นส่วนผูกด้วย m.typeId ---- */
+var TYPE_COLORS=["#2563eb","#7c3aed","#0891b2","#ea580c","#db2777","#16a34a","#ca8a04","#dc2626","#0f766e","#4f46e5","#9333ea","#b45309"];
+function getType(id){ return (DB.types||[]).filter(function(t){ return t.id===id; })[0] || null; }
+function typesOf(pid, mtype){ return (DB.types||[]).filter(function(t){ return t.projectId===pid && (!mtype || t.mtype===mtype); })
+  .sort(function(a,b){ return String(a.name).localeCompare(String(b.name),"th"); }); }
+function typeMembers(tid){ return DB.members.filter(function(m){ return m.typeId===tid; }); }
+function memberTypeOf(m){ return (m && m.typeId) ? getType(m.typeId) : null; }
+/** สีถัดไปที่ยังไม่ซ้ำกับประเภทอื่นในโครงการ */
+function typeColorNext(pid){
+  var used={}; typesOf(pid).forEach(function(t){ used[(t.color||"").toLowerCase()]=1; });
+  for(var i=0;i<TYPE_COLORS.length;i++) if(!used[TYPE_COLORS[i]]) return TYPE_COLORS[i];
+  return TYPE_COLORS[typesOf(pid).length % TYPE_COLORS.length];
+}
+function typeDoc(t){ if(!t.doc || !Array.isArray(t.doc.els)) t.doc={els:[]}; return t.doc; }
+/** สร้างประเภทใหม่จากชิ้นส่วน — ย้ายแผ่นรายละเอียดของชิ้นนั้นไปเป็นของประเภท แล้วผูกชิ้นเข้ากับประเภท */
+function typeCreateFrom(m, name){
+  var t={ id:uid("t"), projectId:m.projectId, mtype:m.type, name:name, color:typeColorNext(m.projectId), doc:{els:[]}, createdAt:Date.now() };
+  if(m.doc && Array.isArray(m.doc.els) && m.doc.els.length){ t.doc=m.doc; m.doc={els:[]}; }   // ย้าย (สื่อผูกกับ id ของ element อยู่แล้ว ไม่ต้องก็อป)
+  if(!DB.types) DB.types=[];
+  DB.types.push(t); m.typeId=t.id;
+  return t;
+}
+/** คัดลอก element ของแผ่นรายละเอียด (id ใหม่ + ก็อปรูป/PDF ใน IndexedDB และคลาวด์) — ใช้ตอน "แยกออก" ให้ชิ้นได้สำเนาของตัวเอง */
+function deCloneEls(els){
+  return (els||[]).map(function(e){
+    var c=JSON.parse(JSON.stringify(e)); var oldId=c.id; c.id=deUid();
+    if(c.type==="image"){
+      idbGet("deimg_"+oldId).then(function(url){ if(!url) return; idbPut("deimg_"+c.id,url).catch(function(){}); DE_IMG[c.id]=url; deCloudSaveImg(c.id,url); }).catch(function(){});
+    }else if(c.type==="pdf"){
+      idbGet("depdf_"+oldId).then(function(v){ if(!v||!v.bytes) return; idbPut("depdf_"+c.id,v).catch(function(){}); deCloudSavePdf(c.id,v.bytes,v.pageNo||c.pageNo||1); }).catch(function(){});
+    }
+    return c;
+  });
+}
+/** ถอดชิ้นออกจากประเภท — copy=true: เอาสำเนาแผ่นรายละเอียดของประเภทติดไปด้วย */
+function typeDetach(m, copy){
+  var t=memberTypeOf(m); if(!t) return;
+  if(copy) m.doc={els:deCloneEls(typeDoc(t).els)};
+  m.typeId=null;
+}
+/** ลบประเภท — ชิ้นที่ผูกอยู่กลับไปใช้แผ่นของตัวเอง · ลบสื่อของแผ่นประเภททิ้ง */
+function typeDelete(t){
+  typeMembers(t.id).forEach(function(m){ m.typeId=null; });
+  typeDoc(t).els.forEach(function(e){
+    idbDel("deimg_"+e.id).catch(function(){}); idbDel("depdf_"+e.id).catch(function(){});
+    try{ cloudDeletePlan("de_img_"+e.id); cloudDeletePlan("de_pdf_"+e.id); }catch(x){}
+    delete DE_IMG[e.id]; delete DE_PDF[e.id];
+  });
+  DB.types=(DB.types||[]).filter(function(x){ return x.id!==t.id; });
+}
 function zonesOfPlan(fid, planId){ return (DB.zones||[]).filter(function(z){ return z.floorId===fid && z.planId===planId; }); }
 /* ---- หมายเหตุบนแปลน: กล่องข้อความมีลูกศรชี้ (callout) + เส้นบอกขนาด (dim) ---- */
 function getAnnot(id){ return (DB.annots||[]).filter(function(a){ return a.id===id; })[0] || null; }
@@ -516,7 +568,7 @@ function seedData(){
       "ระดับเอ็นคลาดเคลื่อนเกิน 5 มม. ให้แก้ก่อนเท ห้ามเทแล้วค่อยดึง")
   ];
 
-  return { projects:[p], floors:[f0,f1,f2,f3], members:ms, inspections:[], inspector:"" };
+  return { projects:[p], floors:[f0,f1,f2,f3], members:ms, inspections:[], types:[], inspector:"" };
 }
 
 /* ---------------------------------------------------------------------------
@@ -1746,7 +1798,7 @@ function viewMembers(){
         h+='<button class="row-item" data-act="openMember" data-id="'+esc(m.id)+'">'
           +   chipHtml(m.code, TYPES[m.type].css)
           +   '<div class="body"><div class="t1">'+esc(m.name||m.code)+'</div>'
-          +     '<div class="t2">'+esc(TYPES[m.type].label)+(m.grid?' · '+esc(m.grid):'')+'</div>'
+          +     '<div class="t2">'+esc(TYPES[m.type].label)+(m.grid?' · '+esc(m.grid):'')+(memberTypeOf(m)?' · <span class="type-pill" style="background:'+esc(memberTypeOf(m).color||"#2563eb")+'">🔗 '+esc(memberTypeOf(m).name)+'</span>':'')+'</div>'
           +     '<div class="t2 mono">'+esc(shortSpec(m))+'</div></div>'
           +   dotFor(m)+'</button>';
       });
@@ -2988,6 +3040,7 @@ var state = {
   rpSheet:"peek",                     // มือถือ: พาเนลล่าง peek | open
   showProgress:true, selZoneId:null,  // ความคืบหน้าเทคอนกรีต
   selAnnotId:null,                    // หมายเหตุที่เลือก (callout / dim)
+  selTypeId:null,                     // ประเภทชิ้นส่วนที่เลือกในผังโครงการ (โชว์ในพาเนลคุณสมบัติ)
   annotStyle:{color:"#1d4ed8", fill:"#ffffff", sw:1.6, font:"Sarabun", size:12, bold:1, italic:0, underline:0, radius:7, a1:"open", a2:"none"},
   rightTab:"palette",    // แท็บพาเนลขวา: palette | spec | inspect
   selMemberId:null,      // ชิ้นส่วนที่เลือกบนแปลน
@@ -3303,6 +3356,7 @@ document.addEventListener("click",function(e){
         plPushUndo();
         var cp=JSON.parse(JSON.stringify(src));
         cp.id=uid("m"); cp.hidden=false;
+        if(cp.typeId) cp.doc={els:[]};   // ผูกประเภทเดียวกัน → ใช้แผ่นร่วม ไม่ต้องก็อป
         if(cp.plan){                                  // ขยับตำแหน่งเล็กน้อยไม่ให้ทับตัวเดิม
           var off=0.03;
           if(cp.plan.kind==="point"){ cp.plan.x=Math.min(1,(cp.plan.x||0.5)+off); cp.plan.y=Math.min(1,(cp.plan.y||0.5)+off); }
@@ -3319,6 +3373,48 @@ document.addEventListener("click",function(e){
     case "editListMember": {
       var lm=getMember(id);
       if(lm){ state.selMemberId=id; state.memberId=id; state.rightTab="inspect"; state.answers={}; state.photos=[]; state.note=""; state.rpCollapsed=false; render(); planZoomToMember(id); }   // แตะรายการ → ตรวจเหล็กในพาเนล + ซูมไปหา
+      break;
+    }
+    /* --- ประเภทชิ้นส่วน (แผ่นรายละเอียดใช้ร่วมกัน) --- */
+    case "typeCreate": closeSheet(); typeCreateAct(); break;
+    case "typeDetach": typeDetachAct(); break;
+    case "typeAssignSheet": {
+      var am=getMember(state.selMemberId); if(!am){ toast("เลือกชิ้นส่วนบนแปลนก่อน",true); break; }
+      var tl0=typesOf(am.projectId, am.type);
+      var hb0=tl0.map(function(t){ return '<button class="row-item" data-act="typeAssignTo" data-tid="'+esc(t.id)+'"><span class="sw-dot" style="background:'+esc(t.color||"#2563eb")+'"></span><div class="body"><div class="t1">'+esc(t.name)+(am.typeId===t.id?' <span class="small muted">(ใช้อยู่)</span>':'')+'</div><div class="t2">ใช้ร่วมกัน '+typeMembers(t.id).length+' ชิ้น</div></div></button>'; }).join("");
+      if(!am.typeId) hb0+='<button class="row-item" data-act="typeCreate"><span class="sw-dot" style="background:#e2e8f0"></span><div class="body"><div class="t1">＋ สร้างประเภทใหม่จากชิ้นนี้</div><div class="t2">แผ่นรายละเอียดของ '+esc(am.code)+' จะกลายเป็นของประเภท</div></div></button>';
+      openSheet('<h3>กำหนดประเภทให้ '+esc(am.code)+'</h3><p class="small muted" style="margin-top:0">ชิ้นที่ใช้ประเภทเดียวกันจะใช้หน้ารายละเอียด (รูป/ข้อความ/ตาราง) เดียวกัน — แก้ที่ชิ้นไหนก็เปลี่ยนทุกชิ้น</p>'+hb0);
+      break;
+    }
+    case "typeAssignTo": { var am2=getMember(state.selMemberId), tt=getType(el.getAttribute("data-tid")); closeSheet(); if(am2&&tt) typeAssign(am2, tt); break; }
+    case "typeSelect": {
+      state.selTypeId=el.getAttribute("data-tid"); state.selMemberId=null; state.memberId=null; state.selZoneId=null; state.selAnnotId=null;
+      state.rightTab="props"; state.rpSheet="open"; state.rpCollapsed=false;
+      if(state.planMode==="progress"){ state.planMode="inspect"; state.ribbonTab="structure"; }
+      render(); break;
+    }
+    case "typeColor": { var tc=getType(el.getAttribute("data-tid")); if(tc){ tc.color=el.getAttribute("data-c"); saveDB(); render(); } break; }
+    case "typeOpenDetail": {
+      var to=getType(el.getAttribute("data-tid")), tms=to?typeMembers(to.id):[];
+      if(!tms.length){ toast("ประเภทนี้ยังไม่มีชิ้นส่วน — ผูกชิ้นก่อนแล้วค่อยเปิดรายละเอียด",true); break; }
+      var pick=tms.filter(function(x){ return x.floorId===state.floorId; })[0]||tms[0];
+      state.selMemberId=pick.id; state.memberId=pick.id; go("memberDetail"); break;
+    }
+    case "typeGoMember": {   // จากการ์ดประเภท → ไปหาชิ้นนั้น (ข้ามชั้น/แปลนได้)
+      var gm=getMember(id); if(!gm) break;
+      state.selTypeId=null;
+      if(gm.floorId!==state.floorId){ state.floorId=gm.floorId; state.zoom=1; state.panX=0; state.panY=0; }
+      var gf=getFloor(gm.floorId); if(gf && gf.activePlanId!==memberPlanId(gm) && (gf.planList||[]).some(function(pp){ return pp.id===memberPlanId(gm); })){ gf.activePlanId=memberPlanId(gm); saveDB(); }
+      if(state.hiddenTypes && state.hiddenTypes[gm.type]) delete state.hiddenTypes[gm.type];
+      state.selMemberId=gm.id; state.memberId=gm.id; state.rightTab="props"; state.rpSheet="open";
+      render(); if(gm.plan) planZoomToMember(gm.id);
+      break;
+    }
+    case "typeDeleteBtn": {
+      var td=getType(el.getAttribute("data-tid")); if(!td) break;
+      var tn=typeMembers(td.id).length;
+      if(!confirm("ลบประเภท “"+td.name+"”?\n\nหน้ารายละเอียด (รูป/ข้อความ/ตาราง) ของประเภทนี้จะหายไป\nชิ้นส่วน "+tn+" ชิ้นจะกลับไปใช้รายละเอียดของตัวเอง")) break;
+      plPushUndo(); typeDelete(td); state.selTypeId=null; saveDB(); render(); toast("ลบประเภท “"+td.name+"” แล้ว");
       break;
     }
     case "showDetails": {
@@ -3602,6 +3698,7 @@ function isBox(pl){ return !!pl && (pl.kind==="rect"||pl.kind==="oval"||pl.kind=
 /** สีของชิ้นส่วนบนแปลน: ตามสถานะการตรวจ หรือสีประจำประเภท */
 function planColor(m){
   if(state.colorMode==="plain") return "var(--t-"+TYPES[m.type].css+")";
+  if(state.colorMode==="type"){ var _t=memberTypeOf(m); return _t ? (_t.color||"#2563eb") : "#94a3b8"; }   // ลงสีตามประเภท (ไม่มีประเภท = เทา)
   var ins=lastInspection(m.id);
   if(!ins) return "var(--text-dim)";
   return ins.status==="pass" ? "var(--pass)" : "var(--fail)";
@@ -4098,6 +4195,11 @@ function planStageHtml(){
 function _planDbg(){}   // (ปิดตัวบอกสถานะดีบั๊กแล้ว)
 /** ตารางสี (Legend) บนแปลน — จัดกลุ่มคานตามสีกรอบ → "สีนี้ = คานเบอร์ไหน" */
 function legendHtml(members){
+  if(state.colorMode==="type"){   // โหมดสีตามประเภท → ตารางสี = รายชื่อประเภท
+    var tl=typesOf(state.projectId), rowsT=tl.map(function(t){ return '<div class="lg-row"><span class="lg-sw" style="background:'+esc(t.color||"#2563eb")+'"></span><span class="lg-tx">'+esc(t.name)+' ('+typeMembers(t.id).length+')</span></div>'; }).join("")
+      +'<div class="lg-row"><span class="lg-sw" style="background:#94a3b8"></span><span class="lg-tx">ไม่มีประเภท</span></div>';
+    return '<div class="plan-legend" id="planLegend"><div class="lg-head">ประเภท</div><div class="lg-body">'+rowsT+'</div></div>';
+  }
   var groups={}, order=[];
   members.forEach(function(m){
     if(!m.plan) return;
@@ -4124,6 +4226,11 @@ function viewMemberDetail(){
     + (m.type==="beam"?" · ช่วง "+(num(m.span,0)/1000).toFixed(2)+" ม.":"")+'</div></div>'
     + dotFor(m)+'</div>';
   if(m.note) h+='<div class="note-warn" style="margin-top:0"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg> '+esc(m.note)+'</div>';
+  var mt=memberTypeOf(m);
+  if(mt){ var mtn=typeMembers(mt.id).length;
+    h+='<div class="type-banner"><span class="rv-zdot sm" style="background:'+esc(mt.color||"#2563eb")+'"></span><div><b>🔗 ประเภท '+esc(mt.name)+'</b> — หน้ารายละเอียดนี้ใช้ร่วมกัน <b>'+mtn+' ชิ้น</b> ('
+      +typeMembers(mt.id).map(function(x){ return x.code; }).slice(0,12).join(", ")+(mtn>12?", …":"")+') แก้ที่นี่ = เปลี่ยนทุกชิ้น</div>'
+      +'<button class="btn soft" data-act="typeDetach" style="margin-left:auto;flex:none">แยกออก</button></div>'; }
   h+='<div class="row-end" style="margin:12px 0">'
     +'<button class="btn soft" data-act="editMember"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> แก้ไขข้อมูล</button>'
     +'<button class="btn" data-act="goInspect"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 5-5"/></svg> ตรวจเหล็ก</button>'
@@ -4154,7 +4261,10 @@ function detailsSheetHtml(m){
    DETAIL EDITOR — หน้ารายละเอียดแบบ "บล็อกเรียงต่อกัน": อัปรูป/PDF · ครอบตัด ·
    เลื่อนขึ้น-ลง · แทรกข้อความ/ตาราง · เก็บกับชิ้นส่วน (m.doc.els — เรียงตามลำดับ)
    =========================================================================== */
-function memberDoc(m){ if(!m.doc || !Array.isArray(m.doc.els)) m.doc={els:[]}; return m.doc; }
+function memberDoc(m){
+  var t=memberTypeOf(m); if(t) return typeDoc(t);   // ผูกประเภทอยู่ → ใช้แผ่นของประเภท (ร่วมกันทุกชิ้น)
+  if(!m.doc || !Array.isArray(m.doc.els)) m.doc={els:[]}; return m.doc;
+}
 function deUid(){ return uid("de"); }
 
 /* ---- แคช/โหลดสื่อจาก IndexedDB (m.doc เก็บแค่ layout เล็ก ๆ — สื่ออยู่ใน IDB) ---- */
@@ -4946,6 +5056,8 @@ var RV_IC={
   home:'<path d="m3 11 9-8 9 8v9a2 2 0 0 1-2 2h-4v-6H9v6H5a2 2 0 0 1-2-2Z"/>',
   filter:'<path d="M3 5h18l-7 8v6l-4 2v-8Z"/>',
   wand:'<path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M12.2 6.2 11 5M3 21l9-9"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  unlink:'<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/><path d="M4 4l16 16"/>',
   callout:'<rect x="9" y="3" width="13" height="9" rx="2"/><path d="M11.5 12 2.5 21"/><path d="M2.5 21l5-1.2-1.2-5Z" fill="currentColor"/>',
   dim:'<path d="M3 6v12M21 6v12M5 12h14"/><path d="m8 9-3 3 3 3M16 9l3 3-3 3"/>'
 };
@@ -5012,7 +5124,7 @@ function rvRibbonHtml(type, f, plan, plans, selM){
     body+=rvGrp('ย้อนกลับ', rvCol(rvSm(false,"planUndo",'','undo','ย้อนกลับ','Ctrl+Z',!(PL_UNDO[state.floorId]||[]).length)+rvSm(false,"planRedo",'','redo','ทำซ้ำ','Ctrl+Shift+Z',!(PL_REDO[state.floorId]||[]).length)));
   }else if(rt==="view"){
     body+=rvGrp('โหมดแสดง','<div class="rv-seg"><button data-act="setPlanMode" data-mode="unified" aria-pressed="'+(state.unified)+'">รวมทุกชนิด</button><button data-act="setPlanMode" data-mode="focus" aria-pressed="'+(!state.unified)+'">เฉพาะ '+esc(TYPE_EN[type]||TYPES[type].label)+'</button></div>');
-    body+=rvGrp('ลงสีตาม','<div class="rv-seg"><button data-act="colorMode" data-mode="status" aria-pressed="'+(state.colorMode==="status")+'">สถานะตรวจ</button><button data-act="colorMode" data-mode="plain" aria-pressed="'+(state.colorMode!=="status")+'">สีที่ตั้งเอง</button></div>');
+    body+=rvGrp('ลงสีตาม','<div class="rv-seg"><button data-act="colorMode" data-mode="status" aria-pressed="'+(state.colorMode==="status")+'">สถานะตรวจ</button><button data-act="colorMode" data-mode="plain" aria-pressed="'+(state.colorMode==="plain")+'">สีที่ตั้งเอง</button><button data-act="colorMode" data-mode="type" aria-pressed="'+(state.colorMode==="type")+'">ประเภท</button></div>');
     body+=rvGrp('แสดง', rvCol2(rvSm(!!state.showLabels,"toggleLabels",'','tag','ป้ายเบอร์')+rvSm(!!state.showLegend,"toggleLegend",'','grid','ตารางสี')+rvSm(!!state.snap,"toggleSnap",'','snap','สแนบเส้น')+rvSm(!!state.showProgress,"toggleProgress",'','zone','โซนเท')));
     body+=rvGrp('กรองสถานะ', rvCol2(
        rvSm(!state.statusFilter,"statusFilter",'data-st="all"','filter','ทั้งหมด')+rvSm(state.statusFilter==="pass","statusFilter",'data-st="pass"','check','ผ่าน')
@@ -5043,6 +5155,9 @@ function rvRibbonHtml(type, f, plan, plans, selM){
       +rvSm(false,"delMember",'','trash','ลบ','ลบชิ้นที่เลือก  (Delete)',!hasSel)
       +rvSm(false,"editMember",'','edit','แก้สเปก','แก้ไขข้อมูลเหล็ก',!hasSel)));
     body+=rvGrp('ตรวจสอบ', rvBig(state.rightTab==="inspect","goInspect",'','check','ตรวจเหล็ก','เช็คลิสต์ตรวจเหล็กก่อนเท',!hasSel)+rvBig(false,"showDetails",'','img','รายละเอียด','ชีตรายละเอียด (รูป/ข้อความ/ตาราง)',!hasSel));
+    var selT=selM?memberTypeOf(selM):null;
+    body+=rvGrp('ประเภท (รายละเอียดร่วม)', rvBig(false,"typeCreate",'','link','สร้างประเภท','สร้างประเภทจากชิ้นที่เลือก — แผ่นรายละเอียดของชิ้นนี้จะกลายเป็นของประเภท ให้ชิ้นอื่นใช้ร่วมได้',!hasSel||!!selT)
+      +rvCol(rvSm(false,"typeAssignSheet",'','wand','กำหนดประเภท','เลือกประเภทให้ชิ้นที่เลือก',!hasSel)+rvSm(false,"typeDetach",'','unlink','แยกออก','ถอดชิ้นนี้ออกจากประเภท',!selT)));
     body+=rvGrp('มุมมอง', rvCol2(rvSm(false,"zoomFit",'','fit','พอดีจอ','(0)')+rvSm(!!state.showLegend,"toggleLegend",'','grid','ตารางสี')+rvSm(!!state.showLabels,"toggleLabels",'','tag','ป้ายเบอร์')+rvSm(false,"focusSearch",'','search','ค้นหา','Ctrl+F')));
     body+=rvGrp('นำออก', rvBig(false,"exportPdf",'','pdf','ออก PDF','นำออกแปลน + ไฮไลท์ เป็น PDF'));
   }
@@ -5088,10 +5203,13 @@ function rvPaletteHtml(type, m){
       stList.forEach(function(s){ h+='<div class="rv-prow"><span><i class="rv-zdot sm" style="background:'+s.color+'"></i>'+esc(s.label)+'</span><b>'+(cnt[s.id]||0)+'</b></div>'; });
       h+='<div class="rv-pnote">แตะโซนบนแปลน หรือเลือกจากผังโครงการ เพื่อแก้ชื่อ/สถานะ/วันที่</div>';
     }
+  }else if(!m && state.selTypeId && getType(state.selTypeId)){
+    h+=typePaletteHtml(getType(state.selTypeId));
   }else if(m){
     var ins=lastInspection(m.id), st=memberStatus(m);
     var stTx = st==="pass"?'<span class="ok">● ผ่าน พร้อมเท</span>' : st==="fail"?'<span class="bad">● ต้องแก้ไข</span>' : '<span class="wait">● รอตรวจ</span>';
     h+='<div class="rv-type"><span class="rv-tdot" style="background:var(--t-'+TYPES[m.type].css+')"></span><div><b>'+esc(TYPES[m.type].label)+' · '+esc(m.code)+'</b><small>'+esc(shortSpec(m)||"")+'</small></div></div>';
+    h+=typePaletteRowHtml(m);
     h+=rvPh('ข้อมูลชิ้นส่วน');
     h+=rvProw('ชนิด',esc(TYPES[m.type].label))+rvProw('เบอร์',esc(m.code),1)+(m.name&&m.name!==m.code?rvProw('ชื่อ',esc(m.name)):'')
       +(m.grid?rvProw('แนว',esc(m.grid),1):'')+(m.type==="beam"&&m.span?rvProw('ช่วง',(num(m.span,0)/1000).toFixed(2)+' ม.',1):'');
@@ -5115,7 +5233,7 @@ function rvPaletteHtml(type, m){
     h+='<div class="rv-type">'+rvIc('plan',18)+'<div><b>แปลน · '+esc(pl?(pl.name||"แปลน"):"ยังไม่มีแปลน")+'</b><small>'+esc(fl?fl.name:"")+(pl&&pl.w?' · '+pl.w+'×'+pl.h+' px':'')+'</small></div></div>';
     h+=rvPh('มุมมอง');
     h+='<div class="rv-prow"><span>แสดง</span><b><span class="rv-seg"><button data-act="setPlanMode" data-mode="unified" aria-pressed="'+(state.unified)+'">รวม</button><button data-act="setPlanMode" data-mode="focus" aria-pressed="'+(!state.unified)+'">เฉพาะ '+esc(TYPE_EN[type]||TYPES[type].label)+'</button></span></b></div>';
-    h+='<div class="rv-prow"><span>ลงสีตาม</span><b><span class="rv-seg"><button data-act="colorMode" data-mode="status" aria-pressed="'+(state.colorMode==="status")+'">สถานะ</button><button data-act="colorMode" data-mode="plain" aria-pressed="'+(state.colorMode!=="status")+'">ที่ตั้งเอง</button></span></b></div>';
+    h+='<div class="rv-prow"><span>ลงสีตาม</span><b><span class="rv-seg"><button data-act="colorMode" data-mode="status" aria-pressed="'+(state.colorMode==="status")+'">สถานะ</button><button data-act="colorMode" data-mode="plain" aria-pressed="'+(state.colorMode==="plain")+'">ที่ตั้งเอง</button><button data-act="colorMode" data-mode="type" aria-pressed="'+(state.colorMode==="type")+'">ประเภท</button></span></b></div>';
     h+='<div class="rv-prow"><span>บนแปลน</span><b><span class="rv-seg"><button data-act="toggleLabels" aria-pressed="'+(!!state.showLabels)+'">ป้ายเบอร์</button><button data-act="toggleLegend" aria-pressed="'+(!!state.showLegend)+'">ตารางสี</button><button data-act="toggleSnap" aria-pressed="'+(!!state.snap)+'">สแนบ</button></span></b></div>';
     h+=rvPh('สรุปบนแปลนนี้');
     h+=rvProw('ทั้งหมด',sm.total+' ชิ้น',1)+rvProw('ผ่าน','<span class="ok">'+sm.pass+'</span>',1)+rvProw('ไม่ผ่าน','<span class="bad">'+sm.fail+'</span>',1)+rvProw('รอตรวจ','<span class="wait">'+sm.todo+'</span>',1);
@@ -5123,6 +5241,43 @@ function rvPaletteHtml(type, m){
     h+='<div class="rv-pnote">แตะกรอบบนแปลน หรือเลือกจาก “ผังโครงการ” เพื่อดูคุณสมบัติของชิ้นนั้น</div>';
   }
   return h+'</div></div>';
+}
+/* ---- ประเภทชิ้นส่วน ในพาเนลคุณสมบัติ ---- */
+/** แถว "ประเภท" ของชิ้นที่เลือก — dropdown เลือก = ผูกทันที */
+function typePaletteRowHtml(m){
+  var t=memberTypeOf(m), opts=typesOf(m.projectId,m.type);
+  var h=rvPh('ประเภท — แผ่นรายละเอียดใช้ร่วมกัน');
+  h+='<div class="rv-prow"><span>ประเภท</span><b><select id="typeSel" class="rv-in" style="width:176px">'
+    +'<option value=""'+(t?'':' selected')+'>— ไม่มี (รายละเอียดของตัวเอง) —</option>'
+    +opts.map(function(x){ return '<option value="'+esc(x.id)+'"'+(t&&t.id===x.id?' selected':'')+'>'+esc(x.name)+' ('+typeMembers(x.id).length+')</option>'; }).join("")
+    +'<option value="__new">＋ สร้างประเภทใหม่จากชิ้นนี้…</option></select></b></div>';
+  if(t){
+    var n=typeMembers(t.id).length;
+    h+='<div class="rv-prow"><span><i class="rv-zdot sm" style="background:'+esc(t.color||"#2563eb")+'"></i>ใช้ร่วมกัน</span><b>'+n+' ชิ้น</b></div>';
+    h+='<div class="rv-pnote">🔗 รูป/ข้อความ/ตาราง ในหน้ารายละเอียดของ “'+esc(t.name)+'” ใช้ร่วมกันทั้ง '+n+' ชิ้น — แก้ที่ชิ้นไหนก็เปลี่ยนทุกชิ้น</div>';
+    h+='<div class="rv-pacts"><button class="btn soft" data-act="showDetails">'+rvIc('img',14)+' เปิดรายละเอียด</button><button class="btn soft" data-act="typeSelect" data-tid="'+esc(t.id)+'">'+rvIc('gear',14)+' จัดการประเภท</button></div>';
+  }else{
+    h+='<div class="rv-pnote">ยังไม่ผูกประเภท — เลือกจากรายการด้านบน หรือ “สร้างประเภทใหม่จากชิ้นนี้” เพื่อให้ชิ้นอื่นใช้รายละเอียดเดียวกัน</div>';
+  }
+  return h;
+}
+/** การ์ดประเภท (เมื่อกดประเภทในผังโครงการ) — ชื่อ / สี / รายชื่อชิ้นที่ใช้ / ลบ */
+function typePaletteHtml(t){
+  var ms=typeMembers(t.id).slice().sort(function(a,b){ return String(a.code).localeCompare(String(b.code)); });
+  var h='<div class="rv-type"><span class="rv-tdot" style="background:'+esc(t.color||"#2563eb")+'"></span><div><b>ประเภท · '+esc(t.name)+'</b><small>'+esc((TYPES[t.mtype]||{}).label||t.mtype)+' · ใช้ร่วมกัน '+ms.length+' ชิ้น</small></div></div>';
+  h+=rvPh('ข้อมูลประเภท');
+  h+='<div class="rv-prow"><span>ชื่อ</span><b><input type="text" id="typeNameInput" value="'+esc(t.name)+'" class="rv-in"></b></div>';
+  h+='<div class="rv-prow"><span>สี</span><b><span class="rv-swatches">'+TYPE_COLORS.map(function(c){ return '<button class="tswatch'+((t.color||"").toLowerCase()===c?" on":"")+'" data-act="typeColor" data-tid="'+esc(t.id)+'" data-c="'+c+'" style="background:'+c+'" title="'+c+'"></button>'; }).join("")+'</span></b></div>';
+  h+='<div class="rv-pnote">🔗 แผ่นรายละเอียด '+typeDoc(t).els.length+' รายการ — ทุกชิ้นด้านล่างเห็นและแก้แผ่นเดียวกัน</div>';
+  h+=rvPh('ชิ้นส่วนที่ใช้ประเภทนี้ ('+ms.length+')');
+  if(ms.length){
+    ms.forEach(function(x){ var fl=getFloor(x.floorId);
+      h+='<button class="rv-mrow" data-act="typeGoMember" data-id="'+esc(x.id)+'"><i class="rv-dot '+memberStatus(x)+'"></i><span class="mono">'+esc(x.code)+'</span><em>'+esc(fl?fl.name:"")+(x.plan?'':' · ยังไม่วาง')+'</em></button>'; });
+  }else h+='<div class="rv-pnote">ยังไม่มี — เลือกชิ้นบนแปลน แล้วเลือกประเภทนี้ในช่อง “ประเภท”</div>';
+  h+=rvPh('การจัดการ');
+  h+='<div class="rv-pacts"><button class="btn" data-act="typeOpenDetail" data-tid="'+esc(t.id)+'"'+(ms.length?'':' disabled')+'>'+rvIc('img',14)+' เปิดรายละเอียด</button>'
+    +'<button class="btn danger" data-act="typeDeleteBtn" data-tid="'+esc(t.id)+'">'+rvIc('trash',14)+' ลบประเภท</button></div>';
+  return h;
 }
 /* ---- ผังโครงการ (ซ้ายล่าง) ---- */
 function rvBrowserHtml(type, p, f, plans, plan){
@@ -5154,6 +5309,17 @@ function rvBrowserHtml(type, p, f, plans, plan){
     });
   });
   if(!all.length) h+='<div class="t3 muted">ยังไม่มี — วาดจากริบบอน “โครงสร้าง”</div>';
+  // ประเภทชิ้นส่วน (แผ่นรายละเอียดใช้ร่วมกัน) — ทั้งโครงการ
+  var tps=typesOf(state.projectId);
+  h+='<div class="t2 hd"><span>ประเภทชิ้นส่วน ('+tps.length+')</span><button class="rv-tbtn" data-act="typeCreate" title="สร้างประเภทจากชิ้นที่เลือก">'+rvIc('plus',12)+'</button></div>';
+  TYPE_ORDER.forEach(function(t){
+    var tl=tps.filter(function(x){ return x.mtype===t; }); if(!tl.length) return;
+    h+='<div class="t3 grp"><span class="rv-tsw" style="background:var(--t-'+TYPES[t].css+')"></span><span>'+esc(TYPES[t].label)+'</span><em>'+tl.length+' ประเภท</em></div>';
+    tl.forEach(function(x){
+      h+='<button class="t4'+(!state.selMemberId&&x.id===state.selTypeId?" on":"")+'" data-act="typeSelect" data-tid="'+esc(x.id)+'" title="'+esc(x.name)+'"><span class="rv-tsw" style="background:'+esc(x.color||"#2563eb")+'"></span><span class="mono">'+esc(x.name)+'</span><em>'+typeMembers(x.id).length+'</em></button>';
+    });
+  });
+  if(!tps.length) h+='<div class="t3 muted">ยังไม่มี — เลือกชิ้นแล้วกด “สร้างประเภท”</div>';
   // โซนเท
   h+='<div class="t2 hd"><span>โซนเทคอนกรีต ('+zones.length+')</span></div>';
   zones.forEach(function(z){
@@ -5169,7 +5335,7 @@ function rvViewTabsHtml(f, plans){
   plans.forEach(function(pp){ h+='<button class="rv-vt'+(pp.id===f.activePlanId?" on":"")+'" data-act="switchPlan" data-pid="'+esc(pp.id)+'">'+rvIc('plan',12)+esc(pp.name||"แปลน")+'</button>'; });
   if(!plans.length) h+='<span class="rv-vt on">ยังไม่มีแปลน</span>';
   h+='<button class="rv-vt add" data-act="addPlan" title="นำเข้าแปลนใหม่">+</button>';
-  h+='<span class="sp"></span><span class="rv-vinfo">'+(stageMode()==="progress"?'โหมด: เทคอนกรีต':'โหมดสี: '+(state.colorMode==="status"?'สถานะตรวจ':'สีที่ตั้งเอง'))+(state.unified?' · รวมทุกชนิด':' · เฉพาะ '+esc(TYPES[state.catType].label))+'</span>';
+  h+='<span class="sp"></span><span class="rv-vinfo">'+(stageMode()==="progress"?'โหมด: เทคอนกรีต':'โหมดสี: '+(state.colorMode==="status"?'สถานะตรวจ':state.colorMode==="type"?'ประเภท':'สีที่ตั้งเอง'))+(state.unified?' · รวมทุกชนิด':' · เฉพาะ '+esc(TYPES[state.catType].label))+'</span>';
   return h+'</div>';
 }
 function rvStatusHtml(vm, selM){
@@ -5448,6 +5614,16 @@ function bindPlanEditor(){
       else if(act==="annotFill"){ fxPush(); a.fill=t.value; repaintPlanShapes(); }
     });
   }
+  // ประเภทชิ้นส่วน — dropdown ในพาเนล = ผูกทันที · ชื่อประเภทแก้สด
+  var tsel=$("#typeSel");
+  if(tsel) tsel.addEventListener("change",function(){
+    var m0=getMember(state.selMemberId); if(!m0) return;
+    var v=tsel.value;
+    if(v==="__new"){ typeCreateAct(); return; }
+    typeAssign(m0, v?getType(v):null);
+  });
+  var tni=$("#typeNameInput");
+  if(tni) tni.addEventListener("change",function(){ var t0=getType(state.selTypeId); if(t0){ var nv=tni.value.trim(); if(nv && nv!==t0.name){ t0.name=nv; saveDB(); render(); toast("เปลี่ยนชื่อประเภทแล้ว"); } } });
   var zni=$("#zoneNameInput"), zsi=$("#zoneStatusSel"), zdi=$("#zoneDateInput");
   [zni,zsi,zdi].forEach(function(inp){ if(inp) inp.addEventListener("focus",function(){ plPushUndo(); }); });
   if(zni){ zni.addEventListener("input",function(){ var z=getZone(state.selZoneId); if(z){ z.name=zni.value; saveDB(); var ov=$("#planOverlay"); if(ov) ov.innerHTML=planShapesSVG(+ov.getAttribute("data-vw"),+ov.getAttribute("data-vh")); } }); }
@@ -6059,6 +6235,43 @@ function bindPlanEditor(){
   });
 }
 
+/* ---- ประเภทชิ้นส่วน: การกระทำ (เรียกจากปุ่ม data-act และจาก dropdown ในพาเนล) ---- */
+/** ผูกชิ้นกับประเภท (t=null → ถอดออก) */
+function typeAssign(m, t){
+  if(t && t.mtype!==m.type){ toast("ประเภทนี้เป็น"+TYPES[t.mtype].label+" ใช้กับ"+TYPES[m.type].label+"ไม่ได้",true); render(); return false; }
+  if(!t){ typeDetachAct(m); return true; }
+  if(m.typeId===t.id) return true;
+  var own=(!m.typeId && m.doc && Array.isArray(m.doc.els)) ? m.doc.els.length : 0;
+  if(own && !confirm(m.code+" มีรายละเอียดของตัวเองอยู่ "+own+" รายการ\nเมื่อผูกกับ “"+t.name+"” จะใช้หน้ารายละเอียดของประเภทแทน (ของเดิมเก็บไว้ จะกลับมาเมื่อแยกออก)\nดำเนินการต่อ?")){ render(); return false; }
+  plPushUndo();
+  m.typeId=t.id; saveDB(); render();
+  toast("ผูก "+m.code+" กับประเภท “"+t.name+"” แล้ว — ใช้รายละเอียดร่วมกัน "+typeMembers(t.id).length+" ชิ้น");
+  return true;
+}
+/** สร้างประเภทจากชิ้นที่เลือก (ถามชื่อ) */
+function typeCreateAct(){
+  var tm=getMember(activeMemberId()); if(!tm){ toast("เลือกชิ้นส่วนบนแปลนก่อน แล้วกดสร้างประเภท",true); return; }
+  if(memberTypeOf(tm)){ toast(tm.code+" ผูกประเภทอยู่แล้ว — แยกออกก่อนถ้าจะสร้างประเภทใหม่",true); render(); return; }
+  var sp=shortSpec(tm)||"";
+  var tnm=window.prompt("ตั้งชื่อประเภท (ชิ้นอื่นจะเลือกชื่อนี้เพื่อใช้รายละเอียดร่วมกัน):", tm.code+(sp?" — "+sp:""));
+  if(tnm===null){ render(); return; }
+  tnm=tnm.trim(); if(!tnm) tnm=tm.code;
+  plPushUndo();
+  var nt=typeCreateFrom(tm, tnm); saveDB(); render();
+  toast("สร้างประเภท “"+nt.name+"” แล้ว — เลือกชิ้นอื่นแล้วกำหนดประเภทนี้ได้จากช่อง “ประเภท” ในพาเนล");
+}
+/** ถอดชิ้นออกจากประเภท — ถ้าชิ้นมีแผ่นของตัวเองเก็บไว้ → ใช้ของเดิม, ถ้าไม่มี → ได้สำเนาของประเภทไปแก้แยก */
+function typeDetachAct(m){
+  m=m||getMember(activeMemberId()); var t=m?memberTypeOf(m):null;
+  if(!t){ toast("ชิ้นนี้ไม่ได้ผูกประเภท",true); render(); return; }
+  var own=(m.doc && Array.isArray(m.doc.els)) ? m.doc.els.length : 0;
+  var msg = own ? ("แยก "+m.code+" ออกจากประเภท “"+t.name+"”?\nชิ้นนี้จะกลับไปใช้รายละเอียดของตัวเอง ("+own+" รายการที่เก็บไว้)")
+                : ("แยก "+m.code+" ออกจากประเภท “"+t.name+"”?\nชิ้นนี้จะได้สำเนาของรายละเอียดไว้แก้แยก — ไม่กระทบชิ้นอื่น");
+  if(!confirm(msg)){ render(); return; }
+  plPushUndo();
+  typeDetach(m, !own); saveDB(); render();
+  toast("แยก "+m.code+" ออกจากประเภทแล้ว");
+}
 /** สร้างชิ้นส่วนใหม่จากรูปที่วาด: ถามเบอร์ → บันทึก → เลือก */
 function finishDraw(geom){
   var type=state.catType;
@@ -6072,11 +6285,12 @@ function finishDraw(geom){
   if(twin){
     var m=JSON.parse(JSON.stringify(twin));       // สำเนาสเปกทั้งหมด (รวมสถานีเหล็ก)
     m.id=uid("m"); m.projectId=state.projectId; m.floorId=state.floorId; m.plan=geom; m.planId=curPlanId();
+    if(twin.typeId) m.doc={els:[]}; else delete m.doc;   // ผูกประเภทเดียวกับตัวเดิม (แผ่นรายละเอียดร่วม) — ไม่ก็อป element id ซ้ำ
     DB.members.push(m);
     if(!saveDB()){ DB.members.pop(); render(); return; }
     state.selMemberId=m.id;   // เลือกไว้ อยู่หน้าแปลนต่อ (ไม่เด้งไปหน้าอื่น)
     render();
-    toast("เพิ่ม "+code+" — ใช้ข้อมูลเดิมของ "+code+" อัตโนมัติ");
+    toast("เพิ่ม "+code+" — ใช้ข้อมูลเดิมของ "+code+" อัตโนมัติ"+(twin.typeId?" (ประเภท "+(memberTypeOf(twin)||{}).name+")":""));
     return;
   }
   var m=mkMember(state.projectId, state.floorId, type, code, "", "", {plan:geom}, "");
@@ -7290,8 +7504,8 @@ function normalizeFloorPlans(){
    ------------------------------------------------------------------------ */
 var CLOUD = !!(window.fbAuth && window.fbDb);
 var _fbUser=null, _fbLoaded=false, _syncT=null, _fbUnsub=[];
-var _syncBase={projects:{},floors:{},members:{},inspections:{}};
-var CLOUD_COLLS=["projects","floors","members","inspections"];
+var _syncBase={projects:{},floors:{},members:{},inspections:{},types:{}};
+var CLOUD_COLLS=["projects","floors","members","inspections","types"];
 
 function _isEditing(){ var a=document.activeElement; return !!(a && (a.tagName==="INPUT"||a.tagName==="TEXTAREA"||a.isContentEditable)); }
 
@@ -7304,7 +7518,7 @@ function cloudBoot(){
   });
 }
 function teardownCloud(){ _fbUnsub.forEach(function(u){ try{u();}catch(e){} }); _fbUnsub=[]; _fbLoaded=false;
-  _syncBase={projects:{},floors:{},members:{},inspections:{}}; }
+  _syncBase={projects:{},floors:{},members:{},inspections:{},types:{}}; }
 
 function startCloudSession(user){
   renderLoading();
@@ -7345,13 +7559,18 @@ function startCloudSession(user){
         if(!lockScreens[state.screen]) return false;
         return id===state.memberId || id===state.selMemberId;
       }
+      // 🔒 ประเภท: กำลังเปิดแผ่นรายละเอียดของประเภทนั้นอยู่ (หน้า memberDetail) → อย่าให้ snapshot ทับ
+      function _isLockedType(id){
+        if(c!=="types" || state.screen!=="memberDetail") return false;
+        var am=getMember(state.memberId||state.selMemberId); return !!(am && am.typeId===id);
+      }
       // ADD / UPDATE ทีละ item
       snap.docs.forEach(function(d){
         var incomingJson; try{ incomingJson=d.data().data; }catch(e){ return; }
         var incoming; try{ incoming=JSON.parse(incomingJson); }catch(e){ return; }
         if(!incoming || !incoming.id) return;
         incomingIds[incoming.id]=1;
-        if(_isLockedMember(incoming.id)) return;   // 🔒 กำลังเปิดหน้าแก้ไขอยู่ — อย่าแตะ
+        if(_isLockedMember(incoming.id) || _isLockedType(incoming.id)) return;   // 🔒 กำลังเปิดหน้าแก้ไขอยู่ — อย่าแตะ
         var ex=DB[c].filter(function(x){return x&&x.id===incoming.id;})[0];
         if(!ex){ DB[c].push(incoming); return; }
         // 🔒🔒 HARD LOCK สำหรับ members: ห้าม cloud snapshot เขียนทับ .doc ของ member ที่มีอยู่แล้ว
@@ -7378,7 +7597,7 @@ function startCloudSession(user){
       for(var i=DB[c].length-1;i>=0;i--){
         var it=DB[c][i]; if(!it){ DB[c].splice(i,1); continue; }
         if(incomingIds[it.id]) continue;
-        if(_isLockedMember(it.id)) continue;   // 🔒 กำลังเปิดหน้าแก้ไขอยู่ — อย่าลบ
+        if(_isLockedMember(it.id) || _isLockedType(it.id)) continue;   // 🔒 กำลังเปิดหน้าแก้ไขอยู่ — อย่าลบ
         var wasSynced=oldBase[it.id];
         if(!wasSynced) continue;   // เพิ่ง add local ยังไม่ sync → เก็บไว้ (จะ sync รอบถัดไป)
         var localJson2; try{ localJson2=JSON.stringify(_forCloud(c,it)); }catch(e){ continue; }
@@ -7539,7 +7758,7 @@ function offerLocalMigration(){
 }
 function migrateLocalToCloud(local){
   toast("กำลังอัปข้อมูลขึ้นคลาวด์…");
-  DB.projects=local.projects||[]; DB.floors=local.floors||[]; DB.members=local.members||[]; DB.inspections=local.inspections||[];
+  DB.projects=local.projects||[]; DB.floors=local.floors||[]; DB.members=local.members||[]; DB.inspections=local.inspections||[]; DB.types=local.types||[];
   try{ normalizePlanShapes(); normalizeFloorPlans(); }catch(e){}
   cloudSyncNow();   // ดันข้อมูลหลักขึ้นก่อน
   render();
