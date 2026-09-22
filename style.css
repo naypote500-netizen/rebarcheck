@@ -472,9 +472,6 @@ hr.sep{border:none;border-top:1px solid var(--border);margin:14px 0}
 body.editor-wide main{max-width:none;padding:6px 18px 40px}
 body.editor-wide header .hd-wrap{max-width:none}
 
-/* โครงเอดิเตอร์: จอกว้าง = แปลน + เส้นแบ่งลากได้ + พาเนลขวา (ปรับกว้างได้), มือถือ = ซ้อน */
-.editor{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
-@media(min-width:900px){ .editor{grid-template-columns:minmax(0,1fr) 10px var(--rp-w,380px);gap:0} }
 /* สรุปจำนวนต่อสถานะ ในพาเนลโซน */
 .ftp-stat-counts{display:flex;flex-wrap:wrap;gap:6px 10px;padding:2px 2px 8px}
 .ftp-sc{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text,#223)}
@@ -488,10 +485,6 @@ body.editor-wide header .hd-wrap{max-width:none}
 .zs-label{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--border,#d6dbe4);border-radius:8px;background:var(--surface,#fff);color:var(--text,#223);font-size:14px}
 .zs-del{flex:none;padding:6px 9px}
 .zs-add{margin-top:4px}
-/* ยุบพาเนลขวา → แปลนเต็มความกว้าง */
-.editor.rp-collapsed{grid-template-columns:1fr}
-.editor.rp-collapsed .rp-splitter,.editor.rp-collapsed .editor-right{display:none}
-@media(min-width:900px){ .editor.rp-collapsed{grid-template-columns:1fr} .editor.rp-collapsed .editor-left{margin-right:0} }
 /* ---------- หน้าจอรายละเอียดชิ้นส่วน (เปิดจากปุ่มรายละเอียด) ---------- */
 .detail-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 .detail-cols{display:grid;grid-template-columns:1fr;gap:0 16px;align-items:start}
@@ -515,8 +508,6 @@ body.editor-wide header .hd-wrap{max-width:none}
 .beam-stations-row svg.section text.lbl.barA,.beam-stations-row svg.section text.lbl.barB,
 .beam-stations-row svg.section text.lbl.barS,.beam-stations-row svg.section text.lbl.stir-tx{fill:var(--brand)}
 
-.editor-left{min-width:0}
-@media(min-width:900px){ .editor-left{margin-right:6px} }
 
 /* ===== DETAIL EDITOR (วางอิสระ: อัปรูป/PDF deep-zoom · ครอบตัด · ข้อความ/ตาราง) ===== */
 .de-tools{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;background:var(--surface-2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:8}
@@ -630,16 +621,6 @@ body.editor-wide header .hd-wrap{max-width:none}
   .de-move,.de-crop-btn,.de-pdftag,.de-h{display:none!important}
   /* ปุ่มลบ: ยังคงใช้ได้เมื่อกดเลือก (มือถือ = view + upload + delete เท่านั้น) */
   .de-el.sel .de-del{display:flex!important;top:6px!important;right:6px!important;width:30px;height:30px;font-size:14px}
-}
-.editor-right{min-width:0}
-@media(min-width:900px){ .editor-right{position:sticky;top:74px;max-height:calc(100vh - 88px);overflow:auto;padding-left:6px} }
-/* เส้นแบ่งลากได้ */
-.rp-splitter{display:none}
-@media(min-width:900px){
-  .rp-splitter{display:flex;align-items:center;justify-content:center;cursor:col-resize;
-    align-self:stretch;position:sticky;top:74px;height:calc(100vh - 88px)}
-  .rp-splitter::before{content:"";width:4px;height:44px;border-radius:3px;background:var(--border-strong)}
-  .rp-splitter:hover::before{background:var(--brand)}
 }
 
 /* แถบเครื่องมือวาด */
@@ -842,102 +823,195 @@ svg .plan-label{cursor:move}
 .plan-selbar .chip{flex:none}
 
 /* ============================================================
-   PLAN TOOLBAR — แถบเครื่องมือแถวเดียว (แนว CAD/Figma) ไม่มีแท็บ
+   หน้าแปลน — ธีม Revit (สีตายตัว ไม่ตามโหมดมืด/สว่างของแอป)
    ============================================================ */
-.pl-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:3px;padding:5px 8px;margin-bottom:8px;
-  border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}
-.pt-btn{display:inline-flex;align-items:center;gap:5px;flex:none;height:34px;padding:0 8px;border:1px solid transparent;border-radius:9px;
-  background:none;cursor:pointer;color:var(--text);font:inherit;font-size:.76rem;font-weight:600;white-space:nowrap;transition:background .12s,border-color .12s,color .12s}
-.pt-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
-.pt-btn:hover{background:var(--surface-2);border-color:var(--border)}
-.pt-btn.on{background:var(--brand-bg);border-color:color-mix(in srgb,var(--brand) 45%,var(--border));color:var(--brand)}
-.pt-btn[disabled]{opacity:.38;cursor:default}
-.pt-btn[disabled]:hover{background:none;border-color:transparent}
-.pt-sep{width:1px;height:24px;background:var(--border);margin:0 4px;flex:none}
-.pt-sp{flex:1 1 auto;min-width:6px}
-.pt-seg{display:inline-flex;flex:none;padding:2px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border)}
-.pt-seg button{font:inherit;font-weight:700;font-size:.78rem;padding:6px 11px;cursor:pointer;border:none;border-radius:7px;background:transparent;color:var(--text-dim);white-space:nowrap}
-.pt-seg button[aria-pressed="true"]{background:var(--brand);color:#fff;box-shadow:0 1px 3px rgba(2,6,23,.18)}
-html[data-theme="dark"] .pt-seg button[aria-pressed="true"]{color:#0a1220}
-.pt-type{display:inline-flex;align-items:center;gap:6px;flex:none;height:36px;padding:0 8px 0 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface)}
-.pt-select{border:none;background:transparent;color:var(--text);font:inherit;font-size:.8rem;font-weight:700;cursor:pointer;max-width:120px}
-.pt-search{display:inline-flex;align-items:center;gap:6px;flex:none;height:36px;padding:0 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface-2);color:var(--text-dim)}
-.pt-search svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;flex:none}
-.pt-search input{border:none;background:transparent;color:var(--text);font:inherit;font-size:.82rem;width:120px;outline:none}
-.pt-search:focus-within{border-color:var(--brand);background:var(--surface)}
-.pt-plan .tb-menu>summary{list-style:none}
-.pt-plan .tb-menu>summary::-webkit-details-marker{display:none}
-.pt-plan .tb-menu{position:relative}
-/* segmented / สี (ใช้ในแท็บคุณสมบัติ) */
-.rbn-seg{display:flex;gap:4px;flex-wrap:wrap}
-.rbn-seg button{font:inherit;font-weight:700;font-size:.78rem;padding:7px 11px;cursor:pointer;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-dim);white-space:nowrap}
-.rbn-seg button[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
-html[data-theme="dark"] .rbn-seg button[aria-pressed="true"]{color:#0a1220}
-.rbn-color{width:32px;height:32px;padding:2px;border:1px solid var(--border-strong,var(--border));border-radius:8px;cursor:pointer;background:none;flex:none}
-.rbn-swatch{width:32px;height:32px;border-radius:8px;border:1px solid var(--border-strong,var(--border));flex:none}
-/* แถบสถานะใต้แปลน */
-.plan-statusbar{display:flex;align-items:center;gap:6px;margin-top:8px;padding:6px 8px;border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow-x:auto}
-.ps-chip{display:inline-flex;align-items:center;gap:6px;flex:none;padding:5px 10px;border-radius:999px;border:1px solid var(--border);background:var(--surface-2);
-  font:inherit;font-size:.78rem;font-weight:600;color:var(--text-dim);cursor:pointer;transition:background .12s,border-color .12s}
-.ps-chip.static{cursor:default}
-.ps-chip b{font-size:.9rem;font-weight:800;color:var(--text);margin-right:1px}
-.ps-chip.ok b{color:var(--pass)} .ps-chip.bad b{color:var(--fail)} .ps-chip.wait b{color:var(--warn)}
-.ps-chip:not(.static):hover{border-color:var(--brand)}
-.ps-chip.on{background:var(--brand-bg);border-color:var(--brand);color:var(--brand)}
-.ps-dot{width:10px;height:10px;border-radius:3px;flex:none}
-.ps-zoom{display:inline-flex;align-items:center;gap:2px;flex:none;font-size:.78rem;font-weight:700;color:var(--text-dim);font-variant-numeric:tabular-nums}
-.ps-zoom button{width:28px;height:28px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font:inherit;font-size:1rem;cursor:pointer;line-height:1}
-.ps-zoom span{min-width:44px;text-align:center}
-/* คำแนะนำโหมดวาด — ลอยด้านล่างในแปลน (ไม่ดันเลย์เอาต์) */
-.plan-wrap{position:relative}
-.plan-tip{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:9;max-width:calc(100% - 24px);
-  padding:7px 12px;border-radius:9px;font-size:.8rem;font-weight:600;color:#fff;background:rgba(15,23,42,.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
-.plan-tip.zone{background:rgba(22,163,74,.9)}
-/* หัวเรื่อง + ปุ่มจัดการ ในแท็บคุณสมบัติ/ตรวจ */
-.rp-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.rp-head-t{font-size:1.05rem;font-weight:800;line-height:1.2}
-.rp-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
-.rp-actions .btn{margin:0;justify-content:center;padding:9px 8px;font-size:.82rem}
-.rp-actions .btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.rp-toggles{display:flex;gap:6px;flex-wrap:wrap}
-.ftp-list{display:flex;flex-direction:column;gap:6px}
+body.plan-mode header{display:none}
+body.plan-mode main#app{padding:0;max-width:none;margin:0}
+.rv{--bg:#eceff3;--surface:#fff;--surface-2:#f2f4f7;--text:#1d2229;--text-dim:#6b7684;--border:#d6dce4;--border-strong:#b9c2cd;--brand:#1b4f9c;--brand-bg:#dceafc;--brand-strong:#163f7d;
+  display:flex;flex-direction:column;height:100vh;height:100dvh;background:#eceff3;color:#1d2229;font-size:13px;overflow:hidden}
+.rv .sp{flex:1 1 auto;min-width:6px}
+.rv svg.ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.rv .mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px}
+.rv .ok{color:#15803d!important}.rv .bad{color:#b91c1c!important}.rv .wait{color:#b45309!important}
+/* QAT */
+.rv-qat{display:flex;align-items:center;gap:5px;height:30px;padding:0 8px;background:#2c3e56;color:#cfd9e6;flex:none}
+.rv-qb{width:24px;height:24px;border:none;border-radius:4px;background:none;color:#cfd9e6;display:grid;place-items:center;cursor:pointer}
+.rv-qb:hover{background:rgba(255,255,255,.14);color:#fff}
+.rv-qb[disabled]{opacity:.32;cursor:default}
+.rv-qb[disabled]:hover{background:none}
+.rv-qsep{width:1px;height:16px;background:rgba(255,255,255,.2);margin:0 2px}
+.rv-qtitle{margin-left:8px;font-size:12px;font-weight:600;color:#9db0c8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rv-qsearch{display:flex;align-items:center;gap:5px;height:22px;padding:0 8px;border:1px solid rgba(255,255,255,.2);border-radius:4px;background:rgba(255,255,255,.1);color:#9db0c8}
+.rv-qsearch input{border:none;background:none;color:#fff;font:inherit;font-size:12px;width:132px;outline:none}
+.rv-qsearch input::placeholder{color:#8fa3bd}
+.rv-qsearch:focus-within{background:rgba(255,255,255,.18);border-color:#8fb6e8}
+/* แท็บริบบอน */
+.rv-tabs{display:flex;align-items:flex-end;gap:1px;height:29px;padding:0 8px;background:#dfe4ea;border-bottom:1px solid #c3cad3;flex:none}
+.rv-tab{border:1px solid transparent;border-bottom:none;background:none;font:inherit;font-size:12.5px;font-weight:600;color:#4a5665;padding:5px 14px;border-radius:4px 4px 0 0;cursor:pointer;white-space:nowrap}
+.rv-tab:hover{color:#1d2229;background:#e8edf3}
+.rv-tab.on{background:#f5f7fa;color:#1b4f9c;border-color:#c3cad3;margin-bottom:-1px;padding-bottom:6px}
+.rv-tab.prog.on{color:#0f6b3a}
+.rv-mode{font-size:11px;color:#6b7684;padding:0 4px 7px;white-space:nowrap}
+/* ริบบอน */
+.rv-ribbon{display:flex;align-items:stretch;height:104px;padding:4px 2px 0;background:#f5f7fa;border-bottom:1px solid #c3cad3;overflow-x:auto;overflow-y:hidden;flex:none;scrollbar-width:thin}
+.rv-grp{display:flex;flex-direction:column;flex:none;padding:0 8px;border-right:1px solid #d6dce4}
+.rv-grp:last-child{border-right:none}
+.rv-grp-b{display:flex;gap:3px;align-items:flex-start;flex:1;padding-top:3px}
+.rv-grp-c{text-align:center;font-size:10.5px;color:#6b7684;padding:2px 0 3px;white-space:nowrap}
+.rv-big{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;width:64px;min-height:66px;padding:6px 2px;border:1px solid transparent;border-radius:4px;background:none;font:inherit;font-size:10.5px;font-weight:600;color:#2a3442;line-height:1.15;text-align:center;cursor:pointer;white-space:normal}
+.rv-big svg{color:#2c4a75}
+.rv-big:hover{background:#e8eef7;border-color:#c9d6e8}
+.rv-big.on{background:#dceafc;border-color:#8fb6e8;color:#1b4f9c}
+.rv-big.on svg{color:#1b4f9c}
+.rv-big[disabled]{opacity:.38;cursor:default}
+.rv-big[disabled]:hover{background:none;border-color:transparent}
+.rv-sm{display:flex;align-items:center;gap:6px;height:26px;padding:0 8px;border:1px solid transparent;border-radius:4px;background:none;font:inherit;font-size:11.5px;color:#2a3442;white-space:nowrap;cursor:pointer}
+.rv-sm svg{color:#2c4a75}
+.rv-sm:hover{background:#e8eef7;border-color:#c9d6e8}
+.rv-sm.on{background:#dceafc;border-color:#8fb6e8;color:#1b4f9c}
+.rv-sm[disabled]{opacity:.38;cursor:default}
+.rv-sm[disabled]:hover{background:none;border-color:transparent}
+.rv-col{display:flex;flex-direction:column;gap:3px;padding-top:2px}
+.rv-col2{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding-top:2px}
+.rv-typesel{display:flex;align-items:center;gap:6px;height:26px;padding:0 4px 0 8px;border:1px solid #b9c2cd;border-radius:3px;background:#fff}
+.rv-sel{border:none;background:transparent;font:inherit;font-size:11.5px;font-weight:600;color:#2a3442;cursor:pointer;max-width:130px}
+.rv-seg{display:inline-flex;gap:2px;flex-wrap:wrap}
+.rv-seg button{font:inherit;font-size:11px;font-weight:600;padding:4px 9px;border:1px solid #b9c2cd;border-radius:3px;background:#fff;color:#4a5665;cursor:pointer;white-space:nowrap}
+.rv-seg button:hover{border-color:#8fb6e8}
+.rv-seg button[aria-pressed="true"]{background:#dceafc;border-color:#8fb6e8;color:#1b4f9c}
+.rv-swatches{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;padding-top:4px}
+.rv-swatches .swatch{width:18px;height:18px;border-radius:3px;border:1px solid rgba(0,0,0,.16);cursor:pointer;padding:0}
+.rv-swatches .swatch.on{outline:2px solid #1b4f9c;outline-offset:1px}
+/* ลำตัว: พาเนลซ้าย | เส้นแบ่ง | วิว */
+.rv-body{flex:1;display:flex;min-height:0}
+.rv-side{width:var(--rp-w,272px);flex:none;display:flex;flex-direction:column;min-height:0;background:#f2f4f7;border-right:1px solid #c3cad3}
+.rv.side-off .rv-side,.rv.side-off .rp-splitter{display:none}
+.rp-splitter{width:5px;flex:none;cursor:col-resize;background:#dfe4ea;border-right:1px solid #c3cad3}
+.rp-splitter:hover{background:#8fb6e8}
+.rv-main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;background:#8e97a3}
 .rp-handle{display:none}
+/* พาเนลคุณสมบัติ */
+.rv-pal{flex:1;display:flex;flex-direction:column;min-height:0}
+.rv-pal-h{display:flex;align-items:center;justify-content:space-between;gap:8px;height:26px;padding:0 10px;background:#546c8c;color:#fff;font-size:11.5px;font-weight:700;letter-spacing:.3px;flex:none}
+.rv-pal-tabs{display:flex;gap:2px}
+.rv-pal-tabs button{font:inherit;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:3px;border:1px solid transparent;background:rgba(255,255,255,.14);color:#dbe6f5;cursor:pointer}
+.rv-pal-tabs button.on{background:#fff;color:#1b4f9c}
+.rv-pal-tabs button[disabled]{opacity:.45;cursor:default}
+.rv-pal-b{flex:1;overflow-y:auto;min-height:0;background:#fff}
+.rv-type{display:flex;align-items:center;gap:9px;padding:9px 10px;background:#fff;border-bottom:1px solid #d6dce4}
+.rv-type>svg{color:#1b4f9c}
+.rv-type b{display:block;font-size:12.5px;line-height:1.2}
+.rv-type small{display:block;color:#6b7684;font-size:11px;margin-top:2px}
+.rv-tdot{width:14px;height:14px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.18)}
+.rv-zdot{width:14px;height:14px;border-radius:4px;flex:none;display:inline-block}
+.rv-zdot.sm{width:10px;height:10px;margin-right:5px;vertical-align:-1px}
+.rv-ph{background:#e2e7ee;font-size:11px;font-weight:700;color:#4a5665;padding:3px 10px;border-top:1px solid #d6dce4;border-bottom:1px solid #d6dce4}
+.rv-prow{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:26px;padding:3px 10px;border-bottom:1px solid #eef1f5;font-size:11.5px;background:#fff}
+.rv-prow>span{color:#6b7684;flex:none;display:inline-flex;align-items:center}
+.rv-prow>b{font-weight:600;display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;min-width:0;text-align:right}
+.rv-color{width:26px;height:20px;padding:0;border:1px solid #b9c2cd;border-radius:3px;background:none;cursor:pointer}
+.rv-swpv{width:20px;height:20px;border-radius:3px;border:1px solid #b9c2cd;display:inline-block}
+.rv-range input[type=range]{width:104px;margin:0;accent-color:#1b4f9c}
+.rv-range em{font-style:normal;font-family:"JetBrains Mono",monospace;font-size:11px;min-width:40px;text-align:right}
+.rv-prow .rv-swatches{grid-template-columns:repeat(6,1fr);padding:0}
+.rv-prow .rv-swatches .swatch{width:16px;height:16px}
+.rv-in{font:inherit;font-size:11.5px;padding:3px 6px;border:1px solid #b9c2cd;border-radius:3px;background:#fff;color:#1d2229;width:150px;max-width:100%}
+.rv-in:focus{outline:none;border-color:#1b4f9c}
+.rv-prow .rv-seg button{padding:3px 7px;font-size:10.5px}
+.rv-pnote{font-size:11px;color:#6b7684;padding:6px 10px;line-height:1.45;background:#f8fafc;border-bottom:1px solid #eef1f5}
+.rv-pfree{padding:6px 10px;font-size:11.5px;border-bottom:1px solid #eef1f5}
+.rv-pacts{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:8px 10px 12px}
+.rv-pacts .btn{margin:0;padding:7px 6px;font-size:11.5px;justify-content:center;border-radius:4px;display:inline-flex;align-items:center;gap:5px}
+.rv-inspect{padding:8px 8px 14px}
+.rv-inspect .card{border-radius:4px;border-color:#d6dce4;box-shadow:none;margin-bottom:8px}
+.rv-inspect .card-h{font-size:12px;padding:8px 10px}
+.rv-inspect .card-b{padding:8px 10px}
+/* ผังโครงการ */
+.rv-br{height:236px;flex:none;border-top:1px solid #c3cad3;display:flex;flex-direction:column;min-height:0;background:#f2f4f7}
+.rv-br.closed{height:26px}
+.rv-br-h{cursor:pointer;justify-content:flex-start;gap:6px;user-select:none}
+.rv-chev{display:inline-flex;transition:transform .15s;transform:rotate(90deg)}
+.rv-br.closed .rv-chev{transform:rotate(0)}
+.rv-tree{flex:1;overflow-y:auto;background:#fff;padding:3px 0;font-size:11.5px}
+.rv-tree>div,.rv-tree>button{display:flex;align-items:center;gap:6px;width:100%;padding:2.5px 8px;border:none;background:none;font:inherit;color:#1d2229;text-align:left;white-space:nowrap;cursor:default}
+.rv-tree>button{cursor:pointer}
+.rv-tree>button:hover{background:#eef3fa}
+.rv-tree .t1{padding-left:20px}.rv-tree .t2{padding-left:32px}.rv-tree .t3{padding-left:46px}.rv-tree .t4{padding-left:62px}
+.rv-tree>svg,.rv-tree .ic{color:#4a5665}
+.rv-tree .on{background:#dceafc;color:#1b4f9c;font-weight:700}
+.rv-tree .hd span{font-weight:700;color:#4a5665}
+.rv-tree .grp{color:#3d4753;font-weight:600}
+.rv-tree .grp.off{opacity:.5}
+.rv-tree .hid{opacity:.55}
+.rv-tree .hid .mono{text-decoration:line-through}
+.rv-tree .muted{color:#8a93a0}
+.rv-tree .add{color:#1b4f9c;font-weight:600}
+.rv-tree em{margin-left:auto;color:#8a93a0;font-style:normal;font-size:10.5px}
+.rv-tbtn{margin-left:auto;width:18px;height:18px;flex:none;border:none;background:none;color:#6b7684;display:grid;place-items:center;border-radius:3px;cursor:pointer;padding:0}
+.rv-tree em+.rv-tbtn{margin-left:4px}
+.rv-tbtn:hover{background:#dceafc;color:#1b4f9c}
+.rv-tsw{width:10px;height:10px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.18)}
+.rv-dot{width:8px;height:8px;border-radius:50%;flex:none;background:#cbd5e1}
+.rv-dot.pass{background:#22c55e}.rv-dot.fail{background:#ef4444}
+/* แท็บวิว + พื้นที่วาด */
+.rv-vtabs{display:flex;align-items:flex-end;gap:2px;height:26px;padding:0 6px;background:#dfe4ea;border-bottom:1px solid #c3cad3;flex:none;overflow-x:auto;scrollbar-width:none}
+.rv-vt{display:inline-flex;align-items:center;gap:5px;height:23px;padding:0 11px;border:1px solid #c3cad3;border-bottom:none;border-radius:3px 3px 0 0;background:#eceff3;font:inherit;font-size:11.5px;color:#4a5665;cursor:pointer;white-space:nowrap}
+.rv-vt:hover{background:#f5f7fa}
+.rv-vt.on{background:#8e97a3;color:#fff;font-weight:700;border-color:#7d8794}
+.rv-vt.add{padding:0 9px;font-weight:800;font-size:13px}
+.rv-vinfo{font-size:11px;color:#4a5665;padding:0 4px 5px;white-space:nowrap}
+.rv-view{flex:1;min-height:0;padding:12px;overflow:auto;background:#8e97a3}
+.rv-view .plan-wrap{position:relative;display:flex;justify-content:center}
+.rv-view .plan-stage{width:min(100%, calc((100vh - 245px) * var(--plan-ar,1.4)));box-shadow:0 2px 14px rgba(0,0,0,.3);border:1px solid #6b7684;border-radius:2px}
+.rv-view .plan-stage.no-plan{width:100%;min-height:420px}
+/* แถบสถานะ */
+.rv-status{display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;background:#dfe4ea;border-top:1px solid #c3cad3;font-size:11.5px;color:#4a5665;flex:none;overflow-x:auto;scrollbar-width:none}
+.rv-smsg{font-weight:600;white-space:nowrap}
+.rv-sc,.rv-st{border:1px solid #c3cad3;background:#f2f4f7;font:inherit;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:3px;cursor:pointer;color:#4a5665;white-space:nowrap;display:inline-flex;align-items:center;gap:3px}
+.rv-sc b{font-weight:800;color:#1d2229}
+.rv-sc.ok b{color:#15803d}.rv-sc.bad b{color:#b91c1c}.rv-sc.wait b{color:#b45309}
+.rv-sc:hover,.rv-st:hover{border-color:#8fb6e8}
+.rv-sc.on,.rv-st.on{background:#dceafc;border-color:#8fb6e8;color:#1b4f9c}
+.rv-sc.static{cursor:default}
+.rv-ssep{width:1px;height:16px;background:#c3cad3;margin:0 3px}
+.rv-zoom{display:inline-flex;align-items:center;gap:2px;font-family:"JetBrains Mono",monospace;font-size:11px}
+.rv-zoom button{width:22px;height:22px;border:1px solid #c3cad3;background:#f2f4f7;border-radius:3px;font:inherit;font-size:13px;line-height:1;cursor:pointer;color:#1d2229}
+.rv-zoom span{min-width:40px;text-align:center}
+/* มือถือ: ริบบอนเลื่อนแนวนอน · พาเนลเป็นแผ่นเลื่อนขึ้นจากล่าง · แปลนเต็มกว้าง */
+@media(max-width:899px){
+  .rv{padding-bottom:44px}
+  .rv-qtitle{display:none}
+  .rv-qsearch input{width:96px}
+  .rv-tabs{overflow-x:auto;scrollbar-width:none}
+  .rv-tab{padding:5px 11px;font-size:12px}
+  .rv-mode{display:none}
+  .rv-ribbon{height:auto;padding:4px 4px 6px}
+  .rv-grp{padding:0 6px}
+  .rv-grp-c{display:none}
+  .rv-big{width:56px;min-height:58px;font-size:10px;padding:5px 2px}
+  .rv-col2{grid-template-columns:1fr}
+  .rp-splitter{display:none}
+  .rv-side{position:fixed;left:0;right:0;bottom:0;z-index:180;width:auto;max-height:72vh;border-right:none;border-top:1px solid #c3cad3;border-radius:12px 12px 0 0;
+    box-shadow:0 -8px 28px rgba(20,30,50,.25);padding-bottom:env(safe-area-inset-bottom,0px);transition:transform .22s ease}
+  .rv-side.rp-peek{transform:translateY(calc(100% - 44px))}
+  .rv-side.rp-open{transform:none}
+  .rp-handle{display:block;width:100%;height:18px;border:none;background:#f2f4f7;cursor:pointer;padding:0;flex:none;border-radius:12px 12px 0 0}
+  .rp-handle span{display:block;width:44px;height:5px;margin:6px auto 0;border-radius:3px;background:#b9c2cd}
+  .rv-side .rv-pal{max-height:40vh}
+  .rv-br{height:auto;max-height:26vh}
+  .rv-br.closed{height:26px}
+  .rv-view{padding:8px}
+  .rv-view .plan-stage{width:min(100%, calc((100vh - 330px) * var(--plan-ar,1.4)))}
+  .rv-status{padding:0 8px}
+  .rv-smsg{display:none}
+}
+
 
 
 /* จอแคบ: มินิเมนูชิ้นส่วน = ไอคอนล้วน (ครบทุกปุ่มไม่ต้องเลื่อน) + ปุ่มบนแถบเหลือไอคอน */
 @media(max-width:600px){
   .plan-selbar>button{padding:7px 8px;font-size:.72rem;flex-direction:column;gap:2px}
   .plan-selbar{gap:2px;padding:4px 5px}
-}
-/* มือถือ: แปลนเต็มจอ + แถบเครื่องมือเลื่อนแนวนอน + พาเนลเป็นแผ่นเลื่อนขึ้นจากล่าง (แบบแผนที่) */
-@media(max-width:899px){
-  body.plan-mode main#app{padding:4px 8px 0}
-  .pl-toolbar{gap:2px;padding:4px 6px;margin-bottom:6px;border-radius:10px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
-  .pt-btn{height:40px;padding:0 9px;flex-direction:column;gap:1px;font-size:.62rem}
-  .pt-btn svg{width:20px;height:20px}
-  .pt-seg button{padding:6px 9px;font-size:.72rem}
-  .pt-type{height:40px}
-  .pt-search input{width:88px}
-  .pt-sep{height:22px;margin:0 2px}
-  /* แปลนใหญ่เท่าที่จอรับได้ โดยคงสัดส่วนเดิม (overlay ต้องทับรูปพอดี) — จอแนวนอนได้ประโยชน์เต็ม */
-  .plan-wrap{display:flex;justify-content:center}
-  .plan-stage{width:min(100%, calc((100vh - 230px) * var(--plan-ar,1.4)));min-width:min(100%,280px)}
-  .plan-statusbar{margin-top:6px;padding:4px 6px;margin-bottom:64px}
-  .ps-chip{padding:4px 8px;font-size:.72rem}
-  /* พาเนลขวา → แผ่นล่าง */
-  .editor-right{position:fixed;left:0;right:0;bottom:0;z-index:180;background:var(--surface);
-    border-top:1px solid var(--border-strong);border-radius:16px 16px 0 0;box-shadow:0 -8px 28px rgba(20,30,50,.2);
-    max-height:72vh;display:flex;flex-direction:column;padding:0 12px calc(10px + env(safe-area-inset-bottom,0px));
-    transition:transform .22s ease}
-  .editor-right.rp-peek{transform:translateY(calc(100% - 56px))}
-  .editor-right.rp-open{transform:none}
-  .editor-right .rp-body{overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0}
-  .rp-handle{display:block;width:100%;height:18px;border:none;background:none;cursor:pointer;padding:0;flex:none}
-  .rp-handle span{display:block;width:44px;height:5px;margin:7px auto 0;border-radius:3px;background:var(--border-strong)}
-  .editor-right .rp-tabs{padding:4px 0 8px;position:static;background:transparent;flex:none}
-  .editor-right .rp-tabs button{padding:8px 4px;font-size:.78rem}
-  .editor.rp-collapsed .editor-right{display:none}
-  .rp-splitter{display:none}
 }
 .plan-grid{position:absolute;inset:0;
   background-image:
@@ -953,20 +1027,6 @@ html[data-theme="dark"] .rbn-seg button[aria-pressed="true"]{color:#0a1220}
   background:var(--surface);border:1px dashed var(--border-strong);border-radius:var(--radius-sm);
   padding:12px 16px;max-width:80%;box-shadow:var(--shadow)}
 
-/* แท็บพาเนลขวา */
-.rp-tabs{display:flex;gap:6px;position:sticky;top:0;z-index:2;
-  background:var(--bg);padding:2px 0 10px;margin-bottom:2px}
-.rp-tabs button{flex:1;font:inherit;font-weight:700;font-size:.85rem;cursor:pointer;
-  padding:11px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);
-  background:var(--surface);color:var(--text-dim);box-shadow:var(--shadow);
-  transition:background .15s, color .15s, border-color .15s}
-.rp-tabs button[aria-selected="true"]{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:none}
-.rp-tabs button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
-/* ไอคอนชุดใหม่ (PT_IC) ไม่ใส่ width ในตัว — กำหนดขนาดที่นี่ */
-.rp-body svg:not([width]):not(.section){width:1.1em;height:1.1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px}
-.lst-ic svg{width:18px!important;height:18px!important}
-.tchip .tc-eye svg{width:14px;height:14px}
-.ftp-del svg,.ftp-managest svg{width:14px;height:14px}
 html[data-theme="dark"] .rp-tabs button[aria-selected="true"]{color:#0a1220}
 
 /* ============================================================
