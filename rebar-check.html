@@ -5785,7 +5785,7 @@ function planShapesSVG(VW,VH){
       // กรอบ (หมุนรอบจุดศูนย์) — เส้นประเลือกคงความบางคงที่ด้วยการหาร zoom
       shapes+='<g transform="rotate('+rot+' '+cxp+' '+cyp+')"'+(dim?' opacity="0.5"':'')+'>'
         + mainEl
-        +(hi?'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+ht+'" fill="none" stroke="var(--brand)" stroke-width="'+(2/z)+'" stroke-dasharray="'+(6/z)+' '+(4/z)+'" style="pointer-events:none"/>':'')
+        +(hi?'<rect x="'+(x-(msel?4/z:0))+'" y="'+(y-(msel?4/z:0))+'" width="'+(w+(msel?8/z:0))+'" height="'+(ht+(msel?8/z:0))+'" fill="'+(msel?"var(--brand)":"none")+'" fill-opacity="0.08" stroke="var(--brand)" stroke-width="'+((msel?3:2)/z)+'" stroke-dasharray="'+(6/z)+' '+(4/z)+'" style="pointer-events:none"/>':'')
         +'</g>';
       // จุดจับ ลด/ขยาย/หมุน (เฉพาะตอนเลือก) — คำนวณตำแหน่งมุมหลังหมุน (จุดจับคงขนาดคงที่ด้วย updateLabelScale)
       if(sel){
