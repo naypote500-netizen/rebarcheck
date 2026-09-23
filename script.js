@@ -5643,7 +5643,8 @@ function rvRibbonHtml(type, f, plan, plans, selM){
   }else if(rt==="progress"){
     body+=selBtn;
     body+=rvGrp('วาดโซนเท', rvBig(state.tool==="drawZone"&&state.zoneShape!=="poly","drawZoneStart",'data-shape="rect"','zone','สี่เหลี่ยม','วาดโซนสี่เหลี่ยม  (R)')
-      +rvBig(state.tool==="drawZone"&&state.zoneShape==="poly","drawZoneStart",'data-shape="poly"','poly','หลายเหลี่ยม','วาดโซนหลายเหลี่ยม  (P)'));
+      +rvBig(state.tool==="drawZone"&&state.zoneShape==="poly","drawZoneStart",'data-shape="poly"','poly','หลายเหลี่ยม','วาดโซนหลายเหลี่ยม  (P)')
+      +rvCol(rvSm(!!state.snap,"toggleSnap",'','snap','สแนบเส้น','ดูดเข้าเส้นแปลนตอนวาดโซน  (S)')));
     body+=rvGrp('โซน', rvCol((hasZone?rvSm(false,"deleteZone",'','trash','ลบโซนที่เลือก','ลบโซนที่เลือก'):'')+rvSm(false,"manageZoneStatus",'','gear','จัดการสถานะ + สี')));
     body+=rvGrp('นำออก', rvBig(false,"exportProgressPdf",'','pdf','PDF อัพเดท','นำออกความคืบหน้าเทคอนกรีต'));
   }else if(rt==="view"){
@@ -5655,7 +5656,8 @@ function rvRibbonHtml(type, f, plan, plans, selM){
   }else{ // structure (หน้าแรก)
     body+=selBtn;
     body+=rvGrp('วาดชิ้นส่วน', drawBtns+rvCol(typeSel
-      +'<div class="rv-seg"><button data-act="setPlanMode" data-mode="unified" aria-pressed="'+(state.unified)+'" title="แสดงทุกชนิดบนแปลน">รวมทุกชนิด</button><button data-act="setPlanMode" data-mode="focus" aria-pressed="'+(!state.unified)+'" title="แสดงเฉพาะชนิดที่เลือก">เฉพาะ '+esc(TYPE_EN[type]||TYPES[type].label)+'</button></div>'));
+      +'<div class="rv-seg"><button data-act="setPlanMode" data-mode="unified" aria-pressed="'+(state.unified)+'" title="แสดงทุกชนิดบนแปลน">รวมทุกชนิด</button><button data-act="setPlanMode" data-mode="focus" aria-pressed="'+(!state.unified)+'" title="แสดงเฉพาะชนิดที่เลือก">เฉพาะ '+esc(TYPE_EN[type]||TYPES[type].label)+'</button></div>')
+      +rvCol(rvSm(!!state.snap,"toggleSnap",'','snap','สแนบเส้น','ดูดเข้าเส้น/จุดตัดของแปลนตอนวาด  (S)')));
     body+=rvGrp('', '<div class="rv-hintbox">'+(selM?'ชิ้นที่เลือกอยู่: <b>'+esc(selM.code)+'</b> — เครื่องมืออยู่ในแท็บ “แก้ไข · '+esc(selM.code)+'”':'เลือกรูปทรง → ลากบนแปลน → ใส่เบอร์<br>คลิกชิ้นส่วนบนแปลน แล้วแท็บ <b>แก้ไข</b> จะโผล่ขึ้น (ตรวจเหล็ก · รายละเอียด · ประเภท)')+'</div>');
   }
   var tabs='<button class="rv-tab rv-ftab'+(state.fileMenu?" on":"")+'" data-act="fileMenu" title="แปลน · นำออก · ข้อมูล">'+rvIc('folder',13)+'ไฟล์ ▾</button>'
