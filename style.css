@@ -1188,6 +1188,64 @@ html[data-theme="dark"] .dh-tip{background:linear-gradient(135deg,#1a2436,#141d2
 .fl-a b{font-size:.94rem;color:var(--text)}
 .fl-a small{display:block;color:var(--text-dim);font-size:.77rem;margin-top:1px}
 @media(max-width:640px){ .fl-grid{grid-template-columns:1fr} .fl-hero{flex-direction:column;align-items:flex-start} }
+/* ===== หน้าโครงการ (แบบ 2): หัวโครงการ + ตารางชั้น ===== */
+body.pj-mode main,body.pj-mode .hd-wrap{max-width:1040px}
+.pj-head svg.ic,.pj-table svg.ic,.pj-empty svg.ic,.pj-meta svg.ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.pj-head{display:flex;align-items:center;gap:18px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin-bottom:18px;flex-wrap:wrap}
+.pj-ring{flex:none}
+.pj-ht{flex:1;min-width:220px}
+.pj-title{font-size:1.35rem;font-weight:800;margin:0;line-height:1.15;color:var(--text)}
+.pj-meta{display:flex;flex-wrap:wrap;gap:4px 14px;color:var(--text-dim);font-size:.84rem;margin-top:6px}
+.pj-meta span{display:inline-flex;align-items:center;gap:4px}
+.pj-meta b{color:var(--text)}
+.pj-meta .bad,.pj-meta .bad b,.pj-last .bad{color:var(--fail)}
+.pj-acts{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.pj-acts .btn{margin:0;display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;font-size:.86rem}
+.pj-sec{display:flex;align-items:center;gap:8px;margin:0 2px 8px;font-weight:700;color:var(--text-dim);font-size:.9rem}
+.pj-sec .sp{flex:1}
+.pj-sec small{font-weight:400;font-size:.76rem}
+.pj-cnt{font-style:normal;background:var(--surface-2);border-radius:9px;padding:1px 8px;font-size:.74rem}
+.pj-table{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.pj-tr{display:grid;min-width:0;grid-template-columns:minmax(170px,1.2fr) minmax(150px,1fr) minmax(190px,1.1fr) minmax(150px,1fr) auto;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border)}
+.pj-tr:last-child{border-bottom:none}
+.pj-th{padding:9px 16px;background:var(--surface-2);font-size:.76rem;font-weight:700;color:var(--text-dim)}
+.pj-row{cursor:pointer;transition:background .12s}
+.pj-row:hover{background:var(--brand-bg)}
+.pj-row:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+.pj-fl{display:flex;align-items:center;gap:10px;min-width:0}
+.pj-ab{flex:none;width:36px;height:36px;border-radius:10px;background:var(--brand-bg);color:var(--brand);display:grid;place-items:center;font-style:normal;font-weight:800;font-size:.8rem}
+.pj-fl b{display:block;font-size:.98rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pj-fl small{display:block;color:var(--text-dim);font-size:.76rem;margin-top:1px}
+.pj-chips{display:flex;flex-wrap:wrap;gap:4px}
+.pj-chip{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:600;padding:3px 9px;border-radius:12px;background:var(--surface-2);color:var(--text);white-space:nowrap}
+.pj-chip i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.pj-prog{display:flex;align-items:center;gap:9px;min-width:0}
+.pj-prog .fl-bar{height:7px}
+.pj-prog b{font-size:.8rem;white-space:nowrap}
+.pj-last{font-size:.8rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pj-tr .muted{color:var(--text-dim);font-style:normal;opacity:.75}
+.pj-ra{display:flex;gap:4px;justify-content:flex-end}
+.pj-ra .btn{margin:0;height:32px;padding:0 12px;font-size:.8rem;font-weight:700;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;background:var(--surface);color:var(--brand);border:1px solid var(--border);box-shadow:none}
+.pj-ra .btn:hover{border-color:var(--brand);background:var(--brand-bg)}
+.pj-ra .btn.ic{width:32px;padding:0;justify-content:center;color:var(--text-dim)}
+.pj-empty{display:flex;align-items:center;gap:14px;padding:22px 20px;background:var(--surface);border:1px dashed var(--border-strong);border-radius:14px;color:var(--brand)}
+.pj-empty b{display:block;color:var(--text)}
+.pj-empty small{display:block;color:var(--text-dim);margin-top:2px}
+.pj-empty .btn{margin-left:auto;display:inline-flex;align-items:center;gap:6px}
+@media(max-width:760px){
+  .pj-head{padding:14px 16px;gap:12px}
+  .pj-ht{min-width:0}
+  .pj-tr>*{min-width:0}
+  .pj-prog b{white-space:normal}
+  .pj-acts{gap:6px}
+  .pj-acts .btn{flex:1 1 40%;min-width:0;padding:9px 4px;font-size:.78rem}
+  .pj-acts{margin-left:0;width:100%}
+  .pj-acts .btn{flex:1;justify-content:center;padding:9px 6px;font-size:.8rem}
+  .pj-th{display:none}
+  .pj-tr{grid-template-columns:1fr auto;grid-template-areas:"fl ra" "chips chips" "prog prog" "last last";gap:6px 8px;padding:12px 14px}
+  .pj-fl{grid-area:fl}.pj-ra{grid-area:ra}.pj-chips{grid-area:chips}.pj-prog{grid-area:prog}.pj-last{grid-area:last}
+  .pj-ra .btn:not(.ic){display:none}
+}
 
 /* ============================================================
    CATEGORIES PAGE (เปิดชั้น → แปลนรวม) — สะอาด ลดตัวหนังสือ

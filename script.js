@@ -1714,45 +1714,66 @@ function flBadge(f){
   var w=n.split(/\s+/);
   return (w.length>=2 ? (w[0][0]+w[1][0]) : n.slice(0,2)).toUpperCase();
 }
+/** ตรวจล่าสุดของชั้น (จากบันทึกการตรวจทุกชิ้นในชั้น) */
+function floorLastInspection(fid){
+  var ids={}; membersOfFloor(fid).forEach(function(m){ ids[m.id]=1; });
+  var found=null;
+  (DB.inspections||[]).forEach(function(r){ if((r.floorId===fid || ids[r.memberId]) && (!found || r.ts>found.ts)) found=r; });
+  return found;
+}
+/** ตัวย่อชั้นจากชื่อ (2 ตัว) — ระดับแสดงในบรรทัดเล็กแทน */
+function pjAb(f){ var nm=(f.name||"").trim(); if(!nm) return "—"; var num=nm.match(/\d+/); if(/[฀-๿]/.test(nm)) return num?num[0]:nm.charAt(0); var w=nm.split(/\s+/); return (w.length>=2 ? (w[0][0]+w[1][0]) : nm.slice(0,2)).toUpperCase(); }
+function pjDate(ts){ try{ return new Date(ts).toLocaleDateString('th-TH',{year:'2-digit',month:'short',day:'numeric'}); }catch(e){ return ""; } }
 function viewFloors(){
   var p=getProject(state.projectId);
   if(!p) return emptyBox('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>',"ไม่พบโครงการ","");
-  var fs=floorsOf(p.id), s=summarize(membersOfProject(p.id)), pct=flPct(s);
-  var R=39, C=Math.round(2*Math.PI*R), off=Math.round(C*(1-pct/100));
-  // ---- hero + วงแหวนความคืบหน้า ----
-  var h='<div class="fl-hero"><div class="fl-ht">'
-    +'<h1 class="fl-title">'+esc(p.name)+'</h1>'
-    +'<div class="fl-loc"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#fff" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> '
-    +(p.location?esc(p.location)+' · ':'')+fs.length+' ชั้น · '+s.total+' ชิ้นส่วน</div>'
-    +'<button class="fl-add" data-act="newFloor"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg> เพิ่มชั้น</button></div>'
-    +'<div class="fl-ring"><svg width="96" height="96" viewBox="0 0 96 96">'
-    +'<circle cx="48" cy="48" r="'+R+'" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="10"/>'
-    +'<circle cx="48" cy="48" r="'+R+'" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-dasharray="'+C+'" stroke-dashoffset="'+off+'" transform="rotate(-90 48 48)"/>'
-    +'<text x="48" y="45" text-anchor="middle" fill="#fff" font-size="19" font-weight="800">'+pct+'%</text>'
-    +'<text x="48" y="61" text-anchor="middle" fill="#fff" font-size="10" opacity=".85">ตรวจแล้ว</text></svg></div></div>';
-  // ---- การ์ดชั้น (2 คอลัมน์) ----
-  if(fs.length===0){
-    h+=emptyBox('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 8h.01M15 8h.01M9 12h.01M15 12h.01M9 16h6"/></svg>',"ยังไม่มีชั้นในโครงการนี้","กด “เพิ่มชั้น” เช่น ฐานราก, ชั้น 1, ชั้น 2");
-  }else{
-    h+='<div class="fl-grid">';
-    fs.forEach(function(f){
-      var ms=membersOfFloor(f.id), fs2=summarize(ms), fp=flPct(fs2);
-      var col=fs2.fail>0?'var(--fail)':((fp===100&&ms.length)?'var(--pass)':'var(--warn)');
-      var meta=ms.length+' ชิ้นส่วน'+(fs2.pass?' · ผ่าน '+fs2.pass:'')+(fs2.fail?' · ต้องแก้ '+fs2.fail:'')+(fs2.todo?' · ยังไม่ตรวจ '+fs2.todo:'');
-      h+='<button class="fl-card" data-act="openFloor" data-id="'+esc(f.id)+'">'
-        +'<div class="fl-top"><span class="fl-lvl">'+esc(flBadge(f))+'</span><span class="fl-fn">'+esc(f.name)+'</span></div>'
-        +'<div class="fl-meta">'+esc(meta)+'</div>'
-        +'<div class="fl-prog"><span class="fl-bar"><i style="width:'+Math.max(4,fp)+'%;background:'+col+'"></i></span><b style="color:'+col+'">'+fp+'%</b></div>'
-        +'</button>';
-    });
-    h+='</div>';
+  var fls=floorsOf(p.id), all=membersOfProject(p.id), s=summarize(all), pct=flPct(s);
+  var R=27, C=Math.round(2*Math.PI*R), off=Math.round(C*(1-pct/100));
+  var ringCol = s.fail>0 ? 'var(--fail)' : (pct===100&&s.total ? 'var(--pass)' : 'var(--brand)');
+  var lastAll=null; (DB.inspections||[]).forEach(function(r){ if(r.projectId===p.id && (!lastAll||r.ts>lastAll.ts)) lastAll=r; });
+  // ---- หัวโครงการ ----
+  var h='<div class="pj-head">'
+    +'<div class="pj-ring"><svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="'+R+'" fill="none" stroke="var(--surface-2)" stroke-width="7"/>'
+    +'<circle cx="32" cy="32" r="'+R+'" fill="none" stroke="'+ringCol+'" stroke-width="7" stroke-linecap="round" stroke-dasharray="'+C+'" stroke-dashoffset="'+off+'" transform="rotate(-90 32 32)"/>'
+    +'<text x="32" y="37" text-anchor="middle" fill="'+ringCol+'" font-size="15" font-weight="800">'+pct+'%</text></svg></div>'
+    +'<div class="pj-ht"><h1 class="pj-title">'+esc(p.name)+'</h1>'
+    +'<div class="pj-meta">'+(p.location?'<span>'+rvIc('home',13)+esc(p.location)+'</span>':'')
+      +'<span>'+fls.length+' ชั้น · '+s.total+' ชิ้นส่วน</span>'
+      +'<span>ตรวจแล้ว <b>'+(s.total-s.todo)+'</b> / '+s.total+'</span>'
+      +(s.fail?'<span class="bad">ไม่ผ่านค้าง <b>'+s.fail+'</b></span>':'')
+      +(lastAll?'<span>ล่าสุด '+esc(pjDate(lastAll.ts))+(lastAll.inspector?' · '+esc(lastAll.inspector):'')+'</span>':'')+'</div></div>'
+    +'<div class="pj-acts">'
+      +'<button class="btn soft" data-act="history" title="ผลตรวจทั้งหมดของโครงการ">'+rvIc('data',14)+' ประวัติทั้งโครงการ</button>'
+      +'<button class="btn soft" data-act="editProject" data-id="'+esc(p.id)+'" title="เปลี่ยนชื่อ / สถานที่ / ลบโครงการ">'+rvIc('edit',14)+' แก้ไขโครงการ</button>'
+      +'<button class="btn" data-act="newFloor">'+rvIc('plus',14)+' เพิ่มชั้น</button>'
+    +'</div></div>';
+  // ---- ตารางชั้น ----
+  h+='<div class="pj-sec"><span>ชั้น</span><i class="pj-cnt">'+fls.length+'</i><span class="sp"></span><small>เรียงจากชั้นล่างขึ้นบน · คลิกแถวเพื่อเปิดแปลน</small></div>';
+  if(!fls.length){
+    h+='<div class="pj-empty">'+rvIc('floor',22)+'<div><b>ยังไม่มีชั้น</b><small>กด “เพิ่มชั้น” แล้วนำเข้าแปลนของชั้นนั้น จากนั้นวาดคาน/เสา/พื้นบนแปลนได้เลย</small></div><button class="btn" data-act="newFloor">'+rvIc('plus',14)+' เพิ่มชั้น</button></div>';
+    return h;
   }
-  // ---- ปุ่มการทำงาน ----
-  h+='<div class="fl-act">'
-    +'<button class="fl-a" data-act="history"><span class="ic"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg></span><span><b>ประวัติการตรวจ</b><small>ผลตรวจทั้งหมดของโครงการ</small></span></button>'
-    +'<button class="fl-a" data-act="editProject" data-id="'+esc(p.id)+'"><span class="ic"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></span><span><b>แก้ไข / ลบโครงการ</b><small>เปลี่ยนชื่อหรือสถานที่</small></span></button>'
-    +'</div>';
-  return h;
+  h+='<div class="pj-table"><div class="pj-tr pj-th"><span>ชั้น</span><span>ชิ้นส่วน</span><span>ความคืบหน้า</span><span>ตรวจล่าสุด</span><span></span></div>';
+  fls.forEach(function(f){
+    var ms=membersOfFloor(f.id), fs2=summarize(ms), fp=flPct(fs2), lv=lvText(f.level), plans=floorPlans(f);
+    var col=fs2.fail>0?'var(--fail)':((fp===100&&ms.length)?'var(--pass)':'var(--warn)');
+    var chips=TYPE_ORDER.map(function(t){ var k=ms.filter(function(m){return m.type===t;}).length; return k?'<span class="pj-chip"><i style="background:var(--t-'+TYPES[t].css+')"></i>'+esc(TYPES[t].label)+' '+k+'</span>':''; }).join("");
+    var prog = !ms.length ? '<em class="muted">ยังไม่มีชิ้นส่วน</em>'
+      : '<span class="fl-bar"><i style="width:'+Math.max(4,fp)+'%;background:'+col+'"></i></span><b style="color:'+col+'">'+(fs2.total-fs2.todo)+' / '+fs2.total+(fs2.fail?' · ไม่ผ่าน '+fs2.fail:'')+'</b>';
+    var li=floorLastInspection(f.id);
+    var last = li ? esc(pjDate(li.ts))+(li.inspector?' · '+esc(li.inspector):'') : '<em class="muted">ยังไม่เคยตรวจ</em>';
+    if(fs2.fail) last+='<b class="bad"> · มีไม่ผ่านค้าง</b>';
+    h+='<div class="pj-tr pj-row" data-act="openFloor" data-id="'+esc(f.id)+'" role="button" tabindex="0">'
+      +'<span class="pj-fl"><i class="pj-ab">'+esc(pjAb(f))+'</i><span><b>'+esc(f.name)+'</b><small>'+(plans.length?'แปลน '+plans.length:'ยังไม่มีแปลน')+(lv?' · '+esc(lv):'')+'</small></span></span>'
+      +'<span class="pj-chips">'+(chips||'<em class="muted">—</em>')+'</span>'
+      +'<span class="pj-prog">'+prog+'</span>'
+      +'<span class="pj-last">'+last+'</span>'
+      +'<span class="pj-ra"><button class="btn sm" data-act="openFloor" data-id="'+esc(f.id)+'">เปิดแปลน ›</button>'
+        +'<button class="btn sm ic" data-act="floorHistory" data-id="'+esc(f.id)+'" title="ประวัติการตรวจของชั้นนี้">'+rvIc('data',14)+'</button>'
+        +'<button class="btn sm ic" data-act="editFloor" data-id="'+esc(f.id)+'" title="เปลี่ยนชื่อ / ระดับ / ลบชั้น">'+rvIc('more',14)+'</button></span>'
+      +'</div>';
+  });
+  return h+'</div>';
 }
 
 /* ---- หน้าจอ 3: ชิ้นส่วนในชั้น ---- */
@@ -3063,13 +3084,13 @@ function backTarget(){
     case "home":       return null;
     case "floors":     return "home";
     case "categories": return "floors";
-    case "planEditor": return "categories";
-    case "members":    return "categories";
+    case "planEditor": return "floors";
+    case "members":    return "floors";
     case "memberDetail": return "planEditor";
-    case "pickType":   return "categories";
+    case "pickType":   return "floors";
     case "memberForm": return state.editId ? "planEditor" : "planEditor";
     case "history":    return "floors";
-    case "data":       return state.floorId ? "categories" : (state.projectId ? "floors" : "home");
+    case "data":       return state.projectId ? "floors" : "home";
   }
   return "home";
 }
@@ -3098,7 +3119,7 @@ function go(screen, patch){
 function headerInfo(){
   var p=getProject(state.projectId), f=getFloor(state.floorId), m=getMember(state.memberId);
   switch(state.screen){
-    case "floors":     return [p?p.name:"โครงการ", p&&p.location?p.location:"เลือกชั้น"];
+    case "floors":     return [p?p.name:"โครงการ", "โครงการ · "+floorsOf(p?p.id:"").length+" ชั้น"];
     case "categories": return [f?f.name:"ชั้น", p?p.name:""];
     case "planEditor": return [state.planMode==="progress"?"ความคืบหน้าเทคอนกรีต":"แปลน · "+(TYPES[state.catType]?TYPES[state.catType].label:"หมวด"), (f?f.name:"")+(p?" · "+p.name:"")];
     case "members":    return [f?f.name:"ชั้น", p?p.name:""];
@@ -3131,7 +3152,8 @@ function render(){
   // เอดิเตอร์แปลนใช้พื้นที่กว้างกว่าหน้าอื่น เพื่อให้กรอบแปลนใหญ่ ดูชัด
   document.body.classList.toggle("editor-wide", state.screen==="planEditor" || state.screen==="memberDetail" || state.screen==="memberForm");
   document.body.classList.toggle("plan-mode", state.screen==="planEditor" || state.screen==="memberDetail");
-  document.body.classList.toggle("home-mode", state.screen==="home");   // ซ่อน header เดิม โชว์ dashboard เต็ม
+  document.body.classList.toggle("home-mode", state.screen==="home");
+  document.body.classList.toggle("pj-mode", state.screen==="floors");   // หน้าโครงการ: ตารางชั้นต้องการความกว้าง   // ซ่อน header เดิม โชว์ dashboard เต็ม
   document.body.classList.remove("auth-mode");   // เข้าแอปแล้ว → เลิกโหมด login
 
   var hi=headerInfo();
@@ -3242,7 +3264,14 @@ document.addEventListener("click",function(e){
     case "authSignup":  doAuth(true); break;
     case "authToggle":  state._authMode=(state._authMode==="signup"?"login":"signup"); renderLogin(); break;
     case "logout":      if(confirm("ออกจากระบบ?")){ try{ fbAuth.signOut(); }catch(e){} } break;
-    case "openFloor":   go("categories",{floorId:id, q:"", typeFilter:"all"}); break;
+    case "openFloor": {   // คลิกชั้น → เปิดแปลนรวมทันที (ไม่มีหน้า "หมวด" คั่นแล้ว)
+      var fOF=getFloor(id); if(!fOF) break;
+      var msOF=membersOfFloor(fOF.id), tOF=(msOF[0]&&msOF[0].type)||"beam";
+      go("planEditor",{floorId:fOF.id, catType:tOF, unified:true, hiddenTypes:{}, selMemberId:null, selZoneId:null, selAnnotId:null, selTypeId:null,
+                       planMode:"inspect", tool:"select", rightTab:"props", ribbonTab:"structure", answers:{}, photos:[], note:"", zoom:1, panX:0, panY:0});
+      break;
+    }
+    case "floorHistory": { var fFH=getFloor(id); go("history",{qh:fFH?fFH.name:""}); break; }
     case "openCategory":
       go("planEditor",{catType:el.getAttribute("data-type"), unified:false, selMemberId:null,
                        tool:"select", rightTab:"palette", answers:{}, photos:[], note:"",
@@ -3661,7 +3690,7 @@ document.addEventListener("click",function(e){
         saveDB(); closeSheet();
         var toPlan = (state.screen==="planEditor" || state.screen==="memberDetail");
         state.memberId=null; state.selMemberId=null;
-        navigate(toPlan ? "planEditor" : "categories");
+        navigate(toPlan ? "planEditor" : "floors");
         toast("ลบชิ้นส่วนแล้ว");
       }
       break;
