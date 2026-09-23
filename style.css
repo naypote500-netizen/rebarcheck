@@ -830,6 +830,37 @@ body.plan-mode main#app{padding:0;max-width:none;margin:0}
 .rv-hintbox{font-size:11px;color:#6b7684;line-height:1.45;max-width:260px;padding:6px 4px;align-self:center}
 .rv-hintbox b{color:#1d2229}
 .rv-pal-b>.rv-tree{flex:none;overflow:visible;padding:4px 0}
+/* ผังโครงการแบบ B — 2 ชั้น พับได้ */
+.rv-tree.tr{padding:0}
+.rv-tree>.tr-plan{display:flex;align-items:center;gap:8px;padding:7px 12px;background:#dceafc;color:#1b4f9c;font-weight:700;cursor:default}
+.rv-tree>.tr-plan svg{color:#1b4f9c}
+.rv-tree>.tr-plan small{margin-left:auto;font-weight:500;color:#6b7684;font-family:"JetBrains Mono",monospace;font-size:10.5px}
+.rv-tree>.tr-sec{display:flex;align-items:center;gap:2px;padding:0 6px 0 0;background:#f6f8fa;border-top:1px solid #e3e7ee;border-bottom:1px solid #e3e7ee;cursor:default}
+.tr-sech{flex:1;display:flex;align-items:center;gap:7px;padding:7px 10px;border:none;background:none;font:inherit;font-weight:700;font-size:11.5px;color:#1d2229;text-align:left;cursor:pointer;min-width:0}
+.tr-sech:hover{color:#1b4f9c}
+.tr-chev{display:inline-flex;color:#8a93a0;transition:transform .12s}
+.tr-sec.open .tr-chev{transform:rotate(90deg)}
+.tr-cnt{margin-left:auto;font-size:10.5px;font-weight:600;color:#6b7684;background:#e3e7ee;padding:1px 7px;border-radius:9px}
+.tr-plus{width:22px;height:22px;flex:none;border:none;background:none;color:#1b4f9c;cursor:pointer;border-radius:4px;display:grid;place-items:center;padding:0}
+.tr-plus:hover{background:#dceafc}
+.rv-tree>.tr-lab{display:flex;align-items:center;gap:6px;padding:7px 12px 3px;font-size:10.5px;font-weight:700;color:#8a93a0;cursor:default}
+.rv-tree>.tr-lab i{flex:1;height:1px;background:#e3e7ee;margin-left:4px}
+.rv-tree>.tr-lab .rv-tbtn{margin-left:2px;width:16px;height:16px;opacity:.55}
+.rv-tree>.tr-lab:hover .rv-tbtn{opacity:1}
+.rv-tree>.tr-lab.off{opacity:.5}
+.rv-tree>.tr-li{display:flex;align-items:center;gap:8px;width:100%;padding:5px 10px 5px 22px;border:none;background:none;font:inherit;font-size:11.5px;color:#1d2229;text-align:left;cursor:pointer;white-space:nowrap;min-height:26px}
+.rv-tree>.tr-li:hover{background:#f6f8fa}
+.rv-tree>.tr-li.on{background:#dceafc;box-shadow:inset 3px 0 0 #1b4f9c;color:#1b4f9c;font-weight:700}
+.rv-tree>.tr-li .tr-link{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:500;color:#8a93a0;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rv-tree>.tr-li .tr-link svg{color:#8a93a0}
+.rv-tree>.tr-li .rv-tbtn{margin-left:auto;opacity:0}
+.rv-tree>.tr-li:hover .rv-tbtn,.rv-tree>.tr-li.hid .rv-tbtn{opacity:1}
+.rv-tree>.tr-li em{margin-left:auto;color:#8a93a0;font-style:normal;font-size:10.5px;font-weight:500}
+.rv-tree>.tr-li.hid{opacity:.55}
+.rv-tree>.tr-li.hid .mono{text-decoration:line-through}
+.rv-tree>.tr-muted{padding:6px 22px 8px;color:#8a93a0;font-size:11px;line-height:1.45;white-space:normal;cursor:default}
+.m-sheet .rv-tree>.tr-li{padding:8px 10px 8px 18px;font-size:12.5px}
+.m-sheet .rv-tree>.tr-li .rv-tbtn{opacity:1}
 .rv-tab{border:1px solid transparent;border-bottom:none;background:none;font:inherit;font-size:12.5px;font-weight:600;color:#4a5665;padding:5px 14px;border-radius:4px 4px 0 0;cursor:pointer;white-space:nowrap}
 .rv-tab:hover{color:#1d2229;background:#e8edf3}
 .rv-tab.on{background:#f5f7fa;color:#1b4f9c;border-color:#c3cad3;margin-bottom:-1px;padding-bottom:6px}
