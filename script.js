@@ -5583,7 +5583,7 @@ function rvQatHtml(p,f,plan){
     +'</div>';
 }
 /* ---- ริบบอน: แท็บ + เนื้อหาตามแท็บ ---- */
-var RV_TABS=[["structure","โครงสร้าง"],["annot","หมายเหตุ"],["progress","เทคอนกรีต"],["view","มุมมอง"]];
+var RV_TABS=[["structure","โครงสร้าง"],["annot","หมายเหตุ"],["progress","อัพเดท"],["view","มุมมอง"]];
 /** เมนู "ไฟล์" (ปุ่มซ้ายสุดของแถบแท็บ) — แปลน / นำออก / ไปที่ */
 function rvFileMenuHtml(f, plan, plans){
   var it=function(act,attr,ic,label,dis){ return '<button class="rv-mi" data-act="'+act+'" '+(attr||'')+(dis?' disabled':'')+'>'+rvIc(ic,14)+'<span>'+esc(label)+'</span></button>'; };
