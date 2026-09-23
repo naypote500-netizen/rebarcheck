@@ -837,6 +837,8 @@ body.plan-mode main#app{padding:0;max-width:none;margin:0}
 .rv-sc.warn{background:#fff7e6;border-color:#f0c36d;color:#8a5a00}
 .rv-sc.warn b{color:#b45309}
 .rv-sc.warn:hover{border-color:#d69e2e}
+.plan-marquee{position:fixed;left:0;top:0;width:0;height:0;border:1.5px dashed #1b4f9c;background:rgba(27,79,156,.08);pointer-events:none;z-index:60}
+.rv-pal .pj-chip{font-family:"JetBrains Mono",monospace}
 .rv-hintbox b{color:#1d2229}
 .rv-pal-b>.rv-tree{flex:none;overflow:visible;padding:4px 0}
 /* ผังโครงการแบบ B — 2 ชั้น พับได้ */
