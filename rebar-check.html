@@ -1476,6 +1476,16 @@ body.auth-mode #tabbar,body.auth-mode #fab{display:none !important}
 .mrv .de-crop-btn{width:30px;height:30px;top:-15px;right:22px;font-size:14px}
 .mrv .de-move{display:none!important}
 .mrv .de-ghost{border-width:2px}
+/* จากรีวิว: แถบเมนูล่างเปล่าอย่าทับแถบล่างของแอป · toast ขึ้นเหนือแถบล่าง · ปุ่ม ＋/ป้าย/ตารางสี เลื่อนหนีแผงที่ย่อไว้ · ต้นไม้โครงการในแผงไม่ต้องสกรอลซ้อน · คำแนะนำวาดเป็นป้ายลอย */
+@media(max-width:760px){ .tabbar:empty{display:none} }
+body:has(.rv.mrv) #toast{bottom:calc(80px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(calc(100% + 120px));pointer-events:none;max-width:86vw;font-size:.86rem}
+body:has(.rv.mrv) #toast.show{transform:translateX(-50%) translateY(0)}
+.mrv .m-body:has(.m-sheet.min) .m-fab{bottom:68px}
+.mrv .m-body:has(.m-sheet.min) .m-pill{bottom:66px}
+.mrv .m-body:has(.m-sheet.min) .plan-legend{bottom:64px}
+.m-sheet .rv-br{max-height:none}
+.mrv .plan-tip{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;z-index:8;background:rgba(17,24,39,.78);color:#fff;border-radius:20px;padding:6px 12px;font-size:11.5px;line-height:1.35;max-width:88%;text-align:center;pointer-events:none}
+.mrv .plan-tip.zone{background:rgba(21,128,61,.85)}
 </style>
 
 <!-- ===== Firebase (คลาวด์: login + ฐานข้อมูลกลาง) ===== -->
@@ -4639,8 +4649,9 @@ function headerInfo(){
   return ["RebarCheck",""];
 }
 
+var _renderSeq=0;   // นับครั้งที่ render (มือถือใช้เช็กว่า act ได้ render ไปแล้วหรือยัง)
 function render(){
-  var html="";
+  _renderSeq++; var html="";
   switch(state.screen){
     case "home":       html=viewHome();       break;
     case "floors":     html=viewFloors();     break;
@@ -4960,6 +4971,7 @@ document.addEventListener("click",function(e){
     case "mSheet": {
       var _sh=el.getAttribute("data-sheet")||null;
       if(_sh==="zone" && state.planMode!=="progress"){ state.planMode="progress"; state.tool="select"; state.selMemberId=null; state.selAnnotId=null; state.showProgress=true; state.statusFilter=null; }
+      if(_sh==="draw" && state.planMode==="progress"){ state.planMode="inspect"; state.tool="select"; state.selZoneId=null; }
       state.mSheet=(state.mSheet===_sh)?null:_sh; state.mSheetMin=false; render(); break;
     }
     case "mSheetClose": {
@@ -4992,6 +5004,8 @@ document.addEventListener("click",function(e){
     case "zoomFit": planFit(); break;
     case "toggleRp": state.rpCollapsed=!state.rpCollapsed; render(); break;
     case "toggleProgress": state.showProgress=!state.showProgress; render(); break;
+    case "setSnap":     { var _sv=el.getAttribute("data-v")==="1"; if(state.snap!==_sv){ state.snap=_sv; render(); } break; }          // มือถือ: ปุ่มคู่ เปิด/ปิด
+    case "setProgress": { var _pv=el.getAttribute("data-v")==="1"; if(state.showProgress!==_pv){ state.showProgress=_pv; render(); } break; }
     case "drawZoneStart": { var _zs=el.getAttribute("data-shape"); if(_zs) state.zoneShape=_zs; state.tool="drawZone"; render(); break; }
     case "manageZoneStatus": dlgZoneStatus(); break;
     case "zsAddStatus": zsAddStatus(); break;
@@ -5012,13 +5026,12 @@ document.addEventListener("click",function(e){
     case "exportPdf": exportPlanPDF(); break;
     case "addPlan": {          // เพิ่มแปลนใหม่ → ตั้ง active เป็น id ใหม่ แล้วเปิดหน้าต่างเลือกไฟล์
       var fA=getFloor(state.floorId); if(!fA.planList) fA.planList=[];
-      fA.activePlanId="pl"+Date.now();     // id ใหม่ (ยังไม่ push จนกว่าจะนำเข้าสำเร็จใน storePlan)
-      state.zoom=1; state.panX=0; state.panY=0;
+      state.pendingPlanId="pl"+Date.now();   // id ใหม่ — ตั้งเป็น active ตอนนำเข้าสำเร็จใน storePlan เท่านั้น (ยกเลิกแล้วแปลนเดิมยังอยู่ครบ)
       var pfA=$("#planFile"); if(pfA) pfA.click();
       break;
     }
     case "switchPlan": {       // สลับไปแปลนที่เลือก
-      var fS=getFloor(state.floorId); fS.activePlanId=el.getAttribute("data-pid");
+      var fS=getFloor(state.floorId); fS.activePlanId=el.getAttribute("data-pid"); state.pendingPlanId=null;
       state.zoom=1; state.panX=0; state.panY=0; state.selMemberId=null;
       saveDB(); render(); break;
     }
@@ -5781,7 +5794,7 @@ function viewMemberDetail(){
     + '<div class="rv-main">'+deViewTabsHtml(sib,m,t)+'<div class="de-vp" id="deVp">'+(state.deLibOpen?deLibFlyHtml():'')+deSheetHtml(m)+'</div>'+deStatusHtml(m,t)+'</div></div></div>';
 }
 /** เปิดหน้ารายละเอียดของชิ้นที่เลือกอยู่ — รีเซ็ตซูม (พอดีจอ) และการเลือก */
-function deOpen(){ state.deZoom=null; state.deSel=null; state.deSelMulti=[]; state.deLibOpen=false; state.deTool="select"; state.deCrop=null; state.mSheet=null; state.mSheetMin=false; go("memberDetail"); }
+function deOpen(){ state.deZoom=null; state.deScroll=null; state.deSel=null; state.deSelMulti=[]; state.deLibOpen=false; state.deTool="select"; state.deCrop=null; state.mSheet=null; state.mSheetMin=false; go("memberDetail"); }
 
 /** แผ่นรายละเอียด (เปิดจากปุ่ม "รายละเอียด") — หน้าตัดทั้งหมด + ช่วงคาน */
 function detailsSheetHtml(m){
@@ -6571,7 +6584,7 @@ function bindDetailEditor(){
   /** มือถือ: แผงคุณสมบัติเปิด/ปิดตามการเลือก โดยไม่ต้อง render ทั้งหน้า */
   function mSyncPropsSheet(){
     var ps=root.querySelector('.m-sheet.props'); if(!ps) return;
-    var e=deSelEl(); ps.classList.toggle('open', !!e && !state.mSheet); if(!e) ps.classList.remove('min');
+    var e=deSelEl(); ps.classList.toggle('open', !!e && !state.mSheet); if(!e){ ps.classList.remove('min'); state.mSheetMin=false; }
     var hb=ps.querySelector('.m-sh b'); if(hb&&e) hb.textContent=deTypeLabel(e);
   }
   function selIds(){ var a=(state.deSelMulti||[]).slice(); if(state.deSel && a.indexOf(state.deSel)<0) a.push(state.deSel); return a; }
@@ -6595,13 +6608,15 @@ function bindDetailEditor(){
   }
   function zoomFit(){ var pw=+canvas.getAttribute('data-pw')||1123, mg=(wrap.offsetLeft||24)*2+4; applyZoom(Math.max(0.15,(vp.clientWidth-mg)/pw)); vp.scrollLeft=0; }
   if(state.deZoom==null && vp.clientWidth>0) zoomFit();
+  else if(state.deScroll){ vp.scrollLeft=state.deScroll[0]; vp.scrollTop=state.deScroll[1]; }   // render ใหม่ → กลับไปตำแหน่งเดิม
+  vp.addEventListener('scroll',function(){ state.deScroll=[vp.scrollLeft,vp.scrollTop]; },{passive:true});
   vp.addEventListener('wheel',function(e){
     if(!(e.ctrlKey||e.metaKey)) return;
     e.preventDefault(); var r=vp.getBoundingClientRect();
     applyZoom(deZ()*(e.deltaY<0?1.12:1/1.12), e.clientX-r.left, e.clientY-r.top);
   },{passive:false});
   var tpts={};   // นิ้วถ่างซูม (2 นิ้ว)
-  vp.addEventListener('pointerdown',function(e){ if(e.pointerType==='touch') tpts[e.pointerId]=[e.clientX,e.clientY]; });
+  vp.addEventListener('pointerdown',function(e){ if(e.pointerType==='touch') tpts[e.pointerId]=[e.clientX,e.clientY]; },true);   // capture: ต้องจดก่อน pointerdown ของ #deCanvas
   vp.addEventListener('pointermove',function(e){
     if(e.pointerType!=='touch'||!tpts[e.pointerId]) return;
     var ids=Object.keys(tpts);
@@ -6612,7 +6627,7 @@ function bindDetailEditor(){
       if(d0>0 && Math.abs(d1-d0)>1) applyZoom(deZ()*(d1/d0), (a[0]+b[0])/2-r.left, (a[1]+b[1])/2-r.top);
     }else tpts[e.pointerId]=[e.clientX,e.clientY];
   });
-  ['pointerup','pointercancel'].forEach(function(ev){ vp.addEventListener(ev,function(e){ delete tpts[e.pointerId]; }); });
+  ['pointerup','pointercancel'].forEach(function(ev){ vp.addEventListener(ev,function(e){ delete tpts[e.pointerId]; },true); });
   /** จุดกึ่งกลางของส่วนที่มองเห็น ในพิกัดแผ่น */
   function visCenter(){ var z=deZ(); return { x:(vp.scrollLeft+vp.clientWidth/2-wrap.offsetLeft)/z, y:(vp.scrollTop+vp.clientHeight/2-wrap.offsetTop)/z }; }
   /** พิกัดแผ่นจาก pointer event */
@@ -6751,18 +6766,18 @@ function bindDetailEditor(){
     if(act==='msheet'){ deCommitEditable(); var sh0=b.getAttribute('data-sheet')||null; state.mSheet=(sh0&&state.mSheet!==sh0)?sh0:null; state.mSheetMin=false; render(); return; }
     if(act==='msheetclose'){ deCommitEditable(); if(state.mSheet) state.mSheet=null; else { state.deSel=null; state.deSelMulti=[]; } state.mSheetMin=false; render(); return; }
     if(act==='msheettoggle'){ if(state.mSheet) state.mSheet=null; else state.mSheetMin=!state.mSheetMin; render(); return; }
-    var inSheet=!!b.closest('.m-sheet');
-    if(inSheet && state.mSheet && MDE_CLOSE[act]) state.mSheet=null;   // เลือกแล้วไปทำต่อบนแผ่น → ปิดแผง (act ด้านล่างจะ render เอง)
+    var inSheet=!!b.closest('.m-sheet'), fromBar=!!b.closest('.m-bar');
+    if((inSheet||fromBar) && state.mSheet && MDE_CLOSE[act]){ state.mSheet=null; state.mSheetMin=false; }   // เลือกแล้วไปทำต่อบนแผ่น → ปิดแผง (act ด้านล่างจะ render เอง)
     if(inSheet && (act==='file'||act==='cam')){ deCommitEditable(); render(); var inp=$(act==='file'?'#deFile':'#deCam'); if(inp) inp.click(); return; }
     if(act==='detab'){ state.deTab=b.getAttribute('data-tab'); render(); return; }
-    if(act==='tool'){ var tl=b.getAttribute('data-tool')||'select'; state.deTool=(state.deTool===tl&&tl!=='select')?'select':tl; state.deLibOpen=false; if(state.deTool!=='select'){ deCommitEditable(); state.deSel=null; state.deSelMulti=[]; } render(); return; }
+    if(act==='tool'){ var tl=b.getAttribute('data-tool')||'select'; state.deTool=(state.deTool===tl&&tl!=='select')?'select':tl; state.deLibOpen=false; if(state.deTool!=='select'){ deCommitEditable(); if(isMobile()){ state.deSel=null; state.deSelMulti=[]; } } render(); return; }
     if(act==='libcat'){ state.deLibCat=b.getAttribute('data-cat')||'shapes'; render(); return; }
     if(act==='shapes'){ state.deLibOpen=!state.deLibOpen; render(); return; }
     if(act==='undo'){ deCommitEditable(); deUndo(); return; }
     if(act==='redo'){ deCommitEditable(); deRedo(); return; }
     if(act==='exportpdf'){ deCommitEditable(); deExportPDF(); return; }
     if(act==='inspect'){ deCommitEditable(); state.selMemberId=_mid; state.rpCollapsed=false; go("planEditor",{rightTab:"inspect"}); return; }
-    if(act==='switchmember'){ deCommitEditable(); var sid=b.getAttribute('data-id'); if(sid && sid!==_mid){ state.memberId=sid; state.selMemberId=sid; state.deSel=null; state.deSelMulti=[]; render(); } return; }
+    if(act==='switchmember'){ deCommitEditable(); var sid=b.getAttribute('data-id'); if(sid && sid!==_mid){ state.memberId=sid; state.selMemberId=sid; state.deSel=null; state.deSelMulti=[]; state.deScroll=null; render(); } return; }
     if(act==='zoomin'){ applyZoom(deZ()*1.25); return; }
     if(act==='zoomout'){ applyZoom(deZ()/1.25); return; }
     if(act==='zoomfit'){ zoomFit(); return; }
@@ -6849,8 +6864,15 @@ function bindDetailEditor(){
   canvas.addEventListener('blur',function(e){ if(e.target.isContentEditable) saveDB(); },true);
   // ---- drag / resize / crop / วาดหมายเหตุ (pointer · หาร zoom) ----
   var drag=null;
+  /** นิ้วที่สองแตะลง = ถ่างซูม → ยกเลิกการลากของนิ้วแรก (คืนตำแหน่ง/ลบเส้นร่าง) */
+  function cancelDrag(){
+    if(!drag) return; var d=drag; drag=null;
+    if(d.ghost && d.ghost.parentNode) d.ghost.parentNode.removeChild(d.ghost);
+    if(d.mode==='move'){ (d.grp||[{el:d.elm,x:d.ox,y:d.oy}]).forEach(function(g){ g.el.x=g.x; g.el.y=g.y; var dm=domOf(g.el.id); if(dm){ dm.style.left=g.x+'px'; dm.style.top=g.y+'px'; } }); dePositionProps(); }
+    else if(d.mode==='resize' && d.elm){ var r=d.elm; r.x=d.ox; r.y=d.oy; r.w=d.ow; if(r.h!=null) r.h=d.oh; var rd=domOf(r.id); if(rd){ rd.style.left=r.x+'px'; rd.style.top=r.y+'px'; rd.style.width=r.w+'px'; if(r.h!=null) rd.style.height=r.h+'px'; } dePositionProps(); }
+  }
   canvas.addEventListener('pointerdown',function(e){
-    if(e.pointerType==='touch' && Object.keys(tpts).length>1) return;   // กำลังถ่างซูม
+    if(e.pointerType==='touch' && Object.keys(tpts).length>1){ cancelDrag(); return; }   // กำลังถ่างซูม
     var b=e.target.closest('[data-de]'), elDiv=e.target.closest('.de-el');
     // เครื่องมือวาดหมายเหตุ — เริ่มลากบนพื้นแผ่น (หรือทับสิ่งอื่นก็ได้)
     if(state.deTool!=='select' && !(b && elDiv)){
@@ -6874,7 +6896,7 @@ function bindDetailEditor(){
       else if(act==='crophandle'||act==='cropmove'){ var im=elDiv.querySelector('.de-img'); drag={mode:act,elm:elm,cropDiv:elDiv.querySelector('.de-crop'),corner:b.getAttribute('data-corner'),sx:e.clientX,sy:e.clientY,box:im.getBoundingClientRect(),c0:Object.assign({},elm._crop)}; }
       if(drag){ try{canvas.setPointerCapture(e.pointerId);}catch(x){} e.preventDefault(); return; }
     }
-    if(!elDiv && !b && state.deTool==='select'){   // ลากพื้นว่าง = เลื่อนแผ่น (เมาส์/นิ้ว) · แตะเฉย ๆ = เลิกเลือก
+    if(!elDiv && !b && state.deTool==='select' && (e.pointerType==='touch' || isMobile())){   // ลากพื้นว่าง = เลื่อนแผ่น (นิ้ว/มือถือ) · แตะเฉย ๆ = เลิกเลือก — คอม/เมาส์ทำงานเหมือนเดิม
       var ae0=document.activeElement; if(ae0 && ae0.isContentEditable){ try{ ae0.blur(); }catch(x){} }
       drag={mode:'pan',sx:e.clientX,sy:e.clientY,sl:vp.scrollLeft,st:vp.scrollTop,pt:e.pointerType};
       try{canvas.setPointerCapture(e.pointerId);}catch(x){} e.preventDefault(); return;
@@ -7031,7 +7053,8 @@ var RV_IC={
   backz:'<rect x="3" y="3" width="13" height="13" rx="1"/><path d="M8 21h13V8"/>',
   stamp:'<path d="M9 3h6l-1 8h4a2 2 0 0 1 2 2v3H4v-3a2 2 0 0 1 2-2h4z"/><path d="M5 21h14"/>',
   pen:'<path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/>',
-  hilite:'<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>'
+  hilite:'<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>',
+  palette:'<path d="M12 21a9 9 0 1 1 0-18c4.97 0 9 3.58 9 8a4 4 0 0 1-4 4h-1.5a1.5 1.5 0 0 0-1 2.6c.3.3.5.7.5 1.1A1.3 1.3 0 0 1 13.7 21z"/><circle cx="7.5" cy="12" r="1.2" fill="currentColor"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor"/><circle cx="17.5" cy="11.5" r="1.2" fill="currentColor"/>'
 };
 function rvIc(n,sz){ return '<svg class="ic" viewBox="0 0 24 24" style="width:'+(sz||16)+'px;height:'+(sz||16)+'px">'+RV_IC[n]+'</svg>'; }
 /* ปุ่มริบบอน: ใหญ่ (ไอคอนบน ป้ายล่าง) / เล็ก (ไอคอนซ้าย ป้ายขวา) */
@@ -7485,7 +7508,7 @@ function mPlanSheetHtml(f,type,p,plan,plans,selM,prog){
     if(dk==="rect") b+=mG("setShape",'data-shape="rect"','rect','สี่เหลี่ยม','',0,isD("rect"))+mG("setShape",'data-shape="poly"','poly','หลายเหลี่ยม','',0,isD("poly"))+mG("setShape",'data-shape="oval"','oval','วงรี','',0,isD("oval"));
     else b+=mG("setShape",'data-shape="rect"',dk==="point"?'point':'line',dk==="point"?'วางจุด':'วาดแนว','',0,state.tool==="draw");
     b+=mG("mTool",'data-tool="select"','sel','เลิกวาด (เลือก)','',0,state.tool==="select")+'</div>';
-    b+='<div class="m-row"><span>สแนบเส้น</span>'+mSeg([["toggleSnap","","เปิด",state.snap],["toggleSnap","","ปิด",!state.snap]])+'</div>';
+    b+='<div class="m-row"><span>สแนบเส้น</span>'+mSeg([["setSnap",'data-v="1"',"เปิด",state.snap],["setSnap",'data-v="0"',"ปิด",!state.snap]])+'</div>';
     b+='<div class="m-row"><span>แสดง</span>'+mSeg([["setPlanMode",'data-mode="unified"',"รวมทุกชนิด",state.unified],["setPlanMode",'data-mode="focus"',"เฉพาะ"+TYPES[type].label,!state.unified]])+'</div>';
     b+='<div class="m-note">วาดเสร็จจะถามเบอร์ — ถ้าใส่เบอร์ซ้ำกับตัวที่มีอยู่ จะใช้ข้อมูลและประเภทเดียวกันให้อัตโนมัติ</div>';
     return mSheetWrap('draw','<b>วาดชิ้นส่วน</b>', b, {dim:true});
@@ -7501,7 +7524,7 @@ function mPlanSheetHtml(f,type,p,plan,plans,selM,prog){
       +mG("manageZoneStatus",'','gear','สถานะ + สี')+mG("exportProgressPdf",'','pdf','PDF อัพเดท')+'</div>';
     b3+='<div class="m-sec">โซนบนแปลนนี้ ('+zones.length+')</div>';
     zoneStatuses(f.id,_pid).forEach(function(st){ b3+='<div class="m-row"><span><i class="rv-zdot sm" style="background:'+st.color+'"></i>'+esc(st.label)+'</span><b>'+(cnt[st.id]||0)+' โซน</b></div>'; });
-    b3+='<div class="m-row"><span>แสดงโซน</span>'+mSeg([["toggleProgress","","แสดง",state.showProgress],["toggleProgress","","ซ่อน",!state.showProgress]])+'</div>';
+    b3+='<div class="m-row"><span>แสดงโซน</span>'+mSeg([["setProgress",'data-v="1"',"แสดง",state.showProgress],["setProgress",'data-v="0"',"ซ่อน",!state.showProgress]])+'</div>';
     b3+='<div class="m-acts"><button class="btn soft" data-act="mExitProgress">‹ กลับโหมดตรวจเหล็ก</button></div>';
     return mSheetWrap('zone','<b>เทคอนกรีต</b><span class="m-note" style="padding:0 0 0 6px">แตะโซนบนแปลนเพื่อแก้ชื่อ/สถานะ</span>', b3, {dim:true});
   }
@@ -7718,14 +7741,15 @@ function bindPlanEditor(){
   var pf=$("#planFile");
   if(pf) pf.addEventListener("change",function(e){
     var file=e.target.files && e.target.files[0];
-    if(!file){ planLog("ไม่ได้เลือกไฟล์ (ยกเลิก)"); return; }
+    if(!file){ state.pendingPlanId=null; planLog("ไม่ได้เลือกไฟล์ (ยกเลิก)"); return; }
     planLog("เลือกไฟล์: "+file.name+" · "+(file.type||"ไม่ทราบชนิด")+" · "+Math.round(file.size/1024)+" KB");
     importPlan(file);
     e.target.value="";
   });
   // ปุ่มนำเข้า: เปิดหน้าต่างเลือกไฟล์ + log ให้รู้ว่าคลิกติด
   var pb=$("#btnPickPlan");
-  if(pb) pb.addEventListener("click",function(){ planLog("กดปุ่มนำเข้าแปลน — เปิดหน้าต่างเลือกไฟล์"); if(pf) pf.click(); });
+  if(pb) pb.addEventListener("click",function(){ state.pendingPlanId=null; planLog("กดปุ่มนำเข้าแปลน — เปิดหน้าต่างเลือกไฟล์"); if(pf) pf.click(); });   // เปลี่ยนรูปของแปลนเดิม (ไม่ใช่แปลนใหม่)
+  if(pf) pf.addEventListener("cancel",function(){ state.pendingPlanId=null; });
 
   // เส้นแบ่งลากได้ — ปรับความกว้างพาเนลขวา (ลากซ้าย=พาเนลกว้างขึ้น, ลากขวา=แปลนกว้างขึ้น)
   var sp=$("#rpSplitter"), grid=$("#editorGrid");
@@ -7811,12 +7835,14 @@ function bindPlanEditor(){
   if(psq) psq.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); planSearch(psq.value); } });
   // มือถือ: ปุ่มในแผงเครื่องมือที่ "เลือกแล้วไปทำต่อบนแปลน" → ปิดแผงก่อนให้ act ทำงาน (capture มาก่อน dispatcher ที่ document)
   var MCLOSE={setShape:1,drawCalloutStart:1,drawDimStart:1,drawZoneStart:1,switchPlan:1,browserSelect:1,selectZone:1,typeSelect:1,goInspect:1,showDetails:1,editMember:1,addInCat:1,qatData:1,back:1,exportPdf:1,exportProgressPdf:1,addPlan:1,removePlan:1,manageZoneStatus:1,typeAssignSheet:1,assignSheet:1,dupMember:1,delMember:1,typeManage:1,typeOpenDetail:1,deleteZone:1,mExitProgress:1};
-  var NORENDER={exportPdf:1,exportProgressPdf:1,addPlan:1,manageZoneStatus:1,typeAssignSheet:1,assignSheet:1};
+  var MDRAW={setShape:1,drawCalloutStart:1,drawDimStart:1,drawZoneStart:1};   // เริ่มเครื่องมือวาด → เลิกเลือกของเดิมด้วย (ไม่งั้นแผงของชิ้นที่เลือกเด้งกลับมาทับแปลน)
   $$(".m-sheet").forEach(function(ms){ ms.addEventListener("click",function(e){
     var a=e.target.closest("[data-act]"); if(!a||a.disabled) return; var ac=a.getAttribute("data-act");
     if(!MCLOSE[ac] || !state.mSheet) return;
     state.mSheet=null; state.mSheetMin=false;
-    if(NORENDER[ac]) setTimeout(function(){ if(state.screen==="planEditor") render(); },0);
+    if(MDRAW[ac]){ state.selMemberId=null; state.selZoneId=null; state.selAnnotId=null; state.selTypeId=null; }
+    var seq=_renderSeq;   // ถ้า act ไม่ได้ render เอง (ยกเลิก confirm / เปิดหน้าต่างเลือกไฟล์ / ออก PDF) → render ให้ เพื่อปิดแผง
+    setTimeout(function(){ if(state.screen==="planEditor" && _renderSeq===seq) render(); },0);
   },true); });
   if(state.mSheet==="search" && psq) setTimeout(function(){ try{ psq.focus(); }catch(e){} },60);
   var pbm=$(".m-sheet #btnPickPlan"); if(pbm) pbm.addEventListener("click",function(){ state.mSheet=null; setTimeout(function(){ if(state.screen==="planEditor") render(); },0); });
@@ -8161,7 +8187,7 @@ function bindPlanEditor(){
       if(amv){
         var wasA=amv.moved, aid=amv.aid; amv=null;
         if(wasA){ plCommitPend(); saveDB(); return; }
-        state.selAnnotId=aid; state.selMemberId=null; state.selZoneId=null; state.ribbonTab="annot"; render();   // แค่แตะ → เลือก + เปิดแผงรูปแบบ
+        state.selAnnotId=aid; state.selMemberId=null; state.selZoneId=null; state.ribbonTab="annot"; state.mSheet=null; state.mSheetMin=false; render();   // แค่แตะ → เลือก + เปิดแผงรูปแบบ
         return;
       }
       if(lsz){ lsz=null; plCommitPend(); saveDB(); return; }
@@ -8185,7 +8211,7 @@ function bindPlanEditor(){
       if(!ps) return;
       var wasMoved=moved; ps=null;
       if(wasMoved){ scheduleEnsure(); return; }    // ลากที่ว่าง = เลื่อนภาพ → เรนเดอร์ส่วนที่เห็นใหม่ให้คม
-      if(state.selMemberId||state.selZoneId||state.selAnnotId){ state.selMemberId=null; state.selZoneId=null; state.selAnnotId=null; render(); }   // แตะที่ว่าง = เลิกเลือก
+      if(state.selMemberId||state.selZoneId||state.selAnnotId){ state.selMemberId=null; state.selZoneId=null; state.selAnnotId=null; state.mSheet=null; state.mSheetMin=false; render(); }   // แตะที่ว่าง = เลิกเลือก
     }
     return;
   }
@@ -9437,7 +9463,7 @@ function storePlan(src, w, hh, kind){
   var f=getFloor(state.floorId);
   if(!f.planList) f.planList=[];
   try{ if(f.plan) delete f.plan; if(f.plans) delete f.plans; }catch(e){}   // ล้างของเก่า
-  var id=f.activePlanId||"_main"; f.activePlanId=id;
+  var id=state.pendingPlanId||f.activePlanId||"_main"; state.pendingPlanId=null; f.activePlanId=id;
   var entry=f.planList.filter(function(p){return p.id===id;})[0];
   var backup=entry?JSON.parse(JSON.stringify(entry)):null;
   if(entry){ entry.src=src; entry.w=w; entry.h=hh; entry.kind=kind||"img"; }
