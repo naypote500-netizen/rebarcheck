@@ -7297,12 +7297,13 @@ function rvRibbonHtml(type, f, plan, plans, selM){
     body+=rvGrp('ซูม', rvBig(false,"zoomFit",'','fit','พอดีจอ','ซูมพอดีจอ  (0)')+rvCol(rvSm(false,"zoomIn",'','zin','ซูมเข้า','(+)')+rvSm(false,"zoomOut",'','zout','ซูมออก','(−)')));
     body+=rvGrp('ค้นหา', rvBig(false,"focusSearch",'','search','ค้นหาเบอร์','Ctrl+F'));
     body+=rvGrp('พาเนล', rvCol(rvSm(!state.rpCollapsed,"toggleRp",'','panel','พาเนลซ้าย','แสดง/ซ่อนพาเนลซ้าย')+rvSm(false,"setPalette",'data-tab="tree"','folder','ผังโครงการ','เปิดแท็บผังโครงการในพาเนลซ้าย')));
-    body+=rvGrp('', '<div class="rv-hintbox">สแนบ · ป้ายเบอร์ · ตารางสี · โซนเท และตัวกรองสถานะ อยู่ที่แถบล่างของหน้าจอ</div>');
+    body+=rvGrp('แสดงบนแปลน', rvCol2(rvSm(!!state.showLabels,"toggleLabels",'','tag','ป้ายเบอร์','แสดง/ซ่อนป้ายเบอร์บนแปลน')+rvSm(!!state.showLegend,"toggleLegend",'','grid','ตารางสี')+rvSm(!!state.snap,"toggleSnap",'','snap','สแนบเส้น','(S)')+rvSm(!!state.showProgress,"toggleProgress",'','zone','โซนเท','แสดงโซนเทคอนกรีตบนแปลน')));
   }else{ // structure (หน้าแรก)
     body+=selBtn;
     body+=rvGrp('วาดชิ้นส่วน', drawBtns+rvCol(typeSel
       +'<div class="rv-seg"><button data-act="setPlanMode" data-mode="unified" aria-pressed="'+(state.unified)+'" title="แสดงทุกชนิดบนแปลน">รวมทุกชนิด</button><button data-act="setPlanMode" data-mode="focus" aria-pressed="'+(!state.unified)+'" title="แสดงเฉพาะชนิดที่เลือก">เฉพาะ '+esc(TYPE_EN[type]||TYPES[type].label)+'</button></div>')
-      +rvCol(rvSm(!!state.snap,"toggleSnap",'','snap','สแนบเส้น','ดูดเข้าเส้น/จุดตัดของแปลนตอนวาด  (S)')));
+      +rvCol(rvSm(!!state.snap,"toggleSnap",'','snap','สแนบเส้น','ดูดเข้าเส้น/จุดตัดของแปลนตอนวาด  (S)')+rvSm(!!state.showLabels,"toggleLabels",'','tag','ป้ายเบอร์','แสดง/ซ่อนป้ายเบอร์บนแปลน'))
+      +rvCol(rvSm(!!state.showLegend,"toggleLegend",'','grid','ตารางสี')+rvSm(!!state.showProgress,"toggleProgress",'','zone','โซนเท','แสดงโซนเทคอนกรีตบนแปลน')));
     body+=rvGrp('', '<div class="rv-hintbox">'+(selM?'ชิ้นที่เลือกอยู่: <b>'+esc(selM.code)+'</b> — เครื่องมืออยู่ในแท็บ “แก้ไข · '+esc(selM.code)+'”':'เลือกรูปทรง → ลากบนแปลน → ใส่เบอร์<br>คลิกชิ้นส่วนบนแปลน แล้วแท็บ <b>แก้ไข</b> จะโผล่ขึ้น (ตรวจเหล็ก · รายละเอียด · ประเภท)')+'</div>');
   }
   var tabs='<button class="rv-tab rv-ftab'+(state.fileMenu?" on":"")+'" data-act="fileMenu" title="แปลน · นำออก · ข้อมูล">'+rvIc('folder',13)+'ไฟล์ ▾</button>'
@@ -8790,6 +8791,11 @@ function planSourceKey(){
   var f=getFloor(state.floorId), a=f&&f.activePlanId;
   return (a && a!=="_main") ? state.floorId+":"+a : state.floorId;
 }
+/** key สำหรับ "ไฟล์ที่กำลังนำเข้า" — ถ้ากำลังเพิ่มแปลนใหม่ (pendingPlanId) ต้องใช้ id ใหม่ ไม่ใช่แปลนที่เปิดอยู่ ไม่งั้นไฟล์ใหม่จะไปทับแปลนเดิม */
+function planImportKey(){
+  var f=getFloor(state.floorId), a=state.pendingPlanId||(f&&f.activePlanId);
+  return (a && a!=="_main") ? state.floorId+":"+a : state.floorId;
+}
 /** รายการแปลนของชั้น (คืนอาเรย์เสมอ) — รองรับข้อมูลเก่า f.plan / f.plans */
 function floorPlans(f){
   if(!f) return [];
@@ -9677,7 +9683,7 @@ function importPlan(file){
       var ctx=cv.getContext("2d"); ctx.fillStyle="#fff"; ctx.fillRect(0,0,w,hh);
       ctx.drawImage(img,0,0,w,hh);
       var src; try{ src=cv.toDataURL("image/jpeg",0.85); }catch(e){ setPlanBusy(null); toast("แปลงรูปไม่สำเร็จ",true); return; }
-      var key=planSourceKey();
+      var key=planImportKey();
       // เก็บต้นฉบับความละเอียดเต็มลง IDB + cache ไว้แสดงแบบคมสุด
       idbPut(key, {kind:"img", bytes:buf}).catch(function(){});
       var url=URL.createObjectURL(new Blob([buf]));
@@ -9769,7 +9775,7 @@ function importPdf(file){
         setPlanStatus("กำลังเรนเดอร์แปลน (อาจใช้เวลาสักครู่)...", "busy");
         pdf.getPage(pageNo).then(function(page){
           planLog("ได้หน้า "+pageNo+" → เริ่มเรนเดอร์เป็นภาพ");
-          var key=planSourceKey();
+          var key=planImportKey();
           PLAN_DOCS[key]={kind:"pdf", page:page, pageNo:pageNo};   // cache สำหรับ deep-zoom
           idbPut(key, {kind:"pdf", bytes:buf, pageNo:pageNo}).catch(function(){});
           extractPdfSegments(page).then(function(sg){ attachSnap(PLAN_DOCS[key], sg); });   // ดึงเส้นสำหรับสแนบ
