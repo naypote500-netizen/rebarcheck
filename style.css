@@ -1343,3 +1343,56 @@ body.auth-mode #tabbar,body.auth-mode #fab{display:none !important}
 .type-banner{display:flex;align-items:center;gap:8px;margin:10px 0 0;padding:9px 12px;background:#e7f0fd;border:1px solid #b9d0f0;border-radius:var(--radius-sm);font-size:.85rem;line-height:1.45;color:#1b3f7a}
 .type-banner .btn{padding:5px 10px;font-size:.8rem}
 .type-pill{display:inline-block;padding:0 7px;border-radius:9px;color:#fff;font-size:.72rem;font-weight:700;vertical-align:1px}
+
+/* ===== หน้ารายละเอียด — เลย์เอาต์ Revit (แผ่นกระดาษซูมได้ + หัวกระดาษ + พาเนลซ้าย) ===== */
+.de-rv .rv-side{width:var(--rp-w,252px)}
+.de-vp{flex:1;min-height:0;overflow:auto;position:relative;background:#8e97a3;scrollbar-width:thin}
+.de-sheetwrap{position:relative;margin:24px;flex:none}
+.de-rv .de-canvas{flex:none;min-height:0;overflow:visible;position:absolute;left:0;top:0;transform-origin:0 0;background:#fff;box-shadow:0 2px 18px rgba(0,0,0,.42);touch-action:none}
+.de-rv .de-hint{position:absolute;inset:0;font-size:15px;color:#94a3b8}
+.de-pbreak{position:absolute;left:0;right:0;height:0;border-top:1px dashed #94a3b8;z-index:0;pointer-events:none}
+.de-pbreak span{position:absolute;right:6px;top:2px;font-size:9px;color:#94a3b8}
+.de-title{position:absolute;left:0;right:0;height:44px;border-top:1.5px solid #1d2229;display:grid;grid-template-columns:2fr 2.2fr 1fr 1.4fr 1.2fr .7fr;font-size:10px;pointer-events:none;background:#fff;z-index:0;color:#1d2229}
+.de-title div{border-right:1px solid #1d2229;padding:3px 6px;line-height:1.25;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.de-title div:last-child{border-right:none}
+.de-title small{display:block;color:#6b7684;font-size:8.5px}
+.de-title b{display:block;font-size:11px;overflow:hidden;text-overflow:ellipsis}
+.de-rv .de-el.msel{outline:2px dashed #1b4f9c;outline-offset:2px}
+.de-el[data-type="stamp"] .de-shape,.de-el[data-type="callout"] .de-shape,.de-el[data-type="dim"] .de-shape,.de-el[data-type="ink"] .de-shape{width:100%;height:100%;display:block;pointer-events:none}
+.de-el[data-type="stamp"],.de-el[data-type="callout"],.de-el[data-type="dim"],.de-el[data-type="ink"]{background:transparent}
+.de-el[data-type="ink"],.de-el[data-type="dim"]{border-radius:0}
+.de-ah{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#dc2626;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);z-index:7;display:none;cursor:move;touch-action:none}
+.de-el.sel .de-ah{display:block}
+.de-ghost{position:absolute;pointer-events:none;z-index:8;border:1.5px dashed #dc2626;box-sizing:border-box}
+.de-ghost[data-tool="pen"],.de-ghost[data-tool="hilite"],.de-ghost[data-tool="dim"]{border:none}
+.de-rv .de-canvas[data-tool]{cursor:crosshair}
+/* พาเนล “สิ่งที่เลือก” (แถบคุณสมบัติย้ายมาอยู่ซ้าย) */
+.de-props-side{position:static!important;display:flex!important;flex-wrap:wrap;gap:6px;padding:8px 10px;max-width:none;background:#fff;border:none;box-shadow:none;border-bottom:1px solid #eef1f5;font-size:11.5px}
+.de-props-side .de-ptitle{width:100%;font-weight:700;color:#1b4f9c;font-size:11.5px}
+.de-props-side .de-pnone{width:100%;color:#6b7684;font-size:11px;line-height:1.5}
+.de-props-side .de-pxy{width:100%;color:#8a93a0;font-size:10.5px;padding-top:2px}
+.de-props-side .de-psel,.de-props-side .de-pb{height:26px;font-size:11px;border-radius:4px}
+.de-props-side .de-pb.wide{width:auto;padding:0 8px}
+.de-props-side .de-pcolor input[type=color]{width:26px;height:26px;border-radius:4px}
+.de-props-side .de-pin{flex:1 1 100%;font:inherit;font-size:11.5px;padding:4px 6px;border:1px solid #b9c2cd;border-radius:4px;background:#fff;color:#1d2229;min-width:0}
+.de-props-side .de-pta{flex:1 1 100%;font:inherit;font-size:11.5px;padding:5px 6px;border:1px solid #b9c2cd;border-radius:4px;background:#fff;color:#1d2229;resize:vertical;line-height:1.45;min-width:0}
+.de-props-side .de-pin:focus,.de-props-side .de-pta:focus{outline:none;border-color:#1b4f9c}
+/* คลังรูปทรงลอย */
+.de-libfly{position:absolute;left:12px;top:12px;width:250px;max-height:calc(100% - 24px);z-index:12;background:#f7f8fa;border:1px solid #b9c2cd;border-radius:6px;box-shadow:0 8px 24px rgba(2,6,23,.28);display:flex;flex-direction:column;overflow:hidden}
+.de-flyhead{display:flex;align-items:center;gap:3px;padding:5px 6px;background:#eceff3;border-bottom:1px solid #c3cad3;flex:none}
+.de-flytab{font:inherit;font-size:11px;font-weight:600;padding:3px 8px;border:1px solid transparent;border-radius:4px;background:none;color:#4a5665;cursor:pointer;white-space:nowrap}
+.de-flytab.on{background:#dceafc;border-color:#8fb6e8;color:#1b4f9c}
+.de-libfly .de-libgrid{padding:8px;overflow-y:auto;grid-template-columns:repeat(3,1fr);gap:6px}
+.de-libfly .de-libitem{padding:4px 2px}
+.de-libfly .de-liblbl{font-size:.64rem}
+@media(max-width:899px){
+  .de-rv .rv-side{display:none}
+  .de-rv .rp-splitter{display:none}
+  .de-vp{overflow:auto}
+  .de-sheetwrap{width:auto!important;height:auto!important;margin:0}
+  .de-rv .de-canvas{position:relative;transform:none!important;width:auto!important;height:auto!important;box-shadow:none;padding:12px}
+  .de-title,.de-pbreak,.de-ah{display:none!important}
+  .de-rv .de-el[data-type="stamp"]{width:230px!important;transform:none!important;margin:6px 0}
+  .de-rv .rv-zoom{display:none}
+  .de-libfly{left:6px;right:6px;width:auto}
+}
