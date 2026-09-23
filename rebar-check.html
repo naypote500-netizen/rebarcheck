@@ -2137,6 +2137,18 @@ function polyPx(pts,pw,ph){
   return {a:Math.abs(A)/2, p:P};
 }
 function polyCenter(pts){ var n=(pts||[]).length||1, sx=0, sy=0; (pts||[]).forEach(function(p){ sx+=p.x; sy+=p.y; }); return {x:sx/n,y:sy/n}; }
+/** ระยะจริงของเส้นบอกขนาด (เมตร, 3 ตำแหน่ง) คำนวณจากมาตราส่วนของแปลน — null ถ้ายังไม่มีสเกล */
+function dimAutoLabel(a){
+  var plan=planById(a.floorId,a.planId), us=planUnitScale(a.floorId,a.planId,plan);
+  if(!(us>0)||!a.p1||!a.p2) return null;
+  var pw=(plan&&plan.w)||1000, ph=(plan&&plan.h)||700;
+  return (Math.hypot((a.p2.x-a.p1.x)*pw,(a.p2.y-a.p1.y)*ph)*us).toFixed(3);
+}
+/** เส้นบอกขนาดแบบอัตโนมัติ: อัปเดต label ให้ตรงกับรูป/สเกลปัจจุบัน แล้วคืน label */
+function dimLabel(a){
+  if(a.auto){ var al=dimAutoLabel(a); if(al!=null){ a.label=al; return al; } }
+  return a.label||"";
+}
 function areasOfPlan(fid,pid){ return annotsOfPlan(fid,pid).filter(function(a){ return a.kind==="area"; }); }
 /** ตัวเลขของพื้นที่ที่วัด (หน่วยเมตร) — null ถ้าแปลนยังไม่มีมาตราส่วน */
 function areaMetrics(a, plan){
@@ -5136,6 +5148,7 @@ document.addEventListener("click",function(e){
       state.ribbonTab="annot"; render(); break;
     }
     case "annotClose": state.selAnnotId=null; render(); break;
+    case "dimAuto": { var _dd=getAnnot(state.selAnnotId); if(!_dd||_dd.kind!=="dim") break; plPushUndo(); _dd.auto=true; dimLabel(_dd); saveDB(); render(); break; }
     case "annotPanel": state.ribbonTab="annot"; render(); break;
     case "annotDel": {
       var _ad=state.selAnnotId; if(!_ad) break;
@@ -5737,7 +5750,7 @@ function annotSvg(a, VW, VH, z, sel){
   if(a.kind==="dim"){
     var x1=a.p1.x*VW, y1=a.p1.y*VH, x2=a.p2.x*VW, y2=a.p2.y*VH;
     var dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy)||1, ux=dx/len, uy=dy/len, nx=-uy, ny=ux;
-    var lbl=(a.label||""), tw=Math.max(18, lbl.length*fs*0.62), gap=tw/2+6/z;
+    var lbl=dimLabel(a), tw=Math.max(18, lbl.length*fs*0.62), gap=tw/2+6/z;
     var ang=Math.atan2(dy,dx)*180/Math.PI; if(ang>90||ang<-90) ang+=180;   // กันตัวหนังสือกลับหัว
     var mx=(x1+x2)/2, my=(y1+y2)/2, ext=7/z;
     // เส้นต่อ (witness) สั้น ๆ ตั้งฉากที่ปลายทั้งสอง
@@ -7797,7 +7810,13 @@ function annotFormatHtml(){
     +'</svg></div>';
   // ข้อความ
   h+='<div class="fx-s">'+(isDim?'ตัวเลข':'ข้อความ')+'</div>';
-  h+='<div class="fx-r"><textarea class="fx-in fx-ta" id="annotText" rows="'+(isDim?1:3)+'" placeholder="'+(isDim?'เช่น 3.350':'พิมพ์ข้อความ…')+'">'+_hx(isDim?(a.label||""):(a.text||""))+'</textarea></div>';
+  h+='<div class="fx-r"><textarea class="fx-in fx-ta" id="annotText" rows="'+(isDim?1:3)+'" placeholder="'+(isDim?'เช่น 3.350':'พิมพ์ข้อความ…')+'">'+_hx(isDim?dimLabel(a):(a.text||""))+'</textarea></div>';
+  if(isDim){
+    var _dal=dimAutoLabel(a);
+    if(a.auto && _dal!=null) h+='<div class="fx-note">คำนวณจากมาตราส่วนอัตโนมัติ — ลากปลายเส้นแล้วตัวเลขเปลี่ยนตาม · พิมพ์ทับเพื่อกำหนดเอง</div>';
+    else if(_dal!=null) h+='<div class="fx-r" style="flex-wrap:wrap"><span class="fx-lb">ตามสเกล = '+_hx(_dal)+' ม.</span><button class="btn soft" data-act="dimAuto">'+rvIc('ruler',13)+' ใช้ค่าจากสเกล</button></div>';
+    else h+='<div class="fx-note">ยังไม่ตั้งมาตราส่วน — พิมพ์ตัวเลขเอง หรือกด “ตั้งมาตราส่วน” แล้วเส้นจะคำนวณให้</div>';
+  }
   h+='<div class="fx-s">ตัวอักษร</div>';
   h+='<div class="fx-r"><select class="fx-in" style="flex:1" data-act="annotFont">'+ANNOT_FONTS.map(function(f){ return '<option'+(s.font===f?' selected':'')+'>'+esc(f)+'</option>'; }).join("")+'</select>'
     +'<select class="fx-in" style="width:52px" data-act="annotSize">'+ANNOT_SIZES.map(function(n){ return '<option value="'+n+'"'+(s.size==n?' selected':'')+'>'+n+'</option>'; }).join("")+'</select>'
@@ -7837,7 +7856,7 @@ function viewPlanEditor(){
 
   var hint='';
   if(state.tool==="drawCallout") hint='<div class="plan-tip">กล่องข้อความ: ลากกรอบขนาดกล่องบนแปลน แล้วพิมพ์ข้อความ · Esc ยกเลิก</div>';
-  else if(state.tool==="drawDim") hint='<div class="plan-tip">เส้นบอกขนาด: ลากจากจุดเริ่มไปจุดปลาย แล้วใส่ตัวเลขระยะ · Esc ยกเลิก</div>';
+  else if(state.tool==="drawDim") hint='<div class="plan-tip">เส้นบอกขนาด: ลากจากจุดเริ่มไปจุดปลาย'+(planScaleInfo().us>0?' — ตัวเลขคำนวณจากมาตราส่วนให้เอง':' แล้วใส่ตัวเลขระยะ')+' · Esc ยกเลิก</div>';
   else if(state.tool==="setScale") hint='<div class="plan-tip">ตั้งมาตราส่วน: ลากจากจุดหนึ่งไปอีกจุดที่รู้ระยะจริง (เช่น ศูนย์เสา→ศูนย์เสา) แล้วใส่ตัวเลขเมตร · Esc ยกเลิก</div>';
   else if(state.tool==="drawArea") hint='<div class="plan-tip">วัดพื้นที่: '+(state.areaShape==="rect"?'ลากสี่เหลี่ยมคลุมพื้นที่':'คลิกทีละมุมรอบพื้นที่ — ดับเบิลคลิกหรือคลิกจุดแรกเพื่อปิดรูป')+' · Esc ยกเลิก</div>';
   else if(state.tool==="drawHole") hint='<div class="plan-tip">หักช่องเปิด: '+(state.areaShape==="rect"?'ลากสี่เหลี่ยม':'คลิกทีละมุม')+'ทับช่องบันได/ช่องลิฟต์ในพื้นที่ที่เลือก · Esc ยกเลิก</div>';
@@ -8199,7 +8218,7 @@ function bindPlanEditor(){
       ta.addEventListener("focus",function(){ _fxPushed=false; fxPush(); });
       ta.addEventListener("input",function(){
         var a=fxA(); if(!a) return;
-        if(a.kind==="dim") a.label=ta.value.trim(); else if(a.kind==="area") a.name=ta.value; else a.text=ta.value;
+        if(a.kind==="dim"){ a.label=ta.value.trim(); a.auto=false; } else if(a.kind==="area") a.name=ta.value; else a.text=ta.value;
         repaintPlanShapes();
       });
       ta.addEventListener("blur",function(){ saveDB(); render(); });
@@ -9127,12 +9146,12 @@ function finishDrawDim(s, p){
   var pw=(plan&&plan.w)||1000, ph=(plan&&plan.h)||700;
   var pxLen=Math.hypot((p.x-s.x)*pw,(p.y-s.y)*ph);
   var us=planUnitScale(f.id,pid,plan);
-  var suggest = us>0 ? (pxLen*us).toFixed(3) : "";
-  var lbl=window.prompt(us>0 ? "ระยะที่วัดได้ (แก้ได้):" : "ใส่ระยะจริงของเส้นนี้ (เช่น 3.350)\nเส้นแรกที่ใส่ตัวเลขจะใช้เป็นมาตราส่วนของแปลนนี้:", suggest);
+  var lbl = us>0 ? (pxLen*us).toFixed(3)   // มีมาตราส่วนแล้ว → คำนวณให้เลย ไม่ถาม (auto)
+                 : window.prompt("ใส่ระยะจริงของเส้นนี้ (เช่น 3.350)\nยังไม่ได้ตั้งมาตราส่วน — เส้นแรกที่ใส่ตัวเลขจะใช้เป็นมาตราส่วนชั่วคราวของแปลนนี้:", "");
   if(lbl===null){ state.tool="select"; render(); return; }
   var d=state.annotStyle||{};
   var a={ id:uid("an"), projectId:state.projectId, floorId:state.floorId, planId:pid, kind:"dim",
-    p1:{x:s.x,y:s.y}, p2:{x:p.x,y:p.y}, label:String(lbl).trim(),
+    p1:{x:s.x,y:s.y}, p2:{x:p.x,y:p.y}, label:String(lbl).trim(), auto:(us>0),
     color:d.color, sw:d.sw, font:d.font, size:d.size, bold:d.bold, italic:d.italic, underline:d.underline,
     a1:"solid", a2:"solid" };
   if(!DB.annots) DB.annots=[];
@@ -9141,7 +9160,7 @@ function finishDrawDim(s, p){
   if(!saveDB()){ DB.annots.pop(); render(); return; }
   state.tool="select"; state.selAnnotId=a.id; state.selMemberId=null; state.selZoneId=null; state.ribbonTab="annot";
   render();
-  toast(us>0?"เพิ่มเส้นบอกขนาดแล้ว":"ตั้งมาตราส่วนจากเส้นนี้แล้ว — เส้นต่อไปจะคำนวณให้เอง");
+  toast(us>0?"เส้นบอกขนาด "+lbl+" ม. (คำนวณจากมาตราส่วน — ลากปลายเส้นได้ ตัวเลขจะเปลี่ยนตาม)":"ใช้เส้นนี้เป็นมาตราส่วนชั่วคราวแล้ว — แนะนำกด “ตั้งมาตราส่วน” เพื่อความแม่นยำ");
 }
 /** ตั้งมาตราส่วนของแปลนจาก 2 จุดที่ลาก + ระยะจริงที่พิมพ์ (เก็บที่รายการแปลน → ซิงก์ขึ้นคลาวด์ด้วย) */
 function finishSetScale(s,p){
@@ -9153,9 +9172,10 @@ function finishSetScale(s,p){
   var m=parseFloat(String(v).replace(/,/g,""));
   if(!(m>0)){ toast("ใส่ตัวเลขระยะเป็นเมตร เช่น 4.00",true); state.tool="select"; render(); return; }
   plan.scale={px:Math.round(px*100)/100, m:m, ts:Date.now()};
+  var nAuto=0; (DB.annots||[]).forEach(function(x){ if(x.kind==="dim"&&x.auto&&x.floorId===f.id&&x.planId===curPlanId()){ dimLabel(x); nAuto++; } });
   if(!saveDB()){ delete plan.scale; render(); return; }
   state.tool="select"; render();
-  toast("ตั้งมาตราส่วนแล้ว — "+fmtScale(m/px)+" · วัดพื้นที่/ระยะได้เลย");
+  toast("ตั้งมาตราส่วนแล้ว — "+fmtScale(m/px)+(nAuto?" · เส้นบอกขนาดอัตโนมัติ "+nAuto+" เส้นคำนวณใหม่แล้ว":" · เส้นบอกขนาดที่ลากใหม่จะคำนวณให้เอง"));
 }
 /** สร้างพื้นที่ที่วัดจากจุดที่คลิก/ลาก */
 function finishDrawArea(pts){
