@@ -8676,7 +8676,7 @@ function bindPlanEditor(){
       window.removeEventListener("pointermove",selMove,true);
       window.removeEventListener("pointerup",selUp,true);
       window.removeEventListener("pointercancel",selUp,true);
-      if(atf){ atf=null; plCommitPend(); saveDB(); return; }
+      if(atf){ var _atA=getAnnot(atf.aid); atf=null; plCommitPend(); saveDB(); if(_atA && (_atA.kind==="area" || (_atA.kind==="dim"&&_atA.auto))) render(); return; }   // ตัวเลขในแผงต้องตามรูปที่ลาก
       if(amv){
         var wasA=amv.moved, aid=amv.aid; amv=null;
         if(wasA){ plCommitPend(); saveDB(); return; }
