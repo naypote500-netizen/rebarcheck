@@ -1520,6 +1520,10 @@ body.auth-mode #tabbar,body.auth-mode #fab{display:none !important}
 .de-props-side .de-pin{flex:1 1 100%;font:inherit;font-size:11.5px;padding:4px 6px;border:1px solid #b9c2cd;border-radius:4px;background:#fff;color:#1d2229;min-width:0}
 .de-props-side .de-pta{flex:1 1 100%;font:inherit;font-size:11.5px;padding:5px 6px;border:1px solid #b9c2cd;border-radius:4px;background:#fff;color:#1d2229;resize:vertical;line-height:1.45;min-width:0}
 .de-props-side .de-pin:focus,.de-props-side .de-pta:focus{outline:none;border-color:#1b4f9c}
+/* ---- ลากกรอบเลือกหลายชิ้น (marquee) — อยู่ในแผ่นที่ถูกซูม ---- */
+.de-marquee{position:absolute;z-index:10;box-sizing:border-box;border:1.5px solid var(--brand);background:rgba(29,78,216,.10);border-radius:2px;pointer-events:none}
+.de-el.mpre{outline:2px dashed var(--brand);outline-offset:2px}
+.de-el.mpre.sel,.de-el.mpre.msel{outline:none}
 /* ---- G1 ไกด์อัจฉริยะ: เส้นชมพู + ป้ายระยะเท่ากัน (อยู่ในแผ่นที่ถูกซูม → --gz = 1/zoom) ---- */
 .de-guides{position:absolute;inset:0;pointer-events:none;z-index:9;--gz:1}
 .de-gl{position:absolute;box-sizing:border-box}
