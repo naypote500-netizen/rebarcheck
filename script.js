@@ -4486,7 +4486,7 @@ function deCloudSaveImg(id, dataUrl){
   if(!CLOUD || !_fbUser) return;
   var m=/^data:([^;]+);base64,(.*)$/.exec(dataUrl||''); if(!m) return;
   DE_CLOUD_DONE['de_img_'+id]=true;
-  try{ cloudUploadPlan('de_img_'+id, _b64ToBytes(m[2]), {kind:m[1]}); }catch(e){}
+  try{ cloudUploadPlan('de_img_'+id, _b64ToBytes(m[2]), {kind:m[1]}).then(function(ok){ if(ok) toast("รูปขึ้นคลาวด์แล้ว — เปิดดูในมือถือได้"); }); }catch(e){}
 }
 function deCloudSavePdf(id, buf, pageNo){
   if(!CLOUD || !_fbUser) return;
@@ -4496,20 +4496,41 @@ function deCloudSavePdf(id, buf, pageNo){
 /** เติมสื่อที่มีในเครื่องนี้แต่ยังไม่เคยขึ้นคลาวด์ (แก้รูปเก่าที่อัปก่อนมีระบบ sync) — อัปครั้งเดียวต่อเซสชัน */
 function deCloudBackfillImg(id, dataUrl){ if(!DE_CLOUD_DONE['de_img_'+id]) deCloudSaveImg(id, dataUrl); }
 function deCloudBackfillPdf(id, buf, pageNo){ if(!DE_CLOUD_DONE['de_pdf_'+id]) deCloudSavePdf(id, buf, pageNo); }
-function deLoadImage(elm){
+/** ข้อความสถานะในกรอบรูป (กำลังโหลด / ไม่พบในคลาวด์ / โหลดไม่สำเร็จ) — null = เอาออก */
+function deImgNote(id, txt){
+  var host=document.querySelector('#deCanvas .de-el[data-eid="'+id+'"]'); if(!host) return;
+  var n=host.querySelector('.de-imgnote');
+  if(!txt){ if(n) n.remove(); return; }
+  if(!n){ n=document.createElement('div'); n.className='de-imgnote'; host.appendChild(n); }
+  n.textContent=txt;
+}
+var DE_LOADING={};   // eid -> กำลังดึงจากคลาวด์อยู่ (กัน render ซ้ำแล้วยิงหลายสาย)
+function deLoadImage(elm, attempt){
   var img=deImgEl(elm.id); if(!img) return;
-  if(DE_IMG[elm.id]){ if(img.src!==DE_IMG[elm.id]) img.src=DE_IMG[elm.id]; return; }
-  idbGet('deimg_'+elm.id).then(function(url){
-    if(url){ DE_IMG[elm.id]=url; var im=deImgEl(elm.id); if(im) im.src=url; deCloudBackfillImg(elm.id, url); return; }
+  if(DE_IMG[elm.id]){ if(img.src!==DE_IMG[elm.id]) img.src=DE_IMG[elm.id]; deImgNote(elm.id,null); return; }
+  attempt=attempt||0;
+  if(!attempt && DE_LOADING[elm.id]) return;
+  DE_LOADING[elm.id]=true;
+  // IndexedDB ใช้ไม่ได้ (เช่น Safari โหมดส่วนตัว) → ถือว่าไม่มีในเครื่อง แล้วไปดึงคลาวด์ต่อ ไม่หยุดแค่นี้
+  idbGet('deimg_'+elm.id).catch(function(){ return null; }).then(function(url){
+    if(url){ DE_IMG[elm.id]=url; var im=deImgEl(elm.id); if(im) im.src=url; deImgNote(elm.id,null); delete DE_LOADING[elm.id]; deCloudBackfillImg(elm.id, url); return; }
+    if(!CLOUD){ deImgNote(elm.id,'รูปนี้อยู่ในเครื่องอื่น (โหมดออฟไลน์)'); delete DE_LOADING[elm.id]; return; }
     // ไม่มีในเครื่อง → ดึงจากคลาวด์ (อัปมาจากอีกเครื่อง) แล้วแคชลงเครื่อง
+    deImgNote(elm.id, attempt?'รอรูปจากคลาวด์… ('+(attempt+1)+'/4)':'กำลังโหลดรูปจากคลาวด์…');
     return cloudFetchPlan('de_img_'+elm.id).then(function(rec){
-      if(!rec||!rec.bytes) return;
-      var mime=(rec.kind && rec.kind.indexOf('/')>0)?rec.kind:'image/jpeg';
-      var durl='data:'+mime+';base64,'+_bytesToB64(new Uint8Array(rec.bytes));
-      DE_IMG[elm.id]=durl; idbPut('deimg_'+elm.id,durl).catch(function(){});
-      var im=deImgEl(elm.id); if(im) im.src=durl;
+      if(rec && rec.bytes){
+        var mime=(rec.kind && rec.kind.indexOf('/')>0)?rec.kind:'image/jpeg';
+        var durl='data:'+mime+';base64,'+_bytesToB64(new Uint8Array(rec.bytes));
+        DE_IMG[elm.id]=durl; idbPut('deimg_'+elm.id,durl).catch(function(){});
+        var im=deImgEl(elm.id); if(im) im.src=durl; deImgNote(elm.id,null); delete DE_LOADING[elm.id]; return;
+      }
+      // ยังไม่มี / อัปจากอีกเครื่องยังไม่ครบ → ลองใหม่อีก 3 ครั้ง ห่างกัน 5 วิ
+      if(attempt<3){ setTimeout(function(){ if(!DE_IMG[elm.id] && deImgEl(elm.id)) deLoadImage(elm, attempt+1); },5000); return; }
+      var err=CLOUD_FETCH_ERR['de_img_'+elm.id]; delete DE_LOADING[elm.id];
+      deImgNote(elm.id, err ? 'โหลดรูปจากคลาวด์ไม่สำเร็จ: '+(err.code||err.message||err)
+                            : 'ยังไม่มีรูปนี้ในคลาวด์ — เปิดหน้ารายละเอียดนี้ในเครื่องที่ใส่รูป แล้วรอให้ขึ้นข้อความ “อัปแปลนขึ้นคลาวด์แล้ว” ก่อน');
     });
-  }).catch(function(){});
+  }).catch(function(e){ delete DE_LOADING[elm.id]; deImgNote(elm.id,'โหลดรูปไม่สำเร็จ: '+(e&&(e.code||e.message)||e)); });
 }
 function deEnsurePage(elm){
   var rec=DE_PDF[elm.id];
@@ -8927,13 +8948,15 @@ function cloudUploadPlan(key, buf, meta){
       natW:meta.natW||0, natH:meta.natH||0, chunks:n, size:u8.length,
       preview:(meta.preview && meta.preview.length<900000)?meta.preview:"",
       at:Date.now(), by:(_fbUser.email||"") });
-  }).then(function(){ try{ setPlanBusy(null); planLog("อัปแปลนขึ้นคลาวด์แล้ว ("+n+" ชิ้น)"); }catch(e){} })
-    .catch(function(e){ try{ setPlanBusy(null); }catch(x){} console.warn("cloudUploadPlan",e); toast("อัปแปลนขึ้นคลาวด์ไม่สำเร็จ: "+(e&&e.code||e),true); });
+  }).then(function(){ try{ setPlanBusy(null); planLog("อัปแปลนขึ้นคลาวด์แล้ว ("+n+" ชิ้น)"); }catch(e){} return true; })
+    .catch(function(e){ try{ setPlanBusy(null); }catch(x){} console.warn("cloudUploadPlan",e); toast("อัปแปลนขึ้นคลาวด์ไม่สำเร็จ: "+(e&&e.code||e),true); return false; });
 }
+var CLOUD_FETCH_ERR={};   // key -> error ล่าสุดของ cloudFetchPlan (null/ไม่มี = ไม่มีไฟล์เฉย ๆ)
 /** ดึงไฟล์แปลนจากคลาวด์ → คืน rec {kind,bytes,pageNo} (ตั้งพรีวิวให้ด้วย) */
 function cloudFetchPlan(key){
   if(!CLOUD) return Promise.resolve(null);
   var pf=fbDb.collection("planfiles").doc(_pfKey(key));
+  delete CLOUD_FETCH_ERR[key];
   return pf.get().then(function(meta){
     if(!meta.exists) return null;
     var md=meta.data(); if(md.preview){ PLAN_PREVIEW[key]=md.preview; _paintPreview(key); }
@@ -8948,7 +8971,7 @@ function cloudFetchPlan(key){
       parts.forEach(function(p){ out.set(p,off); off+=p.length; });
       return { kind:md.kind, bytes:out.buffer, pageNo:md.pageNo||1 };
     });
-  }).catch(function(e){ console.warn("cloudFetchPlan",e); return null; });
+  }).catch(function(e){ console.warn("cloudFetchPlan",e); CLOUD_FETCH_ERR[key]=e||true; return null; });
 }
 function _paintPreview(key){ if(planSourceKey()!==key) return; var img=$(".plan-img"); if(img && !img.getAttribute("src") && PLAN_PREVIEW[key]) img.src=PLAN_PREVIEW[key]; }
 function cloudDeletePlan(key){
