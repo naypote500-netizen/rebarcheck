@@ -5492,9 +5492,17 @@ document.addEventListener("click",function(e){
     case "exportProgressPdf": exportProgressPDF(); break;
     case "exportPdf": exportPlanPDF(); break;
     case "addPlan": {          // เพิ่มแปลนใหม่ → ตั้ง active เป็น id ใหม่ แล้วเปิดหน้าต่างเลือกไฟล์
-      var fA=getFloor(state.floorId); if(!fA.planList) fA.planList=[];
+      var fA=getFloor(state.floorId); if(!fA){ toast("ยังไม่ได้เลือกชั้น",true); break; } if(!fA.planList) fA.planList=[];
       state.pendingPlanId="pl"+Date.now();   // id ใหม่ — ตั้งเป็น active ตอนนำเข้าสำเร็จใน storePlan เท่านั้น (ยกเลิกแล้วแปลนเดิมยังอยู่ครบ)
-      var pfA=$("#planFile"); if(pfA) pfA.click();
+      var pfA=$("#planFile");
+      if(pfA){ pfA.click(); }
+      else {                    // หน้าการ์ดแปลน (floorPlans) ไม่มี #planFile → สร้าง input ชั่วคราว
+        var tmpA=document.createElement("input"); tmpA.type="file"; tmpA.accept="image/*,application/pdf,.pdf"; tmpA.style.display="none";
+        document.body.appendChild(tmpA);
+        tmpA.addEventListener("change",function(){ var file=tmpA.files&&tmpA.files[0]; try{ document.body.removeChild(tmpA); }catch(e){} if(!file){ state.pendingPlanId=null; return; } importPlan(file); });
+        tmpA.addEventListener("cancel",function(){ state.pendingPlanId=null; try{ document.body.removeChild(tmpA); }catch(e){} });
+        tmpA.click();
+      }
       break;
     }
     case "switchPlan": {       // สลับไปแปลนที่เลือก
