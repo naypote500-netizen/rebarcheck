@@ -7222,10 +7222,9 @@ function bindPlanEditor(){
       ? '<line x1="'+(X-m)+'" y1="'+(Y-m)+'" x2="'+(X+m)+'" y2="'+(Y+m)+'"/><line x1="'+(X-m)+'" y1="'+(Y+m)+'" x2="'+(X+m)+'" y2="'+(Y-m)+'"/>'
       : '<rect x="'+(X-m)+'" y="'+(Y-m)+'" width="'+(2*m)+'" height="'+(2*m)+'"/>';
     var target=body;
-    // ฮาโลขาวหนา + เส้นสีหนา + จุดกลางทึบ → เห็นชัดแม้ซูมสุดบนแบบที่เส้นเยอะ
+    // ฮาโลขาวหนา + เส้นสีหนา → เห็นชัดแม้ซูมสุดบนแบบที่เส้นเยอะ (ไม่มีวงกลมใด ๆ)
     snapEl.innerHTML='<g fill="none" stroke="#fff" stroke-width="'+(7*unit)+'" stroke-linecap="round" opacity="0.95">'+target+'</g>'
-      +'<g fill="none" stroke="'+col+'" stroke-width="'+(3.6*unit)+'" stroke-linecap="round">'+target+'</g>'
-      +'<circle cx="'+X+'" cy="'+Y+'" r="'+(3*unit)+'" fill="'+col+'" stroke="#fff" stroke-width="'+(1.6*unit)+'"/>';
+      +'<g fill="none" stroke="'+col+'" stroke-width="'+(3.6*unit)+'" stroke-linecap="round">'+target+'</g>';
   }
   function snapAt(ev){
     var p=norm(ev), r=overlay.getBoundingClientRect();
