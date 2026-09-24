@@ -5884,11 +5884,8 @@ function rvRibbonHtml(type, f, plan, plans, selM){
   }else{ // structure (หน้าแรก)
     body+=selBtn;
     body+=rvGrp('วาดชิ้นส่วน', drawBtns+rvCol(typeSel
-      +'<div class="rv-seg"><button data-act="setPlanMode" data-mode="unified" aria-pressed="'+(state.unified)+'" title="แสดงทุกชนิดบนแปลน">รวมทุกชนิด</button><button data-act="setPlanMode" data-mode="focus" aria-pressed="'+(!state.unified)+'" title="แสดงเฉพาะชนิดที่เลือก">เฉพาะ '+esc(TYPE_EN[type]||TYPES[type].label)+'</button></div>')
-      +rvCol(rvSm(!!state.snap,"toggleSnap",'','snap','สแนบเส้น','ดูดเข้าเส้น/จุดตัดของแปลนตอนวาด  (S)')+rvSm(!!state.showLabels,"toggleLabels",'','tag','ป้ายเบอร์','แสดง/ซ่อนป้ายเบอร์บนแปลน'))
-      +rvCol(rvSm(!!state.showLegend,"toggleLegend",'','grid','ตารางสี')+rvSm(!!state.showProgress,"toggleProgress",'','zone','โซนเท','แสดงโซนเทคอนกรีตบนแปลน'))
-      +rvCol(rvSm(!!state.autoCode,"toggleAutoCode",'','wand','เบอร์อัตโนมัติ','วาดต่อเนื่องไม่ต้องถามเบอร์ — ใช้เบอร์ถัดไปให้ ('+esc(nextCode(type))+', …) แก้ทีหลังได้ในแท็บแก้ไข')));
-    if(!selM) body+=rvGrp('', '<div class="rv-hintbox">ลากบนแปลนเพื่อวาด · คลิกขวาที่ชิ้นเพื่อแก้ไข · ดับเบิลคลิก = ตรวจเหล็ก</div>');
+      +'<div class="rv-seg"><button data-act="setPlanMode" data-mode="unified" aria-pressed="'+(state.unified)+'" title="แสดงทุกชนิดบนแปลน">รวมทุกชนิด</button><button data-act="setPlanMode" data-mode="focus" aria-pressed="'+(!state.unified)+'" title="แสดงเฉพาะชนิดที่เลือก">เฉพาะ '+esc(TYPE_EN[type]||TYPES[type].label)+'</button></div>'));
+    if(!selM) body+=rvGrp('', '<div class="rv-hintbox">ลากบนแปลนเพื่อวาด · คลิกขวาที่ชิ้นเพื่อแก้ไข · ดับเบิลคลิก = ตรวจเหล็ก<br>สแนบ · เบอร์อัตโนมัติ · ป้ายเบอร์ · ตารางสี · โซนเท ย้ายไปแถบล่างแล้ว</div>');
   }
   var tabs='<button class="rv-tab rv-ftab'+(state.fileMenu?" on":"")+'" data-act="fileMenu" title="แปลน · นำออก · ข้อมูล">'+rvIc('folder',13)+'ไฟล์ ▾</button>'
     +(state.fileMenu?rvFileMenuHtml(f,plan,plans):'')
@@ -6123,10 +6120,12 @@ function rvStatusHtml(vm, selM){
     zoneStatuses(f.id,curPlanId()).forEach(function(s){ h+='<span class="rv-sc static"><i class="rv-zdot sm" style="background:'+s.color+'"></i><b>'+(cnt[s.id]||0)+'</b> '+esc(s.label)+'</span>'; });
   }
   h+='<span class="rv-ssep"></span>';
-  h+='<button class="rv-st'+(state.snap?" on":"")+'" data-act="toggleSnap" title="สแนบเส้น (S)">สแนบ</button>'
-    +'<button class="rv-st'+(state.showLabels?" on":"")+'" data-act="toggleLabels" title="ป้ายเบอร์">ป้ายเบอร์</button>'
-    +'<button class="rv-st'+(state.showLegend?" on":"")+'" data-act="toggleLegend" title="ตารางสี">ตารางสี</button>'
-    +'<button class="rv-st'+(state.showProgress?" on":"")+'" data-act="toggleProgress" title="แสดงโซนเทคอนกรีตบนแปลน">โซนเท</button>';
+  var _stBtn=function(on,act,ic,lbl,tt){ return '<button class="rv-st'+(on?" on":"")+'" data-act="'+act+'" title="'+esc(tt||lbl)+'">'+rvIc(ic,13)+lbl+'</button>'; };
+  h+=_stBtn(state.snap,"toggleSnap","snap","สแนบ","ดูดเข้าเส้น/จุดตัดของแปลน  (S)");
+  if(!prog) h+=_stBtn(state.autoCode,"toggleAutoCode","wand","เบอร์อัตโนมัติ","วาดต่อเนื่อง ใส่เบอร์ถัดไปให้เอง — แก้ทีหลังได้");
+  h+=_stBtn(state.showLabels,"toggleLabels","tag","ป้ายเบอร์","แสดง/ซ่อนป้ายเบอร์บนแปลน")
+    +_stBtn(state.showLegend,"toggleLegend","grid","ตารางสี","แสดง/ซ่อนตารางสีบนแปลน")
+    +_stBtn(state.showProgress,"toggleProgress","zone","โซนเท","แสดง/ซ่อนโซนเทคอนกรีตบนแปลน");
   h+='<span class="rv-ssep"></span><span class="rv-zoom"><button data-act="zoomOut" title="ซูมออก (−)">−</button><span id="zoomLabel">'+Math.round((state.zoom||1)*100)+'%</span><button data-act="zoomIn" title="ซูมเข้า (+)">+</button></span>';
   return h+'</div>';
 }
