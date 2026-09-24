@@ -3789,6 +3789,12 @@ document.addEventListener("click",function(e){
       if(em){ closeSheet(); go("memberForm",{addType:em.type, editId:em.id}); }
       break;
     }
+    case "renameMember": {
+      var rm=getMember(activeMemberId()); if(!rm){ toast("ยังไม่ได้เลือกชิ้นส่วน",true); break; }
+      var oldC=rm.code||""; var nc=prompt("ชื่อ / เบอร์ชิ้นส่วน", oldC); if(nc==null) break; nc=nc.trim(); if(!nc||nc===oldC) break;
+      plPushUndo(); rm.code=nc; saveDB(); render(); toast("เปลี่ยนเป็น “"+nc+"”");
+      break;
+    }
     case "saveMember": saveMemberForm(false); break;
     case "saveMemberNew": saveMemberForm(true); break;
     /* --- เหล็กเสริมหัวเสา (มาร์ค T/B) --- */
@@ -6348,7 +6354,7 @@ function rvPaletteHtml(type, m, p, f, plans, plan){
   }else if(m){
     var ins=lastInspection(m.id), st=memberStatus(m);
     var stTx = st==="pass"?'<span class="ok">● ผ่าน พร้อมเท</span>' : st==="fail"?'<span class="bad">● ต้องแก้ไข</span>' : '<span class="wait">● รอตรวจ</span>';
-    h+='<div class="rv-type"><span class="rv-tdot" style="background:var(--t-'+TYPES[m.type].css+')"></span><div><b>'+esc(TYPES[m.type].label)+' · '+esc(m.code)+'</b><small>'+esc(shortSpec(m)||"")+'</small></div></div>';
+    h+='<div class="rv-type"><span class="rv-tdot" style="background:var(--t-'+TYPES[m.type].css+')"></span><div><b>'+esc(TYPES[m.type].label)+' · <button class="rv-editcode" data-act="renameMember" title="แก้ชื่อ/เบอร์ชิ้นส่วน">'+esc(m.code)+' '+rvIc("edit",12)+'</button></b></div></div>';
     h+=rvPh('สถานะการตรวจ');
     h+=rvProw('ผลตรวจ',stTx)+(ins?rvProw('ผู้ตรวจ',esc(ins.inspector||"—"))+rvProw('วันที่',esc(new Date(ins.ts).toLocaleDateString('th-TH',{year:'2-digit',month:'short',day:'numeric'})),1):'');
     if(m.note) h+=rvProw('หมายเหตุ',esc(m.note));
@@ -6785,7 +6791,7 @@ function mPlanSheetHtml(f,type,p,plan,plans,selM,prog){
   if(selM && !prog){
     var t=memberTypeOf(selM), st=memberStatus(selM), insp=(state.rightTab==="inspect"), ins=lastInspection(selM.id);
     var stTx = st==="pass"?'<span class="ok">● ผ่าน</span>' : st==="fail"?'<span class="bad">● ต้องแก้ไข</span>' : '<span class="wait">● รอตรวจ</span>';
-    var head='<span class="rv-tdot" style="background:'+(t?esc(t.color||'#2563eb'):'var(--t-'+TYPES[selM.type].css+')')+'"></span><b>'+esc(TYPES[selM.type].label)+' · '+esc(selM.code)+'</b>'+(t?'<span class="type-pill" style="background:'+esc(t.color||'#2563eb')+'">🔗 '+esc(t.name)+'</span>':'')+'<span class="m-st">'+stTx+'</span>';
+    var head='<span class="rv-tdot" style="background:'+(t?esc(t.color||'#2563eb'):'var(--t-'+TYPES[selM.type].css+')')+'"></span><b>'+esc(TYPES[selM.type].label)+' · <button class="rv-editcode" data-act="renameMember" title="แก้ชื่อ/เบอร์">'+esc(selM.code)+' '+rvIc("edit",12)+'</button></b>'+(t?'<span class="type-pill" style="background:'+esc(t.color||'#2563eb')+'">🔗 '+esc(t.name)+'</span>':'')+'<span class="m-st">'+stTx+'</span>';
     var bm='';
     if(insp){
       bm+='<div class="m-backrow"><button class="btn soft" data-act="setPalette" data-tab="props">‹ ข้อมูลชิ้น</button><b>ตรวจเหล็ก · '+esc(selM.code)+'</b></div>';

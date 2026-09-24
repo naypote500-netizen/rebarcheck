@@ -927,6 +927,9 @@ body.plan-mode main#app{padding:0;max-width:none;margin:0}
 .rv-type{display:flex;align-items:center;gap:9px;padding:9px 10px;background:#fff;border-bottom:1px solid #d6dce4}
 .rv-type>svg{color:#1b4f9c}
 .rv-type b{display:block;font-size:12.5px;line-height:1.2}
+.rv-editcode{font:inherit;font-size:12.5px;font-weight:700;color:#1b4f9c;background:none;border:none;padding:1px 6px;margin:-1px -2px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;vertical-align:baseline}
+.rv-editcode:hover{background:#e7f0fd}
+.rv-editcode svg{opacity:.55;width:12px;height:12px}
 .rv-type small{display:block;color:#6b7684;font-size:11px;margin-top:2px}
 .rv-tdot{width:14px;height:14px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.18)}
 .rv-zdot{width:14px;height:14px;border-radius:4px;flex:none;display:inline-block}
