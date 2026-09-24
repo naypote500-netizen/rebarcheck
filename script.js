@@ -3578,6 +3578,7 @@ document.addEventListener("click",function(e){
     case "toggleSnap":   state.snap=!state.snap; render(); break;
     case "toggleLabels": state.showLabels=!state.showLabels; render(); break;
     case "labelColorAuto": { state.labelStyle.color=""; try{ localStorage.setItem("rebarcheck.labelStyle",JSON.stringify(state.labelStyle)); }catch(e){} render(); break; }
+    case "boxLabelReset": { var _blm=getMember(state.selMemberId); if(_blm&&_blm.plan){ delete _blm.plan.labelColor; delete _blm.plan.labelFont; saveDB(); render(); } break; }
     case "selectPlanMember":
       state.selMemberId=id; state.rightTab="inspect"; state.answers={}; state.photos=[]; state.note=""; if(!isMobile()) state.ribbonTab="modify";
       render();
@@ -4344,7 +4345,7 @@ function planShapesSVG(VW,VH){
       lx=pl.x*VW; ly=pl.y*VH;
     }
     if(state.showLabels){
-      var _lst=state.labelStyle||{}, _lfs=(+_lst.size||22), _lfont=_lst.font||"JetBrains Mono", _ltc=_lst.color||"var(--text)";
+      var _lst=state.labelStyle||{}, _lfs=(+_lst.size||22), _lfont=(pl.labelFont||_lst.font||"JetBrains Mono"), _ltc=(pl.labelColor||_lst.color||"var(--text)");
       var labTxt=(pl.labelText!=null && pl.labelText!=="")?pl.labelText:m.code;
       var tw=Math.max(_lfs+12, labTxt.length*_lfs*0.66+16), th=_lfs+12;
       var lcx=lx+(pl.labelDx||0)*VW, lcy=ly+(pl.labelDy||0)*VH, lsc=pl.labelScale||1;
@@ -6036,7 +6037,13 @@ function rvPaletteHtml(type, m, p, f, plans, plan){
     h+=rvProw('ผลตรวจ',stTx)+(ins?rvProw('ผู้ตรวจ',esc(ins.inspector||"—"))+rvProw('วันที่',esc(new Date(ins.ts).toLocaleDateString('th-TH',{year:'2-digit',month:'short',day:'numeric'})),1):'');
     if(m.note) h+=rvProw('หมายเหตุ',esc(m.note));
     h+=typePaletteRowHtml(m);
-    if(isBox(m.plan)){ h+=rvPh('การแสดงผลบนแปลน'); h+=rvStyleRows(m.plan.fill||"#f59e0b",(m.plan.fillA!=null?m.plan.fillA:0.28),(m.plan.strokeW!=null?m.plan.strokeW:10),null); }
+    if(isBox(m.plan)){ h+=rvPh('การแสดงผลบนแปลน'); h+=rvStyleRows(m.plan.fill||"#f59e0b",(m.plan.fillA!=null?m.plan.fillA:0.28),(m.plan.strokeW!=null?m.plan.strokeW:10),null);
+      h+=rvPh('ป้ายเบอร์ (เฉพาะกล่องนี้)');
+      var _bls=state.labelStyle||{}, _blc=m.plan.labelColor||_bls.color||"#1d2229", _blf=m.plan.labelFont||_bls.font||"JetBrains Mono";
+      h+='<div class="rv-prow"><span>สีตัวเลข</span><b><input type="color" id="boxLabColor" value="'+esc(_blc)+'" class="rv-color">'+(m.plan.labelColor?'<button class="lab-auto on" data-act="boxLabelReset" title="กลับไปใช้ค่าเริ่มต้น (ตามแท็บมุมมอง)">ค่าเริ่มต้น</button>':'<span class="mono" style="opacity:.55;font-size:10.5px">= ค่ารวม</span>')+'</b></div>';
+      h+='<div class="rv-prow"><span>ฟอนต์</span><b><select id="boxLabFont" class="rv-in" style="width:150px">'+ANNOT_FONTS.map(function(fn){ return '<option'+(_blf===fn?' selected':'')+'>'+esc(fn)+'</option>'; }).join("")+'</select></b></div>';
+      h+='<div class="rv-pnote">ปรับสี/ฟอนต์ของเลขกล่องนี้ · ตั้งค่ารวมทุกกล่องได้ที่แท็บ “มุมมอง”</div>';
+    }
     h+='<div class="rv-pnote">ตรวจเหล็ก · รายละเอียด · ทำซ้ำ · ลบ อยู่ในแท็บริบบอน “แก้ไข · '+esc(m.code)+'” (หรือคลิกขวาที่ชิ้น)</div>';
   }else{
     var fl=getFloor(state.floorId), pl=fl?getFloorPlan(fl):null;
@@ -6811,6 +6818,11 @@ function bindPlanEditor(){
   if(_lc){ _lc.addEventListener("input",function(){ state.labelStyle.color=_lc.value; repaintPlanShapes(); }); _lc.addEventListener("change",function(){ state.labelStyle.color=_lc.value; _saveLabelStyle(); render(); }); }
   if(_lf){ _lf.addEventListener("change",function(){ state.labelStyle.font=_lf.value; _saveLabelStyle(); render(); }); }
   if(_lsz){ _lsz.addEventListener("change",function(){ state.labelStyle.size=+_lsz.value; _saveLabelStyle(); render(); }); }
+  // ป้ายเบอร์เฉพาะกล่องที่เลือก (สี/ฟอนต์) — ทับค่ารวม
+  var _bxc=$("#boxLabColor"), _bxf=$("#boxLabFont");
+  if(_bxc){ _bxc.addEventListener("input",function(){ var mm=getMember(state.selMemberId); if(mm&&mm.plan){ mm.plan.labelColor=_bxc.value; repaintPlanShapes(); } });
+    _bxc.addEventListener("change",function(){ var mm=getMember(state.selMemberId); if(mm&&mm.plan){ mm.plan.labelColor=_bxc.value; saveDB(); render(); } }); }
+  if(_bxf){ _bxf.addEventListener("change",function(){ var mm=getMember(state.selMemberId); if(mm&&mm.plan){ mm.plan.labelFont=_bxf.value; saveDB(); render(); } }); }
   // ดรอปดาวน์เลือกชนิดที่กำลังวาด
   var dts=$("#drawTypeSel");
   if(dts) dts.addEventListener("change",function(){ state.catType=dts.value; if(state.hiddenTypes) delete state.hiddenTypes[dts.value]; render(); });
@@ -6878,15 +6890,16 @@ function bindPlanEditor(){
     if(!snapEl){ snapEl=document.createElementNS(NS,"g"); snapEl.setAttribute("style","pointer-events:none"); }
     overlay.appendChild(snapEl);   // ให้อยู่บนสุดเสมอ
     var unit=VW/Math.max(1,r.width);            // 1 พิกเซลจอ = กี่หน่วย viewBox (คงที่ทุกซูม)
-    var X=pt.x*VW, Y=pt.y*VH, m=6.5*unit;       // กรอบสแนบ ~13px
+    var X=pt.x*VW, Y=pt.y*VH, m=8*unit, ring=13*unit;   // กรอบสแนบ ~16px + วงเป้า ~26px ให้เด่นทุกซูม
     var col=pt.type==="end"?"#e00000":(pt.type==="cross"?"#0a9e0a":"#0a5fe0");
     var body = (pt.type==="cross")
       ? '<line x1="'+(X-m)+'" y1="'+(Y-m)+'" x2="'+(X+m)+'" y2="'+(Y+m)+'"/><line x1="'+(X-m)+'" y1="'+(Y+m)+'" x2="'+(X+m)+'" y2="'+(Y-m)+'"/>'
       : '<rect x="'+(X-m)+'" y="'+(Y-m)+'" width="'+(2*m)+'" height="'+(2*m)+'"/>';
-    // ฮาโลขาวด้านหลัง → เห็นชัดบนแบบที่มีเส้นเยอะ · เส้นสีเข้มหนาขึ้น · จุดกลางทึบ
-    snapEl.innerHTML='<g fill="none" stroke="#fff" stroke-width="'+(4.4*unit)+'" stroke-linecap="round" opacity="0.9">'+body+'</g>'
-      +'<g fill="none" stroke="'+col+'" stroke-width="'+(2.6*unit)+'" stroke-linecap="round">'+body+'</g>'
-      +'<circle cx="'+X+'" cy="'+Y+'" r="'+(2.2*unit)+'" fill="'+col+'" stroke="#fff" stroke-width="'+(1*unit)+'"/>';
+    var target=body+'<circle cx="'+X+'" cy="'+Y+'" r="'+ring+'"/>';
+    // ฮาโลขาวหนา + เส้นสีหนาขึ้น + วงเป้ารอบนอก + จุดกลางทึบ → เห็นชัดแม้ซูมสุดบนแบบที่เส้นเยอะ
+    snapEl.innerHTML='<g fill="none" stroke="#fff" stroke-width="'+(7*unit)+'" stroke-linecap="round" opacity="0.95">'+target+'</g>'
+      +'<g fill="none" stroke="'+col+'" stroke-width="'+(3.6*unit)+'" stroke-linecap="round">'+target+'</g>'
+      +'<circle cx="'+X+'" cy="'+Y+'" r="'+(3*unit)+'" fill="'+col+'" stroke="#fff" stroke-width="'+(1.6*unit)+'"/>';
   }
   function snapAt(ev){
     var p=norm(ev), r=overlay.getBoundingClientRect();
