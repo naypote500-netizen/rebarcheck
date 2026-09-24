@@ -6789,12 +6789,15 @@ function bindPlanEditor(){
     if(!snapEl){ snapEl=document.createElementNS(NS,"g"); snapEl.setAttribute("style","pointer-events:none"); }
     overlay.appendChild(snapEl);   // ให้อยู่บนสุดเสมอ
     var unit=VW/Math.max(1,r.width);            // 1 พิกเซลจอ = กี่หน่วย viewBox (คงที่ทุกซูม)
-    var X=pt.x*VW, Y=pt.y*VH, m=5.5*unit;       // กรอบสแนบ ~11px
-    var col=pt.type==="end"?"#ff2d2d":(pt.type==="cross"?"#12b312":"#1f7bff");
+    var X=pt.x*VW, Y=pt.y*VH, m=6.5*unit;       // กรอบสแนบ ~13px
+    var col=pt.type==="end"?"#e00000":(pt.type==="cross"?"#0a9e0a":"#0a5fe0");
     var body = (pt.type==="cross")
       ? '<line x1="'+(X-m)+'" y1="'+(Y-m)+'" x2="'+(X+m)+'" y2="'+(Y+m)+'"/><line x1="'+(X-m)+'" y1="'+(Y+m)+'" x2="'+(X+m)+'" y2="'+(Y-m)+'"/>'
       : '<rect x="'+(X-m)+'" y="'+(Y-m)+'" width="'+(2*m)+'" height="'+(2*m)+'"/>';
-    snapEl.innerHTML='<g fill="none" stroke="'+col+'" stroke-width="'+(1.6*unit)+'">'+body+'</g>';
+    // ฮาโลขาวด้านหลัง → เห็นชัดบนแบบที่มีเส้นเยอะ · เส้นสีเข้มหนาขึ้น · จุดกลางทึบ
+    snapEl.innerHTML='<g fill="none" stroke="#fff" stroke-width="'+(4.4*unit)+'" stroke-linecap="round" opacity="0.9">'+body+'</g>'
+      +'<g fill="none" stroke="'+col+'" stroke-width="'+(2.6*unit)+'" stroke-linecap="round">'+body+'</g>'
+      +'<circle cx="'+X+'" cy="'+Y+'" r="'+(2.2*unit)+'" fill="'+col+'" stroke="#fff" stroke-width="'+(1*unit)+'"/>';
   }
   function snapAt(ev){
     var p=norm(ev), r=overlay.getBoundingClientRect();
