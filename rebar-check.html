@@ -7614,7 +7614,7 @@ function rvRibbonHtml(type, f, plan, plans, selM){
   var dk=drawKind(type);
   var hasZone=!!(state.selZoneId&&getZone(state.selZoneId));
   var typeSel='<div class="rv-typesel"><span class="sel-dot" style="background:var(--t-'+TYPES[type].css+')"></span><select id="drawTypeSel" class="rv-sel" title="ชนิดที่วาด">'
-    + TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPE_EN[t]||TYPES[t].label)+'</option>'; }).join("")+'</select></div>';
+    + TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPE_EN[t]||TYPES[t].label)+'</option>'; }).join("")+'<option value="__addtype">+ เพิ่มชนิด…</option></select></div>';
   var drawBtns = dk==="rect"
     ? rvBig(isD("rect"),"setShape",'data-shape="rect"','rect','สี่เหลี่ยม','วาดสี่เหลี่ยม  (R)')
       +rvBig(isD("poly"),"setShape",'data-shape="poly"','poly','หลายเหลี่ยม','วาดหลายเหลี่ยม  (P)')
@@ -8125,7 +8125,7 @@ function mPlanSheetHtml(f,type,p,plan,plans,selM,prog){
   if(sh==="draw"){
     var isD=function(shp){ return state.tool==="draw" && (state.drawShape||"rect")===shp; }, dk=drawKind(type);
     var b='<div class="m-sec">ชนิดที่จะวาด</div><select id="drawTypeSel" class="m-in" style="width:100%">'
-      + TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPES[t].label)+' ('+esc(TYPE_EN[t]||"")+')</option>'; }).join("")+'</select>';
+      + TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPES[t].label)+' ('+esc(TYPE_EN[t]||"")+')</option>'; }).join("")+'<option value="__addtype">+ เพิ่มชนิด…</option></select>';
     b+='<div class="m-sec">รูปทรง — เลือกแล้วลากบนแปลน</div><div class="m-grid">';
     if(dk==="rect") b+=mG("setShape",'data-shape="rect"','rect','สี่เหลี่ยม','',0,isD("rect"))+mG("setShape",'data-shape="poly"','poly','หลายเหลี่ยม','',0,isD("poly"))+mG("setShape",'data-shape="oval"','oval','วงรี','',0,isD("oval"));
     else b+=mG("setShape",'data-shape="rect"',dk==="point"?'point':'line',dk==="point"?'วางจุด':'วาดแนว','',0,state.tool==="draw");
@@ -8540,8 +8540,15 @@ function bindPlanEditor(){
     _bxc.addEventListener("change",function(){ var mm=getMember(state.selMemberId); if(mm&&mm.plan){ mm.plan.labelColor=_bxc.value; saveDB(); render(); } }); }
   if(_bxf){ _bxf.addEventListener("change",function(){ var mm=getMember(state.selMemberId); if(mm&&mm.plan){ mm.plan.labelFont=_bxf.value; saveDB(); render(); } }); }
   // ดรอปดาวน์เลือกชนิดที่กำลังวาด
-  var dts=$("#drawTypeSel");
-  if(dts) dts.addEventListener("change",function(){ state.catType=dts.value; if(state.hiddenTypes) delete state.hiddenTypes[dts.value]; render(); });
+  $$("#drawTypeSel").forEach(function(dts){ dts.addEventListener("change",function(){
+    if(dts.value==="__addtype"){
+      var nm=prompt("ชื่อชนิดใหม่ (เช่น เสาเอ็น, ทับหลัง, ครีบกันแดด)");
+      var k=nm?addCustomType(nm):null;
+      if(k){ state.catType=k; if(state.hiddenTypes) delete state.hiddenTypes[k]; }
+      render(); return;
+    }
+    state.catType=dts.value; if(state.hiddenTypes) delete state.hiddenTypes[dts.value]; render();
+  }); });
   // ดรอปดาวน์กรองชนิดในแท็บรายการ
   var lfs=$("#listFilterSel");
   if(lfs) lfs.addEventListener("change",function(){ state.listFilter=lfs.value; render(); });
@@ -10561,6 +10568,40 @@ function toggleTheme(){
 
 /** v45: ทุกชิ้นส่วนวาดเป็น "กรอบ" — แปลงรูปเก่า (จุด/เส้น) ให้เป็นกรอบสี่เหลี่ยม
     เพื่อให้ไฮไลท์/มีจุดจับ/ปรับสไตล์ได้เหมือนคาน (ของเดิมที่วาดเป็นจุดจะเลือกแล้วไม่มีจุดจับ) */
+/* ===== ชนิดชิ้นส่วน "กำหนดเอง" — เพิ่มเองได้ ระบบใส่สีให้อัตโนมัติ (เก็บใน localStorage) ===== */
+var CUSTOM_TYPE_PALETTE=["#c2410c","#0e7490","#6d28d9","#be123c","#15803d","#a16207","#0f766e","#4338ca","#9d174d","#3f6212"];
+var CUSTOM_TYPES=[];   // [{key,label,color,ab}]
+function _loadCustomTypes(){ try{ var a=JSON.parse(localStorage.getItem("rebarcheck.customTypes")||"[]"); if(Array.isArray(a)) CUSTOM_TYPES=a; }catch(e){} }
+function _saveCustomTypes(){ try{ localStorage.setItem("rebarcheck.customTypes",JSON.stringify(CUSTOM_TYPES)); }catch(e){} }
+function _ctAb(name){ name=(name||"").trim(); if(!name) return "X"; var m=name.match(/[A-Za-z]+/); return m ? m[0].slice(0,2).toUpperCase() : name.slice(0,2); }
+/** ลงทะเบียนชนิดกำหนดเองเข้า TYPES/TYPE_ORDER/TYPE_EN + ฉีดตัวแปรสี CSS (เรียกซ้ำได้) */
+function registerCustomTypes(){
+  _loadCustomTypes();
+  // กันพัง: ชิ้นส่วนที่ใช้ชนิดซึ่งยังไม่รู้จัก (เช่น ซิงก์มาจากเครื่องอื่น) → ลงทะเบียนให้ทันที
+  (DB.members||[]).forEach(function(m){
+    if(m && m.type && !TYPES[m.type] && !CUSTOM_TYPES.some(function(c){ return c.key===m.type; }))
+      CUSTOM_TYPES.push({ key:m.type, label:m.type, color:CUSTOM_TYPE_PALETTE[CUSTOM_TYPES.length%CUSTOM_TYPE_PALETTE.length] });
+  });
+  var css="";
+  CUSTOM_TYPES.forEach(function(c,i){
+    var col=c.color||CUSTOM_TYPE_PALETTE[i%CUSTOM_TYPE_PALETTE.length];
+    TYPES[c.key]={ label:c.label, ab:(c.ab||_ctAb(c.label)), css:c.key, hint:"ชนิดกำหนดเอง", custom:true, color:col };
+    if(TYPE_ORDER.indexOf(c.key)<0) TYPE_ORDER.push(c.key);
+    TYPE_EN[c.key]=c.label;
+    css+=":root{--t-"+c.key+":"+col+";--t-"+c.key+"-bg:"+col+"22}\n";
+  });
+  var st=document.getElementById("ctVars"); if(!st){ st=document.createElement("style"); st.id="ctVars"; document.head.appendChild(st); }
+  st.textContent=css;
+}
+/** เพิ่มชนิดใหม่จากชื่อ → คืน key (ระบบเลือกสีให้เอง) */
+function addCustomType(name){
+  name=(name||"").trim(); if(!name) return null;
+  var dup=CUSTOM_TYPES.filter(function(c){ return c.label===name; })[0]; if(dup) return dup.key;
+  var key="ct"+Date.now().toString(36);
+  CUSTOM_TYPES.push({ key:key, label:name, ab:_ctAb(name), color:CUSTOM_TYPE_PALETTE[CUSTOM_TYPES.length%CUSTOM_TYPE_PALETTE.length] });
+  _saveCustomTypes(); registerCustomTypes(); return key;
+}
+
 function normalizePlanShapes(){
   var changed=false;
   (DB.members||[]).forEach(function(m){
@@ -10632,7 +10673,7 @@ function startCloudSession(user){
         if(CLOUD_COLLS.every(function(x){return got[x];})){
           _fbLoaded=true;
           DB.inspector = user.email||"";
-          try{ normalizePlanShapes(); normalizeFloorPlans(); }catch(e){}
+          try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); }catch(e){}
           document.body.classList.remove("auth-mode");
           if(!state.screen || state.screen==="login" || state.screen==="loading") state.screen="home";
           render();
@@ -10855,7 +10896,7 @@ function offerLocalMigration(){
 function migrateLocalToCloud(local){
   toast("กำลังอัปข้อมูลขึ้นคลาวด์…");
   DB.projects=local.projects||[]; DB.floors=local.floors||[]; DB.members=local.members||[]; DB.inspections=local.inspections||[]; DB.types=local.types||[];
-  try{ normalizePlanShapes(); normalizeFloorPlans(); }catch(e){}
+  try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); }catch(e){}
   cloudSyncNow();   // ดันข้อมูลหลักขึ้นก่อน
   render();
   var jobs=[];      // รวบรวมไฟล์แปลนทุกแผ่นที่มีต้นฉบับในเครื่อง
@@ -10878,6 +10919,9 @@ function init(){
     loadDB();
     normalizePlanShapes();   // แปลงจุด/เส้นเก่า → กรอบ (ครั้งเดียว)
     normalizeFloorPlans();   // แปลงแปลนเดี่ยว → รายการแปลน (ครั้งเดียว)
+    registerCustomTypes();   // ชนิดกำหนดเอง
+  }else{
+    try{ registerCustomTypes(); }catch(e){}
   }
 
   // ตั้งไอคอนส่วนหัว
