@@ -936,6 +936,12 @@ body.plan-mode main#app{padding:0;max-width:none;margin:0}
 .rv-prow>span{color:#6b7684;flex:none;display:inline-flex;align-items:center}
 .rv-prow>b{font-weight:600;display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;min-width:0;text-align:right}
 .rv-color{width:26px;height:20px;padding:0;border:1px solid #b9c2cd;border-radius:3px;background:none;cursor:pointer}
+.rv-labsty{display:flex;flex-direction:column;gap:3px}
+.rv-labsty label{display:flex;align-items:center;gap:5px;font-size:10.5px;color:#4a5665;white-space:nowrap}
+.rv-labsty input[type=color]{width:26px;height:20px;padding:0;border:1px solid #b9c2cd;border-radius:3px;background:none;cursor:pointer}
+.rv-labsty .rv-in{width:118px;font-size:11px;padding:2px 5px}
+.rv-labsty .lab-auto{font:inherit;font-size:9.5px;padding:2px 6px;border:1px solid #b9c2cd;border-radius:3px;background:#f2f4f7;color:#4a5665;cursor:pointer}
+.rv-labsty .lab-auto.on{background:#dceafc;border-color:#8fb6e8;color:#1b4f9c}
 .rv-swpv{width:20px;height:20px;border-radius:3px;border:1px solid #b9c2cd;display:inline-block}
 .rv-range input[type=range]{width:104px;margin:0;accent-color:#1b4f9c}
 .rv-range em{font-style:normal;font-family:"JetBrains Mono",monospace;font-size:11px;min-width:40px;text-align:right}

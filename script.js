@@ -3172,9 +3172,11 @@ var state = {
   fillColor:"#f59e0b",   // สีกรอบที่จะวาด (คาน/พื้น/PT)
   fillAlpha:0.35,        // ความเข้มสีด้านในกรอบ (0..1)
   strokeW:10,            // ความหนาเส้นกรอบ (0 = ไม่มีเส้น)
-  rpWidth:380            // ความกว้างพาเนลขวา (ลากเส้นแบ่งปรับได้)
+  rpWidth:380,           // ความกว้างพาเนลขวา (ลากเส้นแบ่งปรับได้)
+  labelStyle:{ color:"", font:"JetBrains Mono", size:22 }   // แต่งป้ายเบอร์: สี (""=อัตโนมัติ) · ฟอนต์ · ขนาด (viewBox) · ขนาดคงที่บนจอเสมอ
 };
 try{ var _rw=parseInt(localStorage.getItem("rebarcheck.rpw"),10); if(_rw>=280&&_rw<=760) state.rpWidth=_rw; }catch(e){}
+try{ var _lsv=JSON.parse(localStorage.getItem("rebarcheck.labelStyle")||"null"); if(_lsv&&typeof _lsv==="object") state.labelStyle=Object.assign(state.labelStyle,_lsv); }catch(e){}
 
 /** หน้าจอที่ปุ่มย้อนกลับควรพาไป — คำนวณจากลำดับชั้นข้อมูล ไม่ต้องเก็บ stack */
 function backTarget(){
@@ -3524,6 +3526,7 @@ document.addEventListener("click",function(e){
     case "toggleSheet": state.rpSheet=(state.rpSheet==="open"?"peek":"open"); render(); break;
     case "toggleSnap":   state.snap=!state.snap; render(); break;
     case "toggleLabels": state.showLabels=!state.showLabels; render(); break;
+    case "labelColorAuto": { state.labelStyle.color=""; try{ localStorage.setItem("rebarcheck.labelStyle",JSON.stringify(state.labelStyle)); }catch(e){} render(); break; }
     case "selectPlanMember":
       state.selMemberId=id; state.rightTab="inspect"; state.answers={}; state.photos=[]; state.note=""; if(!isMobile()) state.ribbonTab="modify";
       render();
@@ -4269,16 +4272,18 @@ function planShapesSVG(VW,VH){
       lx=pl.x*VW; ly=pl.y*VH;
     }
     if(state.showLabels){
+      var _lst=state.labelStyle||{}, _lfs=(+_lst.size||22), _lfont=_lst.font||"JetBrains Mono", _ltc=_lst.color||"var(--text)";
       var labTxt=(pl.labelText!=null && pl.labelText!=="")?pl.labelText:m.code;
-      var tw=Math.max(34, labTxt.length*15+18), th=34;
+      var tw=Math.max(_lfs+12, labTxt.length*_lfs*0.66+16), th=_lfs+12;
       var lcx=lx+(pl.labelDx||0)*VW, lcy=ly+(pl.labelDy||0)*VH, lsc=pl.labelScale||1;
       var moved=(pl.labelDx||0)!==0 || (pl.labelDy||0)!==0;
       // เส้นชี้จากกล่องเบอร์ → ตัวคาน (เมื่อย้ายกล่องออกไป)
       if(moved) shapes+='<line x1="'+lcx.toFixed(1)+'" y1="'+lcy.toFixed(1)+'" x2="'+lx.toFixed(1)+'" y2="'+ly.toFixed(1)+'" stroke="'+col+'" stroke-width="'+(1.5/(state.zoom||1))+'" stroke-dasharray="'+(5/(state.zoom||1))+' '+(4/(state.zoom||1))+'" style="pointer-events:none"/>';
-      var g2='<g class="plan-label" data-lbl="'+m.id+'" data-ax="'+lcx.toFixed(1)+'" data-ay="'+lcy.toFixed(1)+'" data-ls="'+lsc+'" style="cursor:move">'
+      var _lz=(1/(state.zoom||1))*lsc;   // ฝัง counter-scale ตั้งแต่เรนเดอร์ → ป้ายขนาดคงที่บนจอทันที ไม่รอ updateLabelScale
+      var g2='<g class="plan-label" data-lbl="'+m.id+'" data-ax="'+lcx.toFixed(1)+'" data-ay="'+lcy.toFixed(1)+'" data-ls="'+lsc+'" transform="translate('+lcx.toFixed(1)+' '+lcy.toFixed(1)+') scale('+_lz.toFixed(4)+') translate('+(-lcx).toFixed(1)+' '+(-lcy).toFixed(1)+')" style="cursor:move">'
         +'<rect x="'+(lcx-tw/2)+'" y="'+(lcy-th/2)+'" width="'+tw+'" height="'+th+'" rx="7" fill="var(--surface)" stroke="'+col+'" stroke-width="2.5"/>'
-        +'<text x="'+lcx+'" y="'+lcy+'" dominant-baseline="central" text-anchor="middle" font-size="22" font-weight="700" '
-        +'fill="var(--text)" font-family="JetBrains Mono,monospace">'+esc(labTxt)+'</text>';
+        +'<text x="'+lcx+'" y="'+lcy+'" dominant-baseline="central" text-anchor="middle" font-size="'+_lfs+'" font-weight="700" '
+        +'fill="'+_ltc+'" font-family="'+esc(_lfont)+', monospace">'+esc(labTxt)+'</text>';
       if(sel) g2+='<circle data-lblsize="'+m.id+'" cx="'+(lcx+tw/2)+'" cy="'+(lcy+th/2)+'" r="7" fill="var(--brand)" stroke="#fff" stroke-width="2" style="cursor:nwse-resize"/>';
       shapes+=g2+'</g>';
     }
@@ -5880,6 +5885,13 @@ function rvRibbonHtml(type, f, plan, plans, selM){
     body+=rvGrp('ซูม', rvBig(false,"zoomFit",'','fit','พอดีจอ','ซูมพอดีจอ  (0)')+rvCol(rvSm(false,"zoomIn",'','zin','ซูมเข้า','(+)')+rvSm(false,"zoomOut",'','zout','ซูมออก','(−)')));
     body+=rvGrp('ค้นหา', rvBig(false,"focusSearch",'','search','ค้นหาเบอร์','Ctrl+F'));
     body+=rvGrp('พาเนล', rvCol(rvSm(!state.rpCollapsed,"toggleRp",'','panel','พาเนลซ้าย','แสดง/ซ่อนพาเนลซ้าย')+rvSm(false,"setPalette",'data-tab="tree"','folder','ผังโครงการ','เปิดแท็บผังโครงการในพาเนลซ้าย')));
+    var _ls2=state.labelStyle||{};
+    body+=rvGrp('แต่งป้ายเบอร์',
+      '<div class="rv-labsty">'
+      +'<label>สี<input type="color" id="labColor" value="'+esc(_ls2.color||"#1d2229")+'"><button class="lab-auto'+(_ls2.color?'':' on')+'" data-act="labelColorAuto" title="ใช้สีตัวอักษรอัตโนมัติ (ตามธีม)">อัตโนมัติ</button></label>'
+      +'<label>ฟอนต์<select id="labFont" class="rv-in">'+ANNOT_FONTS.map(function(fn){ return '<option'+((_ls2.font||"JetBrains Mono")===fn?' selected':'')+'>'+esc(fn)+'</option>'; }).join("")+'</select></label>'
+      +'<label>ขนาด<select id="labSize" class="rv-in">'+[16,18,20,22,26,30,36,44].map(function(nn){ return '<option value="'+nn+'"'+((+_ls2.size||22)==nn?' selected':'')+'>'+nn+'</option>'; }).join("")+'</select></label>'
+      +'</div>');
     body+=rvGrp('แสดงบนแปลน', rvCol2(rvSm(!!state.showLabels,"toggleLabels",'','tag','ป้ายเบอร์','แสดง/ซ่อนป้ายเบอร์บนแปลน')+rvSm(!!state.showLegend,"toggleLegend",'','grid','ตารางสี')+rvSm(!!state.snap,"toggleSnap",'','snap','สแนบเส้น','(S)')+rvSm(!!state.showProgress,"toggleProgress",'','zone','โซนเท','แสดงโซนเทคอนกรีตบนแปลน')));
   }else{ // structure (หน้าแรก)
     body+=selBtn;
@@ -6721,6 +6733,12 @@ function bindPlanEditor(){
     }
   };
   document.addEventListener("keydown",_plKeyHandler);
+  // แต่งป้ายเบอร์ (สี/ฟอนต์/ขนาด) — เก็บใน localStorage
+  function _saveLabelStyle(){ try{ localStorage.setItem("rebarcheck.labelStyle",JSON.stringify(state.labelStyle)); }catch(e){} }
+  var _lc=$("#labColor"), _lf=$("#labFont"), _lsz=$("#labSize");
+  if(_lc){ _lc.addEventListener("input",function(){ state.labelStyle.color=_lc.value; repaintPlanShapes(); }); _lc.addEventListener("change",function(){ state.labelStyle.color=_lc.value; _saveLabelStyle(); render(); }); }
+  if(_lf){ _lf.addEventListener("change",function(){ state.labelStyle.font=_lf.value; _saveLabelStyle(); render(); }); }
+  if(_lsz){ _lsz.addEventListener("change",function(){ state.labelStyle.size=+_lsz.value; _saveLabelStyle(); render(); }); }
   // ดรอปดาวน์เลือกชนิดที่กำลังวาด
   var dts=$("#drawTypeSel");
   if(dts) dts.addEventListener("change",function(){ state.catType=dts.value; if(state.hiddenTypes) delete state.hiddenTypes[dts.value]; render(); });
