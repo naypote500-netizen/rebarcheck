@@ -5796,9 +5796,10 @@ function annotSvg(a, VW, VH, z, sel){
       [["p1",x1,y1],["p2",x2,y2]].forEach(function(p){
         out+='<rect data-aid="'+a.id+'" data-ahandle="'+p[0]+'" x="'+(p[1]-4.5/z)+'" y="'+(p[2]-4.5/z)+'" width="'+(9/z)+'" height="'+(9/z)+'" fill="#fff" stroke="#ef4444" stroke-width="'+(2/z)+'" style="cursor:crosshair"/>';
       });
-      // จุดจับเลื่อนแนว (offset) — ที่ 30% ของเส้นบอกขนาด ไม่ทับตัวเลข
-      var gx=q1x+(q2x-q1x)*0.3, gy=q1y+(q2y-q1y)*0.3;
-      out+='<circle data-aid="'+a.id+'" data-ahandle="off" cx="'+gx+'" cy="'+gy+'" r="'+(5.5/z)+'" fill="#2b6fe0" stroke="#fff" stroke-width="'+(2/z)+'" style="cursor:move"><title>ลากเพื่อเลื่อนเส้นบอกขนาดออกจากแนวที่วัด</title></circle>';
+      // จุดจับเลื่อนแนว (offset) — กลางเส้น เยื้องตั้งฉากออกเล็กน้อยให้อยู่ติดตัวเลข ไม่ทับ
+      var _gd=(offPx>=0?1:-1), _gg=(fs*0.95+3/z);
+      var gx=mx+nx*_gg*_gd, gy=my+ny*_gg*_gd;
+      out+='<circle data-aid="'+a.id+'" data-ahandle="off" cx="'+gx+'" cy="'+gy+'" r="'+(5.5/z)+'" fill="#2b6fe0" stroke="#fff" stroke-width="'+(2/z)+'" style="cursor:move"><title>ลากเพื่อเลื่อนเส้นบอกขนาดเข้า/ออกจากแนวที่วัด</title></circle>';
     }
     return out;
   }
@@ -7633,10 +7634,9 @@ function rvPaletteHtml(type, m, p, f, plans, plan){
     var _areas=pl?areasOfPlan(fl.id,curPlanId()):[];
     if(pl && (_areas.length || state.ribbonTab==="annot")) h+=qtySummaryHtml(fl,pl,_areas);
     if(drawKind(type)==="rect"){
-      h+=rvPh('สไตล์กรอบเริ่มต้น');
-      h+=rvStyleRows(state.fillColor,state.fillAlpha,state.strokeW,'ใช้กับ'+TYPES[type].label+'ที่วาดใหม่ — เลือกกรอบบนแปลนเพื่อปรับเฉพาะตัว');
       var _nbox=membersOfFloor(fl.id).filter(function(mm){ return mm.plan && isBox(mm.plan) && memberPlanId(mm)===curPlanId(); }).length;
-      if(_nbox) h+='<div class="rv-pacts"><button class="btn soft" data-act="applyStyleAll" title="ปรับสี/ความเข้ม/เส้นกรอบ ของกล่องทุกกล่องในแปลนนี้ให้เท่ากับค่าด้านบน">'+rvIc('wand',14)+' ปรับใช้กับกล่องทั้งหมด ('+_nbox+')</button></div>';
+      h+=rvPh(_nbox?'สีกรอบ · กล่องทั้งหมดในแปลนนี้ ('+_nbox+')':'สไตล์กรอบเริ่มต้น');
+      h+=rvStyleRows(state.fillColor,state.fillAlpha,state.strokeW,_nbox?'ลากเพื่อปรับ '+_nbox+' กล่องพร้อมกันทันที · หรือคลิกเลือกกล่องเดียวเพื่อปรับเฉพาะตัว':'ใช้กับ'+TYPES[type].label+'ที่วาดใหม่');
     }
   }
   return h+'</div></div>';
@@ -8414,12 +8414,15 @@ function bindPlanEditor(){
         r.setAttribute("fill",col); r.setAttribute("fill-opacity",a);
         if(ww>0){ r.setAttribute("stroke",col); r.setAttribute("stroke-width",ww); } else r.setAttribute("stroke","none");
       }
-    }else{                                          // ไม่ได้เลือก → ตั้งค่าเริ่มของคานที่จะวาดใหม่
+    }else{                                          // ไม่ได้เลือกกล่อง → ปรับ "ทุกกล่อง" ในแปลนนี้ทันที + ตั้งเป็นค่าเริ่มของกล่องใหม่
       state.fillColor=col; state.fillAlpha=a; state.strokeW=ww;
+      var _f=getFloor(state.floorId), _pid=curPlanId(), _n=0;
+      membersOfFloor(_f.id).forEach(function(mm){ if(mm.plan && isBox(mm.plan) && memberPlanId(mm)===_pid){ mm.plan.fill=col; mm.plan.fillA=a; mm.plan.strokeW=ww; _n++; } });
+      if(_n) repaintPlanShapes();
     }
   }
-  function saveStyle(){ applyStyle(); if(getMember(state.selMemberId)) saveDB(); }
-  [dc,da,ds].forEach(function(inp){ if(inp) inp.addEventListener("pointerdown",function(){ if(getMember(state.selMemberId)) plPushUndo(); }); });   // เก็บสภาพก่อนปรับ ครั้งเดียวต่อการลาก
+  function saveStyle(){ applyStyle(); saveDB(); }
+  [dc,da,ds].forEach(function(inp){ if(inp) inp.addEventListener("pointerdown",function(){ plPushUndo(); }); });   // เก็บสภาพก่อนปรับ ครั้งเดียวต่อการลาก
   if(dc){ dc.addEventListener("input",applyStyle); dc.addEventListener("change",saveStyle); }
   if(da){ da.addEventListener("input",applyStyle); da.addEventListener("change",saveStyle); }
   if(ds){ ds.addEventListener("input",applyStyle); ds.addEventListener("change",saveStyle); }
