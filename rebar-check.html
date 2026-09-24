@@ -8937,13 +8937,13 @@ function bindPlanEditor(){
     if(!snapEl){ snapEl=document.createElementNS(NS,"g"); snapEl.setAttribute("style","pointer-events:none"); }
     overlay.appendChild(snapEl);   // ให้อยู่บนสุดเสมอ
     var unit=VW/Math.max(1,r.width);            // 1 พิกเซลจอ = กี่หน่วย viewBox (คงที่ทุกซูม)
-    var X=pt.x*VW, Y=pt.y*VH, m=8*unit, ring=13*unit;   // กรอบสแนบ ~16px + วงเป้า ~26px ให้เด่นทุกซูม
+    var X=pt.x*VW, Y=pt.y*VH, m=8*unit;   // กรอบสแนบ ~16px คงที่ทุกซูม (ไม่มีวงเป้ารอบนอก)
     var col=pt.type==="end"?"#e00000":(pt.type==="cross"?"#0a9e0a":"#0a5fe0");
     var body = (pt.type==="cross")
       ? '<line x1="'+(X-m)+'" y1="'+(Y-m)+'" x2="'+(X+m)+'" y2="'+(Y+m)+'"/><line x1="'+(X-m)+'" y1="'+(Y+m)+'" x2="'+(X+m)+'" y2="'+(Y-m)+'"/>'
       : '<rect x="'+(X-m)+'" y="'+(Y-m)+'" width="'+(2*m)+'" height="'+(2*m)+'"/>';
-    var target=body+'<circle cx="'+X+'" cy="'+Y+'" r="'+ring+'"/>';
-    // ฮาโลขาวหนา + เส้นสีหนาขึ้น + วงเป้ารอบนอก + จุดกลางทึบ → เห็นชัดแม้ซูมสุดบนแบบที่เส้นเยอะ
+    var target=body;
+    // ฮาโลขาวหนา + เส้นสีหนา + จุดกลางทึบ → เห็นชัดแม้ซูมสุดบนแบบที่เส้นเยอะ
     snapEl.innerHTML='<g fill="none" stroke="#fff" stroke-width="'+(7*unit)+'" stroke-linecap="round" opacity="0.95">'+target+'</g>'
       +'<g fill="none" stroke="'+col+'" stroke-width="'+(3.6*unit)+'" stroke-linecap="round">'+target+'</g>'
       +'<circle cx="'+X+'" cy="'+Y+'" r="'+(3*unit)+'" fill="'+col+'" stroke="#fff" stroke-width="'+(1.6*unit)+'"/>';
