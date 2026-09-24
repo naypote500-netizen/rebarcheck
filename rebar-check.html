@@ -1275,6 +1275,46 @@ body.pj-mode main,body.pj-mode .hd-wrap{max-width:1040px}
 .pj-empty b{display:block;color:var(--text)}
 .pj-empty small{display:block;color:var(--text-dim);margin-top:2px}
 .pj-empty .btn{margin-left:auto;display:inline-flex;align-items:center;gap:6px}
+/* --- โฟลเดอร์รายชั้น (หน้าโครงการ) --- */
+.pj-folders{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.fld-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 16px 14px;cursor:pointer;transition:box-shadow .12s,border-color .12s;box-shadow:var(--shadow)}
+.fld-card:hover{box-shadow:var(--shadow-md);border-color:var(--border-strong)}
+.fld-card:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+.fld-card .fld-more{position:absolute;right:10px;top:11px;width:28px;height:28px;padding:0;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:var(--surface);color:var(--text-dim);border:1px solid var(--border);box-shadow:none}
+.fld-card .fld-more:hover{border-color:var(--brand);background:var(--brand-bg);color:var(--brand);filter:none}
+.fld-lv{position:absolute;right:14px;top:54px;font-size:.72rem;color:var(--text-dim);font-weight:600}
+.fld-ic{display:block}
+.fld-nm{display:block;font-size:1rem;font-weight:800;color:var(--text);margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fld-cnt{display:flex;align-items:center;gap:5px;font-size:.78rem;color:var(--text-dim);margin-top:3px}
+.fld-cnt svg{stroke:currentColor;fill:none;flex:none}
+.fld-card .fl-bar{display:block;width:auto;margin-top:12px;height:7px}
+.fld-foot{display:flex;justify-content:space-between;align-items:center;margin-top:7px;font-size:.76rem;font-weight:700;color:var(--text-dim)}
+.fld-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:180px;border:2px dashed var(--border-strong);border-radius:16px;background:var(--surface-2);color:var(--text-dim);font:inherit;font-weight:700;font-size:.85rem;cursor:pointer;transition:border-color .12s,color .12s}
+.fld-add:hover{border-color:var(--brand);color:var(--brand)}
+.fld-add svg{stroke:currentColor;fill:none;opacity:.7}
+/* --- การ์ดแปลนในชั้น (หน้า floorPlans) --- */
+.plan-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.plan-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;transition:box-shadow .12s,border-color .12s;box-shadow:var(--shadow);text-align:left}
+.plan-card:hover{box-shadow:var(--shadow-md);border-color:var(--border-strong)}
+.plan-card.on{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-bg)}
+.plan-card:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+.plan-card-th{height:104px;background:var(--surface-2);border-bottom:1px solid var(--border);display:grid;place-items:center;overflow:hidden}
+.plan-card-th img{width:100%;height:100%;object-fit:cover}
+.plan-card-ph svg{stroke:var(--border-strong);fill:none;opacity:.85}
+.plan-card-b{padding:10px 12px}
+.plan-card-b b{display:block;font-size:.9rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plan-card-m{font-size:.75rem;color:var(--text-dim);margin:2px 0 8px}
+.plan-card-b .fl-bar{display:block;width:auto;height:5px}
+.plan-card-tag{position:absolute;left:9px;top:9px;z-index:2;font-size:.62rem;font-weight:700;letter-spacing:.4px;padding:2px 7px;border-radius:20px;background:rgba(23,31,46,.72);color:#fff}
+.plan-card-actions{position:absolute;right:8px;top:8px;z-index:2;display:flex;gap:5px;opacity:0;transition:opacity .12s}
+.plan-card:hover .plan-card-actions,.plan-card.on .plan-card-actions{opacity:1}
+.plan-card-actions .btn{width:28px;height:28px;padding:0;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.96);color:var(--text-dim);border:1px solid var(--border);box-shadow:0 1px 3px rgba(23,31,46,.14)}
+.plan-card-actions .btn:hover{border-color:var(--brand);color:var(--brand);background:#fff;filter:none}
+.plan-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:188px;border:2px dashed var(--border-strong);background:var(--surface-2);color:var(--text-dim);font:inherit;font-weight:700;font-size:.82rem;text-align:center;transition:border-color .12s,color .12s}
+.plan-add:hover{border-color:var(--brand);color:var(--brand)}
+.plan-add svg{stroke:currentColor;fill:none;opacity:.7}
+.plan-add small{font-weight:400;opacity:.8}
+@media(max-width:560px){.pj-folders{grid-template-columns:repeat(2,1fr);gap:10px}.plan-cards{grid-template-columns:repeat(2,1fr);gap:10px}.fld-add,.plan-add{min-height:150px}}
 @media(max-width:760px){
   .pj-head{padding:14px 16px;gap:12px}
   .pj-ht{min-width:0}
@@ -3474,6 +3514,15 @@ function planCtxMenu(m, x, y){
 /** ตัวย่อชั้นจากชื่อ (2 ตัว) — ระดับแสดงในบรรทัดเล็กแทน */
 function pjAb(f){ var nm=(f.name||"").trim(); if(!nm) return "—"; var num=nm.match(/\d+/); if(/[฀-๿]/.test(nm)) return num?num[0]:nm.charAt(0); var w=nm.split(/\s+/); return (w.length>=2 ? (w[0][0]+w[1][0]) : nm.slice(0,2)).toUpperCase(); }
 function pjDate(ts){ try{ return new Date(ts).toLocaleDateString('th-TH',{year:'2-digit',month:'short',day:'numeric'}); }catch(e){ return ""; } }
+function folderSvg(col,w){ w=w||44; var hh=Math.round(w*46/58);
+  return '<svg viewBox="0 0 58 46" style="width:'+w+'px;height:'+hh+'px;display:block">'
+    +'<path d="M3 9a3 3 0 0 1 3-3h13l4 5h29a3 3 0 0 1 3 3v25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3Z" fill="'+col+'" fill-opacity=".22"/>'
+    +'<path d="M3 15h52v22a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3Z" fill="'+col+'"/></svg>'; }
+/** สีสถานะของชั้น/แปลน: ไม่ผ่าน=แดง · เสร็จ100%=เขียว · มีชิ้นส่วน=น้ำเงิน · ว่าง=เทา */
+function flStatusCol(s){ return s.fail>0?'var(--fail)':((s.total&&(s.total-s.todo)===s.total)?'var(--pass)':(s.total?'var(--brand)':'var(--text-dim)')); }
+/** แหล่งภาพ thumbnail ของแปลน (ถ้ามีในเครื่อง/แคช) ไม่งั้นคืน "" ให้โชว์ placeholder */
+function planThumbSrc(f,pl){ if(!f||!pl) return ""; var key=(pl.id&&pl.id!=="_main")?f.id+":"+pl.id:f.id; return pl.src||PLAN_PREVIEW[key]||""; }
+
 function viewFloors(){
   var p=getProject(state.projectId);
   if(!p) return emptyBox('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>',"ไม่พบโครงการ","");
@@ -3497,33 +3546,66 @@ function viewFloors(){
       +'<button class="btn soft" data-act="editProject" data-id="'+esc(p.id)+'" title="เปลี่ยนชื่อ / สถานที่ / ลบโครงการ">'+rvIc('edit',14)+' แก้ไขโครงการ</button>'
       +'<button class="btn" data-act="newFloor">'+rvIc('plus',14)+' เพิ่มชั้น</button>'
     +'</div></div>';
-  // ---- ตารางชั้น ----
-  h+='<div class="pj-sec"><span>ชั้น</span><i class="pj-cnt">'+fls.length+'</i><span class="sp"></span><small>เรียงจากชั้นล่างขึ้นบน · คลิกแถวเพื่อเปิดแปลน</small></div>';
+  // ---- โฟลเดอร์รายชั้น ----
+  h+='<div class="pj-sec">'+rvIc('folder',18)+'<span>โฟลเดอร์ชั้น</span><i class="pj-cnt">'+fls.length+'</i><span class="sp"></span><small>คลิกโฟลเดอร์ชั้นเพื่อดูแปลนข้างใน</small></div>';
   if(!fls.length){
     h+='<div class="pj-empty">'+rvIc('floor',22)+'<div><b>ยังไม่มีชั้น</b><small>กด “เพิ่มชั้น” แล้วนำเข้าแปลนของชั้นนั้น จากนั้นวาดคาน/เสา/พื้นบนแปลนได้เลย</small></div><button class="btn" data-act="newFloor">'+rvIc('plus',14)+' เพิ่มชั้น</button></div>';
     return h;
   }
-  h+='<div class="pj-table"><div class="pj-tr pj-th"><span>ชั้น</span><span>ชิ้นส่วน</span><span>ความคืบหน้า</span><span>ตรวจล่าสุด</span><span></span></div>';
+  h+='<div class="pj-folders">';
   fls.forEach(function(f){
     var ms=membersOfFloor(f.id), fs2=summarize(ms), fp=flPct(fs2), lv=lvText(f.level), plans=floorPlans(f);
-    var col=fs2.fail>0?'var(--fail)':((fp===100&&ms.length)?'var(--pass)':'var(--warn)');
-    var chips=TYPE_ORDER.map(function(t){ var k=ms.filter(function(m){return m.type===t;}).length; return k?'<span class="pj-chip"><i style="background:var(--t-'+TYPES[t].css+')"></i>'+esc(TYPES[t].label)+' '+k+'</span>':''; }).join("");
-    var prog = !ms.length ? '<em class="muted">ยังไม่มีชิ้นส่วน</em>'
-      : '<span class="fl-bar"><i style="width:'+Math.max(4,fp)+'%;background:'+col+'"></i></span><b style="color:'+col+'">'+(fs2.total-fs2.todo)+' / '+fs2.total+(fs2.fail?' · ไม่ผ่าน '+fs2.fail:'')+'</b>';
-    var li=floorLastInspection(f.id);
-    var last = li ? esc(pjDate(li.ts))+(li.inspector?' · '+esc(li.inspector):'') : '<em class="muted">ยังไม่เคยตรวจ</em>';
-    if(fs2.fail) last+='<b class="bad"> · มีไม่ผ่านค้าง</b>';
-    h+='<div class="pj-tr pj-row" data-act="openFloor" data-id="'+esc(f.id)+'" role="button" tabindex="0">'
-      +'<span class="pj-fl"><i class="pj-ab">'+esc(pjAb(f))+'</i><span><b>'+esc(f.name)+'</b><small>'+(plans.length?'แปลน '+plans.length:'ยังไม่มีแปลน')+(lv?' · '+esc(lv):'')+'</small></span></span>'
-      +'<span class="pj-chips">'+(chips||'<em class="muted">—</em>')+'</span>'
-      +'<span class="pj-prog">'+prog+'</span>'
-      +'<span class="pj-last">'+last+'</span>'
-      +'<span class="pj-ra"><button class="btn sm" data-act="openFloor" data-id="'+esc(f.id)+'">เปิดแปลน ›</button>'
-        +'<button class="btn sm ic" data-act="floorHistory" data-id="'+esc(f.id)+'" title="ประวัติการตรวจของชั้นนี้">'+rvIc('data',14)+'</button>'
-        +'<button class="btn sm ic" data-act="editFloor" data-id="'+esc(f.id)+'" title="เปลี่ยนชื่อ / ระดับ / ลบชั้น">'+rvIc('more',14)+'</button></span>'
+    var col=flStatusCol(fs2);
+    h+='<div class="fld-card" data-act="openFloor" data-id="'+esc(f.id)+'" role="button" tabindex="0">'
+      +'<button class="btn sm ic fld-more" data-act="editFloor" data-id="'+esc(f.id)+'" title="เปลี่ยนชื่อ / ระดับ / ลบชั้น">'+rvIc('more',15)+'</button>'
+      +(lv?'<span class="fld-lv">'+esc(lv)+'</span>':'')
+      +'<span class="fld-ic">'+folderSvg(col,52)+'</span>'
+      +'<b class="fld-nm">'+esc(f.name)+'</b>'
+      +'<span class="fld-cnt">'+rvIc('plan',13)+(plans.length?plans.length+' แปลน':'ยังไม่มีแปลน')+'</span>'
+      +'<span class="fl-bar"><i style="width:'+Math.max(4,fp)+'%;background:'+col+'"></i></span>'
+      +'<span class="fld-foot"><span>'+esc(pjAb(f))+'</span><b style="color:'+col+'">'+(ms.length?fp+'%':'—')+'</b></span>'
       +'</div>';
   });
-  return h+'</div>';
+  h+='<button class="fld-add" data-act="newFloor">'+rvIc('folder',30)+'<span>สร้างชั้นใหม่</span></button>';
+  h+='</div>';
+  return h;
+}
+
+/* ---- หน้าจอ 2.5: แปลนในชั้น (การ์ดแปลน) — เปิดจากการคลิกโฟลเดอร์ชั้น ---- */
+function viewFloorPlans(){
+  var f=getFloor(state.floorId), p=getProject(state.projectId);
+  if(!f||!p) return emptyBox('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>',"ไม่พบชั้น","");
+  var plans=floorPlans(f), all=membersOfFloor(f.id), s=summarize(all), pct=flPct(s), lv=lvText(f.level);
+  var h='<div class="pj-head">'
+    +'<div class="pj-ring" style="width:64px;height:64px;display:grid;place-items:center;background:var(--brand-bg);border-radius:16px">'+folderSvg('var(--brand)',40)+'</div>'
+    +'<div class="pj-ht"><h1 class="pj-title">'+esc(f.name)+'</h1>'
+    +'<div class="pj-meta"><span>'+esc(p.name)+'</span>'+(lv?'<span>ระดับ '+esc(lv)+'</span>':'')
+      +'<span>'+plans.length+' แปลน · '+s.total+' ชิ้นส่วน</span>'
+      +(all.length?'<span>ความคืบหน้า <b>'+pct+'%</b></span>':'')
+      +(s.fail?'<span class="bad">ไม่ผ่านค้าง <b>'+s.fail+'</b></span>':'')+'</div></div>'
+    +'<div class="pj-acts">'
+      +'<button class="btn soft" data-act="floorHistory" data-id="'+esc(f.id)+'" title="ประวัติการตรวจของชั้นนี้">'+rvIc('data',14)+' ประวัติชั้นนี้</button>'
+      +'<button class="btn soft" data-act="editFloor" data-id="'+esc(f.id)+'" title="เปลี่ยนชื่อ / ระดับ / ลบชั้น">'+rvIc('edit',14)+' แก้ไขชั้น</button>'
+      +'<button class="btn" data-act="addPlan">'+rvIc('plus',14)+' เพิ่มแปลน</button>'
+    +'</div></div>';
+  h+='<div class="pj-sec">'+rvIc('plan',18)+'<span>แปลนในชั้นนี้</span><i class="pj-cnt">'+plans.length+'</i><span class="sp"></span><small>คลิกแปลนเพื่อเปิดวาด/ตรวจ · ⋯ ที่การ์ดเพื่อเปลี่ยนชื่อ/ลบ</small></div>';
+  h+='<div class="plan-cards">';
+  plans.forEach(function(pl){
+    var pm=all.filter(function(m){ return memberPlanId(m)===pl.id; });
+    var ps=summarize(pm), ppct=flPct(ps), pcol=flStatusCol(ps);
+    var src=planThumbSrc(f,pl), active=(pl.id===(f.activePlanId||"_main"));
+    h+='<div class="plan-card'+(active?' on':'')+'" data-act="openPlan" data-pid="'+esc(pl.id)+'" role="button" tabindex="0">'
+      +'<div class="plan-card-actions"><button class="btn sm ic" data-act="renamePlan" data-pid="'+esc(pl.id)+'" title="เปลี่ยนชื่อแปลน">'+rvIc('edit',14)+'</button>'
+        +'<button class="btn sm ic" data-act="deletePlanById" data-pid="'+esc(pl.id)+'" title="ลบแปลนนี้">'+rvIc('trash',14)+'</button></div>'
+      +(pl.kind==="pdf"?'<span class="plan-card-tag">PDF</span>':'')
+      +'<div class="plan-card-th">'+(src?'<img src="'+esc(src)+'" alt="'+esc(pl.name||"แปลน")+'">':'<span class="plan-card-ph">'+rvIc('plan',26)+'</span>')+'</div>'
+      +'<div class="plan-card-b"><b>'+esc(pl.name||"แปลน")+'</b><div class="plan-card-m">'+(pm.length?pm.length+' ชิ้น · '+ppct+'%':'ยังไม่มีชิ้นส่วน')+'</div>'
+      +'<span class="fl-bar"><i style="width:'+Math.max(4,ppct)+'%;background:'+pcol+'"></i></span></div>'
+      +'</div>';
+  });
+  h+='<button class="plan-card plan-add" data-act="addPlan">'+rvIc('plus',28)+'<span>เพิ่มแปลน<br><small>(รูป / PDF)</small></span></button>';
+  h+='</div>';
+  return h;
 }
 
 /* ---- หน้าจอ 3: ชิ้นส่วนในชั้น ---- */
@@ -4859,8 +4941,9 @@ function backTarget(){
   switch(state.screen){
     case "home":       return null;
     case "floors":     return "home";
+    case "floorPlans": return "floors";
     case "categories": return "floors";
-    case "planEditor": return "floors";
+    case "planEditor": return "floorPlans";
     case "members":    return "floors";
     case "memberDetail": return "planEditor";
     case "pickType":   return "floors";
@@ -4896,6 +4979,7 @@ function headerInfo(){
   var p=getProject(state.projectId), f=getFloor(state.floorId), m=getMember(state.memberId);
   switch(state.screen){
     case "floors":     return [p?p.name:"โครงการ", "โครงการ · "+floorsOf(p?p.id:"").length+" ชั้น"];
+    case "floorPlans": return [f?f.name:"ชั้น", (p?p.name:"")+" · "+(f?floorPlans(f).length:0)+" แปลน"];
     case "categories": return [f?f.name:"ชั้น", p?p.name:""];
     case "planEditor": return [state.planMode==="progress"?"ความคืบหน้าเทคอนกรีต":"แปลน · "+(TYPES[state.catType]?TYPES[state.catType].label:"หมวด"), (f?f.name:"")+(p?" · "+p.name:"")];
     case "members":    return [f?f.name:"ชั้น", p?p.name:""];
@@ -4918,6 +5002,7 @@ function render(){
   switch(state.screen){
     case "home":       html=viewHome();       break;
     case "floors":     html=viewFloors();     break;
+    case "floorPlans": html=viewFloorPlans(); break;
     case "categories": html=viewCategories(); break;
     case "planEditor": html=viewPlanEditor(); break;
     case "members":    html=viewMembers();    break;
@@ -4933,7 +5018,7 @@ function render(){
   document.body.classList.toggle("editor-wide", state.screen==="planEditor" || state.screen==="memberDetail" || state.screen==="memberForm");
   document.body.classList.toggle("plan-mode", state.screen==="planEditor" || state.screen==="memberDetail");
   document.body.classList.toggle("home-mode", state.screen==="home");
-  document.body.classList.toggle("pj-mode", state.screen==="floors");   // หน้าโครงการ: ตารางชั้นต้องการความกว้าง   // ซ่อน header เดิม โชว์ dashboard เต็ม
+  document.body.classList.toggle("pj-mode", state.screen==="floors"||state.screen==="floorPlans");   // หน้าโครงการ/แปลนในชั้น: ใช้ความกว้างเต็ม
   document.body.classList.remove("auth-mode");   // เข้าแอปแล้ว → เลิกโหมด login
 
   var hi=headerInfo();
@@ -4954,7 +5039,7 @@ function renderTabbar(){
   var show = mob && authed && !TABBAR_HIDE[scr] && scr!=="login" && scr!=="loading";
   document.body.classList.toggle("has-tabbar", show);
   if(!show){ tb.innerHTML=""; if(fab) fab.style.display="none"; return; }
-  var inspAct=(scr==="floors"||scr==="categories"||scr==="members"||scr==="detail");
+  var inspAct=(scr==="floors"||scr==="floorPlans"||scr==="categories"||scr==="members"||scr==="detail");
   var IChome='<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>';
   var ICsearch='<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>';
   var ICreport='<svg viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg>';
@@ -4966,7 +5051,7 @@ function renderTabbar(){
     + tab(scr==="data","goData","โปรไฟล์",ICuser);
   // ปุ่มลอย (FAB) ตามหน้า
   if(fab){
-    var fa = scr==="home" ? {a:"newProject",t:"สร้างโครงการใหม่"} : (scr==="floors" ? {a:"addFloorFab",t:"เพิ่มชั้น"} : null);
+    var fa = scr==="home" ? {a:"newProject",t:"สร้างโครงการใหม่"} : (scr==="floors" ? {a:"addFloorFab",t:"เพิ่มชั้น"} : (scr==="floorPlans" ? {a:"addPlan",t:"เพิ่มแปลน"} : null));
     if(fa){ fab.style.display="grid"; fab.setAttribute("data-act",fa.a); fab.title=fa.t;
       fab.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'; }
     else fab.style.display="none";
@@ -5044,10 +5129,16 @@ document.addEventListener("click",function(e){
     case "authSignup":  doAuth(true); break;
     case "authToggle":  state._authMode=(state._authMode==="signup"?"login":"signup"); renderLogin(); break;
     case "logout":      if(confirm("ออกจากระบบ?")){ try{ fbAuth.signOut(); }catch(e){} } break;
-    case "openFloor": {   // คลิกชั้น → เปิดแปลนรวมทันที (ไม่มีหน้า "หมวด" คั่นแล้ว)
+    case "openFloor": {   // คลิกโฟลเดอร์ชั้น → หน้ารวมแปลนของชั้น (การ์ดแปลน)
       var fOF=getFloor(id); if(!fOF) break;
-      var msOF=membersOfFloor(fOF.id), tOF=(msOF[0]&&msOF[0].type)||"beam";
-      go("planEditor",{floorId:fOF.id, catType:tOF, unified:true, hiddenTypes:{}, selMemberId:null, selZoneId:null, selAnnotId:null, selTypeId:null,
+      go("floorPlans",{floorId:fOF.id, q:"", typeFilter:"all"});
+      break;
+    }
+    case "openPlan": {   // คลิกการ์ดแปลน → ตั้งเป็นแปลนที่ใช้งาน แล้วเปิดเอดิเตอร์
+      var fOP=getFloor(state.floorId); if(!fOP) break;
+      var pidOP=el.getAttribute("data-pid"); if(pidOP){ fOP.activePlanId=pidOP; state.pendingPlanId=null; saveDB(); }
+      var msOP=membersOfFloor(fOP.id), tOP=(msOP[0]&&msOP[0].type)||"beam";
+      go("planEditor",{floorId:fOP.id, catType:tOP, unified:true, hiddenTypes:{}, selMemberId:null, selZoneId:null, selAnnotId:null, selTypeId:null,
                        planMode:"inspect", tool:"select", rightTab:"props", ribbonTab:"structure", answers:{}, photos:[], note:"", zoom:1, panX:0, panY:0});
       break;
     }
@@ -5353,6 +5444,27 @@ document.addEventListener("click",function(e){
       var fS=getFloor(state.floorId); fS.activePlanId=el.getAttribute("data-pid"); state.pendingPlanId=null;
       state.zoom=1; state.panX=0; state.panY=0; state.selMemberId=null;
       saveDB(); render(); break;
+    }
+    case "renamePlan": {       // เปลี่ยนชื่อแปลน (จากการ์ดแปลน)
+      var fR=getFloor(state.floorId), pidR=el.getAttribute("data-pid");
+      var plR=(floorPlans(fR)||[]).filter(function(p){return p.id===pidR;})[0]; if(!plR){ toast("ไม่พบแปลน",true); break; }
+      var nmR=prompt("ชื่อแปลน", plR.name||"แปลน"); if(nmR==null) break; nmR=nmR.trim(); if(!nmR) break;
+      if(fR.planList){ var hitR=fR.planList.filter(function(p){return p.id===pidR;})[0]; if(hitR) hitR.name=nmR; }
+      saveDB(); render(); break;
+    }
+    case "deletePlanById": {   // ลบแปลนที่ระบุด้วย data-pid (จากการ์ดแปลน)
+      var fD=getFloor(state.floorId), pidD=el.getAttribute("data-pid");
+      if(!fD||!fD.planList){ toast("ไม่พบแปลน",true); break; }
+      var plD=fD.planList.filter(function(p){return p.id===pidD;})[0]; if(!plD){ toast("ไม่พบแปลน",true); break; }
+      if(confirm("ลบ “"+(plD.name||"แปลนนี้")+"”? (เบอร์ที่วาดไว้ยังอยู่)")){
+        var pkD=(pidD&&pidD!=="_main")?fD.id+":"+pidD:fD.id;
+        ["url","deepUrl","detailUrl","bigUrl"].forEach(function(k){ try{ if(PLAN_DOCS[pkD]&&PLAN_DOCS[pkD][k]) URL.revokeObjectURL(PLAN_DOCS[pkD][k]); }catch(e){} });
+        delete PLAN_DOCS[pkD]; idbDel(pkD); cloudDeletePlan(pkD);
+        fD.planList=fD.planList.filter(function(p){return p.id!==pidD;});
+        if(fD.activePlanId===pidD) fD.activePlanId=fD.planList.length?fD.planList[0].id:null;
+        saveDB(); render(); toast("ลบแปลนแล้ว");
+      }
+      break;
     }
     case "removePlan": {
       var fl=getFloor(state.floorId); var arr=fl?(fl.planList||[]):[];
