@@ -7544,8 +7544,10 @@ function bindPlanEditor(){
       }
       var sEl=ev.target.closest("[data-mid]");
       if(sEl){        // กดที่ตัวชิ้นส่วน → เตรียมย้าย/เลือก (ถ้าอยู่ในชุดที่เลือก → ย้ายทั้งชุด)
-        var m=getMember(sEl.getAttribute("data-mid")); var p0=norm(ev);
-        mv={ mid:sEl.getAttribute("data-mid"), start:p0, geo:JSON.parse(JSON.stringify(m.plan)), moved:false, shift:!!ev.shiftKey };
+        var _mid=sEl.getAttribute("data-mid"), m=getMember(_mid); var p0=norm(ev);
+        var _isTouch=(ev.pointerType==='touch' || isMobile());
+        var _wasSel=(state.selMemberId===_mid || selIds().indexOf(_mid)>=0);   // เลือกชิ้นนี้อยู่ก่อนแตะครั้งนี้ไหม
+        mv={ mid:_mid, start:p0, geo:JSON.parse(JSON.stringify(m.plan)), moved:false, shift:!!ev.shiftKey, pt:ev.pointerType, selectFirst:(_isTouch && !_wasSel && !ev.shiftKey) };
         var _gids=selIds(); if(_gids.length>1 && _gids.indexOf(mv.mid)>=0) mv.grp=_gids.map(function(id){ var g=getMember(id); return g&&g.plan?{m:g, geo:JSON.parse(JSON.stringify(g.plan))}:null; }).filter(Boolean);
         try{ overlay.setPointerCapture(ev.pointerId); }catch(x){}
         return;
@@ -7560,7 +7562,7 @@ function bindPlanEditor(){
     });
     function selMove(ev){
       if(window.__planPinch) return;   // สองนิ้วซูมอยู่ → หยุดลาก/เลื่อน
-      if(lsz||ml||tf||atf||amv||ztf||zmv||mv) edgePan(ev, selMove);   // ลากชิดขอบกรอบ → เลื่อนแปลนตาม
+      if(lsz||ml||tf||atf||amv||ztf||zmv||(mv&&!mv.selectFirst)) edgePan(ev, selMove);   // ลากชิดขอบกรอบ → เลื่อนแปลนตาม
       if(lsz){       // ปรับขนาดป้ายเบอร์
         var m=getMember(lsz.mid); if(!m) return;
         var c=lblCenterClient(m), d=Math.hypot(ev.clientX-c.x,ev.clientY-c.y);
@@ -7667,7 +7669,9 @@ function bindPlanEditor(){
       if(mv){        // ย้ายตำแหน่งชิ้นส่วน (หรือทั้งชุด)
         var m2=getMember(mv.mid); if(!m2) return;
         var p2=norm(ev), dxN=p2.x-mv.start.x, dyN=p2.y-mv.start.y;
-        if(!mv.moved && Math.abs(dxN)+Math.abs(dyN)>0.004){ mv.moved=true; if(!mv.grp) state.selMemberId=mv.mid; }
+        if(mv.selectFirst) return;   // นิ้วแตะครั้งแรกบนชิ้นที่ยังไม่ได้เลือก = เลือกเฉย ๆ ไม่ให้ขยับ
+        var _mth=((mv.pt==='touch'||isMobile())?0.012:0.004);
+        if(!mv.moved && Math.abs(dxN)+Math.abs(dyN)>_mth){ mv.moved=true; if(!mv.grp) state.selMemberId=mv.mid; }
         if(mv.moved){
           var _apply=function(pl,g){ if(pl.kind==="point"){ pl.x=g.x+dxN; pl.y=g.y+dyN; } else { pl.x1=g.x1+dxN; pl.x2=g.x2+dxN; pl.y1=g.y1+dyN; pl.y2=g.y2+dyN; } clampGeo(pl); };
           if(mv.grp) mv.grp.forEach(function(e){ _apply(e.m.plan, e.geo); });
