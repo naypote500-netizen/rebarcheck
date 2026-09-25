@@ -7973,7 +7973,11 @@ function typeAssign(m, t){
   var own=(!m.typeId && m.doc && Array.isArray(m.doc.els)) ? m.doc.els.length : 0;
   if(own && !confirm(m.code+" มีรายละเอียดของตัวเองอยู่ "+own+" รายการ\nเมื่อผูกกับ “"+t.name+"” จะใช้หน้ารายละเอียดของประเภทแทน (ของเดิมเก็บไว้ จะกลับมาเมื่อแยกออก)\nดำเนินการต่อ?")){ render(); return false; }
   plPushUndo();
-  m.typeId=t.id; saveDB(); render();
+  m.typeId=t.id;
+  // ชื่อและสีตามประเภททันที — เบอร์ = ชื่อประเภท (ตัดส่วนสเปกหลัง " — " ถ้ามี) · สีกรอบบนแปลน = สีประเภท
+  var tnm=String(t.name||"").split(" — ")[0].trim(); if(tnm) m.code=tnm;
+  if(t.color && m.plan && isBox(m.plan)) m.plan.fill=t.color;
+  saveDB(); render();
   toast("ผูก "+m.code+" กับประเภท “"+t.name+"” แล้ว — ใช้รายละเอียดร่วมกัน "+typeMembers(t.id).length+" ชิ้น");
   return true;
 }
