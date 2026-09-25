@@ -4298,7 +4298,7 @@ function planShapesSVG(VW,VH){
         shapes+='<ellipse data-zid="'+z.id+'" cx="'+(zx+zw/2)+'" cy="'+(zy+zh/2)+'" rx="'+(zw/2)+'" ry="'+(zh/2)+'" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:'+cur+'"/>';
       }else{
         shapes+='<rect data-zid="'+z.id+'" x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh
-          +'" rx="3" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:'+cur+'"/>';
+          +'" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:'+cur+'"/>';
       }
       // ป้ายชื่อโซนเล็ก ๆ มุมซ้ายบน (มีขอบขาวให้อ่านง่ายบนแปลนที่ลายเยอะ) — ไม่มีป้ายสถานะกลางโซน
       var nm=(z.name||"")+(z.date?"  ·  "+z.date:"");
@@ -7853,7 +7853,6 @@ function bindPlanEditor(){
       zTemp.setAttribute("stroke",ZCOL); zTemp.setAttribute("stroke-width",(2.4/z));
       zTemp.setAttribute("stroke-dasharray",(7/z)+" "+(5/z));
       zTemp.setAttribute("fill",ZCOL); zTemp.setAttribute("fill-opacity","0.08");
-      if(!zIsOval) zTemp.setAttribute("rx","4");
       overlay.appendChild(zTemp);
       window.addEventListener("pointermove",zDrawMove,true);
       window.addEventListener("pointerup",zDrawEnd,true);
