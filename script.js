@@ -6035,6 +6035,8 @@ function bindDetailEditor(){
       try{canvas.setPointerCapture(e.pointerId);}catch(x){} e.preventDefault(); return;
     }
     var _pid=elDiv?elDiv.getAttribute('data-eid'):null, _keepGrp=!!(_pid && !b && !e.shiftKey && state.deTool==='select' && selIds().length>1 && selIds().indexOf(_pid)>=0);
+    var _isTouch=(e.pointerType==='touch' || isMobile());
+    var _wasSel=!!(_pid && (state.deSel===_pid || (state.deSelMulti||[]).indexOf(_pid)>=0));   // เลือกชิ้นนี้อยู่ก่อนแตะครั้งนี้ไหม
     if(!_keepGrp) selectDom(elDiv, e.shiftKey);   // กดชิ้นที่อยู่ในกลุ่มที่เลือก → คงทั้งกลุ่มไว้เพื่อลากย้ายพร้อมกัน
     if(b && elDiv){
       var elm=findEl(elDiv.getAttribute('data-eid')), act=b.getAttribute('data-de');
@@ -6054,7 +6056,7 @@ function bindDetailEditor(){
       var em=findEl(elDiv.getAttribute('data-eid')); if(!em) return;
       // ย้ายทั้งกลุ่มที่เลือก (ถ้าชิ้นนี้อยู่ในกลุ่ม)
       var grp=selIds().indexOf(em.id)>=0 ? selIds().map(findEl).filter(Boolean) : [em];
-      drag={mode:'move',elm:em,elDiv:elDiv,sx:e.clientX,sy:e.clientY,ox:em.x,oy:em.y,keepGrp:_keepGrp,grp:grp.map(function(g){ return {el:g, x:g.x||0, y:g.y||0}; })};
+      drag={mode:'move',elm:em,elDiv:elDiv,sx:e.clientX,sy:e.clientY,ox:em.x,oy:em.y,keepGrp:_keepGrp,pt:e.pointerType,selectFirst:(_isTouch && !_wasSel && !_keepGrp),grp:grp.map(function(g){ return {el:g, x:g.x||0, y:g.y||0}; })};
       try{canvas.setPointerCapture(e.pointerId);}catch(x){} e.preventDefault();
     }
   });
@@ -6080,7 +6082,8 @@ function bindDetailEditor(){
       var smg2=root.querySelector('.rv-smsg'); if(smg2) smg2.textContent = hit.length ? 'ลากคลุมอยู่ — เลือก '+hit.length+' ชิ้น' : 'ลากคลุมเพื่อเลือกหลายชิ้น';
       return;
     }
-    if(drag.mode==='move' && !drag.moved){ if(Math.abs(rdx)<4 && Math.abs(rdy)<4) return; drag.moved=true; }
+    if(drag.mode==='move' && drag.selectFirst) return;   // นิ้วแตะครั้งแรกบนชิ้นที่ยังไม่ได้เลือก = เลือกเฉย ๆ ไม่ขยับ
+    if(drag.mode==='move' && !drag.moved){ var _mth=((drag.pt==='touch'||isMobile())?12:4); if(Math.abs(rdx)<_mth && Math.abs(rdy)<_mth) return; drag.moved=true; }
     if(!drag.snapped){ drag.snapped=true; dePushUndo(_mid); }
     if(drag.mode==='ahandle'){ deAnnotHandle(drag, dx, dy); return; }
     if(drag.mode==='move'){
