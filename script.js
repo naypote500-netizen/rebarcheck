@@ -3074,7 +3074,7 @@ function importData(file){
       DB.headMarks=Array.isArray(d.headMarks)?d.headMarks:[];
       DB.ctypes=Array.isArray(d.ctypes)?d.ctypes:[];
       DB.inspector=typeof d.inspector==="string"?d.inspector:"";
-      try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); }catch(e){}
+      try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); normalizeMemberTypes(); }catch(e){}
       saveDB();
       state.stack=[]; state.projectId=null; state.floorId=null; state.memberId=null;
       state.screen="home"; render();
@@ -3470,7 +3470,7 @@ document.addEventListener("click",function(e){
       if(_rp) go("history",{projectId:_rp.id, qh:"", hFloorId:(_rf&&_rf.projectId===_rp.id)?_rf.id:null}); else navigate("home");
       break;
     }
-    case "theme":       toggleTheme(); break;
+    case "theme":       toggleTheme(); if(state.screen==="home") render(); break;
     case "authLogin":   doAuth(false); break;
     case "authSignup":  doAuth(true); break;
     case "authToggle":  state._authMode=(state._authMode==="signup"?"login":"signup"); renderLogin(); break;
@@ -3528,7 +3528,9 @@ document.addEventListener("click",function(e){
     case "setRightTab": state.rightTab=el.getAttribute("data-tab"); state.rpCollapsed=false; state.rpSheet="open"; render(); break;
     case "setPalette": state.rightTab=el.getAttribute("data-tab")||"props"; state.rpCollapsed=false; state.rpSheet="open"; render(); break;
     case "setRibbonTab": {   // แท็บริบบอน — โครงสร้าง/วาด = โหมดตรวจเหล็ก · เทคอนกรีต = โหมดโซน · ไฟล์/มุมมอง ไม่เปลี่ยนโหมด
-      var _rt=el.getAttribute("data-rtab")||"structure"; state.ribbonTab=_rt;
+      var _rt=el.getAttribute("data-rtab")||"structure";
+      if(_rt==="modify"){ _toModifyTab(); render(); break; }   // แท็บบริบท — จำแท็บเดิมไว้กลับตอนเลิกเลือก
+      state.ribbonTab=_rt;
       if(_rt==="progress"){ if(state.planMode!=="progress"){ state.planMode="progress"; state.tool="select"; state.selZoneId=null; state.statusFilter=null; state.showProgress=true; state.rightTab="props"; } }
       else if(_rt==="structure"||_rt==="draw"){ if(state.planMode==="progress"){ state.planMode="inspect"; state.tool="select"; state.selZoneId=null; } }
       render(); break;
@@ -6318,6 +6320,7 @@ function rvRibbonHtml(type, f, plan, plans, selM){
   var rt=state.ribbonTab||"structure";
   if(rt==="modify" && !selM){   // แท็บบริบทหายเมื่อเลิกเลือก → กลับแท็บที่ใช้อยู่ก่อนหน้า
     var _pv=state.prevRibbonTab; if(!_pv||_pv==="modify"||_pv==="file"||_pv==="draw"||(_pv==="progress"&&state.planMode!=="progress")) _pv="structure";
+    if(state.planMode==="progress" && _pv!=="progress") _pv="progress";   // ยังอยู่โหมดเทคอนกรีต → กลับแท็บเทคอนกรีต
     rt=state.ribbonTab=_pv;
   }
   if(rt==="file"||rt==="draw") rt=state.ribbonTab="structure";        // แท็บเก่าที่ยุบรวมแล้ว
@@ -8000,35 +8003,47 @@ function bindPlanEditor(){
 }
 
 /* ---- ประเภทชิ้นส่วน: การกระทำ (เรียกจากปุ่ม data-act และจาก dropdown ในพาเนล) ---- */
+/** บังคับให้เบอร์ (= ชื่อประเภท ตัดสเปกหลัง " — ") และสีกรอบของชิ้น ตรงกับประเภทที่ผูกอยู่ — คืน true ถ้าเปลี่ยนจริง */
+function syncMemberToType(m, t){
+  if(!m || !t) return false;
+  var changed=false;
+  var tnm=String(t.name||"").split(" — ")[0].trim();
+  if(tnm && m.code!==tnm){ m.code=tnm; changed=true; }
+  if(t.color && m.plan && isBox(m.plan) && String(m.plan.fill||"").toLowerCase()!==String(t.color).toLowerCase()){ m.plan.fill=t.color; changed=true; }
+  return changed;
+}
 /** ผูกชิ้นกับประเภท (t=null → ถอดออก) */
 function typeAssign(m, t){
   if(t && t.mtype!==m.type){ toast("ประเภทนี้เป็น"+TYPES[t.mtype].label+" ใช้กับ"+TYPES[m.type].label+"ไม่ได้",true); render(); return false; }
   if(!t){ typeDetachAct(m); return true; }
-  if(m.typeId===t.id) return true;
+  if(m.typeId===t.id){   // ผูกประเภทนี้อยู่แล้ว — ยังบังคับให้เบอร์/สีตรงกับประเภท (เผื่อค้างจากข้อมูลเก่าที่ยังไม่ตาม)
+    if(syncMemberToType(m, t)){ plPushUndo(); saveDB(); render(); toast("อัปเดตเบอร์/สีของ "+m.code+" ให้ตรงกับประเภท “"+t.name+"”"); }
+    return true;
+  }
   var own=(!m.typeId && m.doc && Array.isArray(m.doc.els)) ? m.doc.els.length : 0;
   if(own && !confirm(m.code+" มีรายละเอียดของตัวเองอยู่ "+own+" รายการ\nเมื่อผูกกับ “"+t.name+"” จะใช้หน้ารายละเอียดของประเภทแทน (ของเดิมเก็บไว้ จะกลับมาเมื่อแยกออก)\nดำเนินการต่อ?")){ render(); return false; }
   plPushUndo();
   m.typeId=t.id;
-  // ชื่อและสีตามประเภททันที — เบอร์ = ชื่อประเภท (ตัดส่วนสเปกหลัง " — " ถ้ามี) · สีกรอบบนแปลน = สีประเภท
-  var tnm=String(t.name||"").split(" — ")[0].trim(); if(tnm) m.code=tnm;
-  if(t.color && m.plan && isBox(m.plan)) m.plan.fill=t.color;
+  syncMemberToType(m, t);   // เบอร์ = ชื่อประเภท (ตัดสเปกหลัง " — ") · สีกรอบ = สีประเภท ทันที
   saveDB(); render();
   toast("ผูก "+m.code+" กับประเภท “"+t.name+"” แล้ว — ใช้รายละเอียดร่วมกัน "+typeMembers(t.id).length+" ชิ้น");
   return true;
 }
 /** ผูกหลายชิ้น (ชุดที่เลือก) กับประเภทเดียวกัน — ข้ามชิ้นคนละชนิด และชิ้นที่มีแผ่นของตัวเองอยู่ (ไม่ถามยืนยันทีละชิ้น) · ชื่อ/สีตามประเภทเหมือนผูกทีละชิ้น */
 function typeAssignMany(ids, t){
-  var ok=[], skipKind=0, skipOwn=0;
+  var ok=[], skipKind=0, skipOwn=0, skipSame=0;
   ids.map(getMember).filter(Boolean).forEach(function(m){
     if(t.mtype!==m.type){ skipKind++; return; }
-    if(m.typeId===t.id) return;
+    if(m.typeId===t.id){ skipSame++; return; }
     if(!m.typeId && m.doc && Array.isArray(m.doc.els) && m.doc.els.length){ skipOwn++; return; }
     ok.push(m);
   });
-  if(!ok.length){ toast("ไม่มีชิ้นที่ผูกได้"+(skipKind?" · คนละชนิด "+skipKind+" ชิ้น":"")+(skipOwn?" · มีรายละเอียดของตัวเอง "+skipOwn+" ชิ้น (ผูกทีละชิ้น)":""),true); render(); return; }
+  if(!ok.length){
+    if(skipSame && !skipKind && !skipOwn){ toast("ทุกชิ้นผูกกับ “"+t.name+"” อยู่แล้ว"); render(); return; }   // ผูกอยู่แล้วทั้งหมด — ไม่ใช่ error
+    toast("ไม่มีชิ้นที่ผูกได้"+(skipKind?" · คนละชนิด "+skipKind+" ชิ้น":"")+(skipOwn?" · มีรายละเอียดของตัวเอง "+skipOwn+" ชิ้น (ผูกทีละชิ้น)":""),true); render(); return;
+  }
   plPushUndo();
-  var tnm=String(t.name||"").split(" — ")[0].trim();
-  ok.forEach(function(m){ m.typeId=t.id; if(tnm) m.code=tnm; if(t.color && m.plan && isBox(m.plan)) m.plan.fill=t.color; });
+  ok.forEach(function(m){ m.typeId=t.id; syncMemberToType(m, t); });
   saveDB(); render();
   toast("ผูก "+ok.length+" ชิ้นกับประเภท “"+t.name+"” แล้ว"+((skipKind+skipOwn)?" · ข้าม "+(skipKind+skipOwn)+" ชิ้น":""));
 }
@@ -9402,6 +9417,16 @@ function normalizeFloorPlans(){
   });
   if(changed) saveDB();
 }
+/** ชิ้นที่ผูกประเภทอยู่ ต้องมีเบอร์=ชื่อประเภท และสี=สีประเภท — ซ่อมของที่ค้างจากเวอร์ชันก่อน (ครั้งเดียว/เมื่อต่าง) */
+function normalizeMemberTypes(){
+  var changed=false;
+  (DB.members||[]).forEach(function(m){
+    if(!m || !m.typeId) return;
+    var t=getType(m.typeId); if(!t) return;
+    if(syncMemberToType(m, t)) changed=true;
+  });
+  if(changed) saveDB();
+}
 /* ===========================================================================
    คลาวด์ (Firebase): login + ฐานข้อมูลกลาง (Firestore) — เลเยอร์เสริมบน localStorage
    ทุกคอลเลกชันเก็บเป็น {id, data:JSON} เพื่อเลี่ยงข้อจำกัดชนิดข้อมูลของ Firestore
@@ -9443,7 +9468,7 @@ function startCloudSession(user){
         if(CLOUD_COLLS.every(function(x){return got[x];})){
           _fbLoaded=true;
           DB.inspector = user.email||"";
-          try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); }catch(e){}
+          try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); normalizeMemberTypes(); }catch(e){}
           document.body.classList.remove("auth-mode");
           if(!state.screen || state.screen==="login" || state.screen==="loading") state.screen="home";
           render();
@@ -9519,7 +9544,7 @@ function startCloudSession(user){
       // อย่าค้างหน้าโหลด: นับคอลเลกชันที่ error ว่า "โหลดแล้ว (ว่าง)" แล้วไปต่อ
       if(!_fbLoaded && !got[c]){ got[c]=true; DB[c]=DB[c]||[];
         if(CLOUD_COLLS.every(function(x){return got[x];})){ _fbLoaded=true; DB.inspector=user.email||"";
-          try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); }catch(e){}
+          try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); normalizeMemberTypes(); }catch(e){}
           document.body.classList.remove("auth-mode"); if(!state.screen||state.screen==="login"||state.screen==="loading") state.screen="home"; render(); } }
     });
     _fbUnsub.push(un);
@@ -9683,7 +9708,7 @@ function migrateLocalToCloud(local){
   toast("กำลังอัปข้อมูลขึ้นคลาวด์…");
   DB.projects=local.projects||[]; DB.floors=local.floors||[]; DB.members=local.members||[]; DB.inspections=local.inspections||[]; DB.types=local.types||[];
   DB.zones=local.zones||[]; DB.annots=local.annots||[]; DB.headMarks=local.headMarks||[]; DB.ctypes=local.ctypes||[];
-  try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); }catch(e){}
+  try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); normalizeMemberTypes(); }catch(e){}
   cloudSyncNow();   // ดันข้อมูลหลักขึ้นก่อน
   render();
   var jobs=[];      // รวบรวมไฟล์แปลนทุกแผ่นที่มีต้นฉบับในเครื่อง
