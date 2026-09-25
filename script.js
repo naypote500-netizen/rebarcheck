@@ -309,7 +309,7 @@ var CHECKLIST = {
    4) ชั้นเก็บข้อมูล (localStorage) — ครอบ try/catch ทุกจุด
       โครงสร้าง: projects[] → floors[] (อ้าง projectId) → members[] (อ้าง floorId)
    ------------------------------------------------------------------------ */
-var DB = { projects:[], floors:[], members:[], inspections:[], types:[], zones:[], annots:[], inspector:"" };
+var DB = { projects:[], floors:[], members:[], inspections:[], types:[], zones:[], annots:[], headMarks:[], ctypes:[], inspector:"" };
 
 function loadDB(){
   try{
@@ -322,6 +322,10 @@ function loadDB(){
         members:     Array.isArray(p.members)     ? p.members     : [],
         inspections: Array.isArray(p.inspections) ? p.inspections : [],
         types:       Array.isArray(p.types)       ? p.types       : [],   // ประเภทชิ้นส่วน (แผ่นรายละเอียดใช้ร่วมกัน)
+        zones:       Array.isArray(p.zones)       ? p.zones       : [],   // โซนเท
+        annots:      Array.isArray(p.annots)      ? p.annots      : [],   // หมายเหตุ/เส้นบอกขนาด/พื้นที่บนแปลน
+        headMarks:   Array.isArray(p.headMarks)   ? p.headMarks   : [],   // ตารางมาร์คหัวเสา
+        ctypes:      Array.isArray(p.ctypes)      ? p.ctypes      : [],   // ชนิดชิ้นส่วนกำหนดเอง (ซิงก์ข้ามเครื่อง)
         inspector:   typeof p.inspector === "string" ? p.inspector : ""
       };
       return;
@@ -381,7 +385,7 @@ function floorsOf(pid){
 }
 function membersOfFloor(fid){   return DB.members.filter(function(m){ return m.floorId===fid; }); }
 function membersOfProject(pid){ return DB.members.filter(function(m){ return m.projectId===pid; }); }
-function getZone(id){    return DB.zones.filter(function(z){ return z.id===id; })[0] || null; }
+function getZone(id){    return (DB.zones||[]).filter(function(z){ return z.id===id; })[0] || null; }
 function zonesOfFloor(fid){ return (DB.zones||[]).filter(function(z){ return z.floorId===fid; }); }
 /* ---- ประเภทชิ้นส่วน (Type) — "แผ่นรายละเอียด" ที่หลายชิ้นใช้ร่วมกัน: แก้ที่ชิ้นไหนก็เปลี่ยนทุกชิ้น
        { id, projectId, mtype:"beam"|..., name, color, doc:{els:[]}, createdAt }  · ชิ้นส่วนผูกด้วย m.typeId ---- */
@@ -1652,9 +1656,9 @@ function shortSpec(m){
 
 /* ---- ส่วนประกอบรายการ ---- */
 function chipHtml(text, cssType){
-  var raw=/^<svg/.test(String(text));      // เป็นไอคอน SVG → ใส่ตรง ๆ ไม่ต้อง escape
-  var n=raw?2:String(text).length, cls="chip"+(n>=5?" len5":n===4?" len4":"")+(raw?" chip-ic":"");
-  return '<div class="'+cls+'" style="background:var(--t-'+cssType+'-bg);color:var(--t-'+cssType+')">'+(raw?text:esc(text))+"</div>";
+  var n=String(text).length, cls="chip"+(n>=5?" len5":n===4?" len4":"");   // escape เสมอ (ห้ามเดาว่าเป็น SVG จากเนื้อหา — กัน XSS จากเบอร์ที่ผู้ใช้ตั้ง)
+  var ct=String(cssType||"beam").replace(/[^A-Za-z0-9_-]/g,"");
+  return '<div class="'+cls+'" style="background:var(--t-'+ct+'-bg);color:var(--t-'+ct+')">'+esc(text)+"</div>";
 }
 function dotFor(m){
   var ins=lastInspection(m.id);
@@ -1752,7 +1756,7 @@ function viewHome(){
 }
 
 /* ---- หน้าจอ 2: ชั้นในโครงการ ---- */
-function flPct(s){ return s.total ? Math.round((s.total-s.todo)/s.total*100) : 0; }
+function flPct(s){ return s.total ? Math.floor((s.total-s.todo)/s.total*100) : 0; }
 function flBadge(f){
   if(f.level!==""&&f.level!=null) return String(f.level);
   var n=(f.name||"").trim(); if(!n) return "—";
@@ -2082,6 +2086,7 @@ function inspectionBlockHtml(m){
 
 /** ผูก event ให้อินพุตของบล็อกตรวจเหล็ก + รีเฟรชสถานะ (ใช้ทั้ง detail และ planEditor) */
 function bindInspectionInputs(){
+  var _am=activeMemberId(); if(state.ansMid!==_am){ state.answers={}; state.photos=[]; state.note=""; state.ansMid=_am; }
   var pi=$("#photoInput"); if(pi) pi.addEventListener("change",onPhotoPick);
   var nt=$("#insNote");    if(nt){ nt.value=state.note; nt.addEventListener("input",function(){ state.note=nt.value; }); }
   var ip=$("#inspector");  if(ip) ip.addEventListener("input",refreshChecklistUI);
@@ -2204,6 +2209,7 @@ function renderThumbs(){
 /* ---- ยืนยันผลการตรวจ ---- */
 function confirmInspection(){
   var m=getMember(activeMemberId()); if(!m) return;
+  if(state.ansMid!==m.id){ state.answers={}; state.photos=[]; state.note=""; state.ansMid=m.id; toast("ชิ้นส่วนที่เลือกเปลี่ยนไป — กรุณาตรวจใหม่",true); render(); return; }
   var items=checklistFor(m).filter(function(it){ return it.id; });
   var failed=items.filter(function(it){ return state.answers[it.id]==="fail"; });
   var name=$("#inspector").value.trim();
@@ -2233,14 +2239,14 @@ function confirmInspection(){
 /* ---- หน้าจอ 5: ประวัติการตรวจ (ของโครงการปัจจุบัน) ---- */
 function viewHistory(){
   var p=getProject(state.projectId);
-  var list=DB.inspections.filter(function(r){ return r.projectId===state.projectId; });
+  var list=DB.inspections.filter(function(r){ return r.projectId===state.projectId && (!state.hFloorId || r.floorId===state.hFloorId); });
   var q=state.qh.trim().toLowerCase();
   if(q) list=list.filter(function(r){
     return [r.memberCode,r.memberName,r.inspector,r.floorName,r.grid].join(" ").toLowerCase().indexOf(q)!==-1;
   });
 
   var h='<div class="screen-title">ประวัติการตรวจ</div>'
-      + '<div class="screen-sub">'+esc(p?p.name:"")+'</div>'
+      + '<div class="screen-sub">'+esc(p?p.name:"")+(state.hFloorId&&getFloor(state.hFloorId)?' · '+esc(getFloor(state.hFloorId).name):'')+'</div>'
       + '<div class="searchbar"><input type="search" id="qh" value="'+esc(state.qh)
       + '" placeholder="ค้นหา รหัส / ชื่อ / ผู้ตรวจ / ชั้น" autocomplete="off"></div>';
   if(list.length===0){
@@ -2989,7 +2995,7 @@ function viewData(){
   var bytes=0;
   try{ bytes=new Blob([JSON.stringify(DB)]).size; }catch(e){}
   return '<div class="screen-title">ข้อมูล / สำรอง</div>'
-    + '<div class="screen-sub">ข้อมูลทั้งหมดเก็บในเครื่องนี้เท่านั้น (localStorage) ไม่มีเซิร์ฟเวอร์</div>'
+    + '<div class="screen-sub">'+((CLOUD&&_fbUser)?'ข้อมูลเก็บบนคลาวด์ (ฐานข้อมูลกลาง แชร์ทั้งทีม) · นำเข้าไฟล์ = แทนที่ข้อมูลของทุกคน':'ข้อมูลทั้งหมดเก็บในเครื่องนี้เท่านั้น (localStorage) ไม่มีเซิร์ฟเวอร์')+'</div>'
     + '<div class="card"><div class="card-b">'
     +   '<div class="small mono">โครงการ: '+DB.projects.length+' · ชั้น: '+DB.floors.length
     +     ' · ชิ้นส่วน: '+DB.members.length+' · ประวัติ: '+DB.inspections.length+'</div>'
@@ -3002,7 +3008,7 @@ function viewData(){
     +   '</div>'
     +   '<input type="file" id="fileImport" accept="application/json,.json" hidden>'
     +   '<hr class="sep">'
-    +   '<button class="btn danger block" data-act="reset">ล้างข้อมูลทั้งหมด แล้วโหลดตัวอย่างใหม่</button>'
+    +   ((CLOUD&&_fbUser)?'':'<button class="btn danger block" data-act="reset">ล้างข้อมูลทั้งหมด แล้วโหลดตัวอย่างใหม่</button>')
     + '</div></div>';
 }
 function exportData(){
@@ -3021,12 +3027,18 @@ function importData(file){
     try{
       var d=JSON.parse(reader.result);
       if(!Array.isArray(d.projects)||!Array.isArray(d.members)) throw new Error("รูปแบบไฟล์ไม่ถูกต้อง");
-      if(!confirm("นำเข้า "+d.projects.length+" โครงการ / "+d.members.length+" ชิ้นส่วน\nข้อมูลเดิมในเครื่องจะถูกแทนที่ ยืนยันหรือไม่?")) return;
+      if(!confirm("นำเข้า "+d.projects.length+" โครงการ / "+d.members.length+" ชิ้นส่วน\n"+((CLOUD&&_fbUser)?"⚠ โหมดคลาวด์: ข้อมูลกลางของทุกคนในทีมจะถูกแทนที่ด้วยไฟล์นี้":"ข้อมูลเดิมในเครื่องจะถูกแทนที่")+" ยืนยันหรือไม่?")) return;
       DB.projects=d.projects;
       DB.floors=Array.isArray(d.floors)?d.floors:[];
       DB.members=d.members;
       DB.inspections=Array.isArray(d.inspections)?d.inspections:[];
+      DB.types=Array.isArray(d.types)?d.types:[];
+      DB.zones=Array.isArray(d.zones)?d.zones:[];
+      DB.annots=Array.isArray(d.annots)?d.annots:[];
+      DB.headMarks=Array.isArray(d.headMarks)?d.headMarks:[];
+      DB.ctypes=Array.isArray(d.ctypes)?d.ctypes:[];
       DB.inspector=typeof d.inspector==="string"?d.inspector:"";
+      try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); }catch(e){}
       saveDB();
       state.stack=[]; state.projectId=null; state.floorId=null; state.memberId=null;
       state.screen="home"; render();
@@ -3077,6 +3089,9 @@ function dlgDelProject(id){
   DB.floors=DB.floors.filter(function(x){ return x.projectId!==id; });
   DB.members=DB.members.filter(function(x){ return x.projectId!==id; });
   DB.inspections=DB.inspections.filter(function(x){ return x.projectId!==id; });
+  DB.zones=(DB.zones||[]).filter(function(x){ return x.projectId!==id; });
+  DB.annots=(DB.annots||[]).filter(function(x){ return x.projectId!==id; });
+  DB.types=(DB.types||[]).filter(function(x){ return x.projectId!==id; });
   saveDB(); closeSheet();
   state.stack=[]; state.projectId=null; state.screen="home"; render();
   toast("ลบโครงการแล้ว");
@@ -3114,6 +3129,8 @@ function dlgDelFloor(id){
   DB.floors=DB.floors.filter(function(x){ return x.id!==id; });
   DB.members=DB.members.filter(function(x){ return x.floorId!==id; });
   DB.inspections=DB.inspections.filter(function(x){ return x.floorId!==id; });
+  DB.zones=(DB.zones||[]).filter(function(x){ return x.floorId!==id; });
+  DB.annots=(DB.annots||[]).filter(function(x){ return x.floorId!==id; });
   saveDB(); closeSheet();
   if(state.floorId===id){ state.floorId=null; state.screen="floors"; }
   render(); toast("ลบชั้นแล้ว");
@@ -3407,7 +3424,7 @@ document.addEventListener("click",function(e){
     case "tabInspect":  { var _pj=(DB.projects||[])[0]; if(_pj) go("floors",{projectId:_pj.id, floorId:null, q:"", typeFilter:"all"}); else navigate("home"); break; }
     case "addFloorFab": dlgFloor(null); break;
     case "goData":      navigate("data"); break;
-    case "goReports":   if((DB.projects||[]).length){ go("history",{projectId:DB.projects[0].id, qh:""}); } else { navigate("home"); } break;
+    case "goReports":   if((DB.projects||[]).length){ go("history",{projectId:DB.projects[0].id, qh:"", hFloorId:null}); } else { navigate("home"); } break;
     case "theme":       toggleTheme(); break;
     case "authLogin":   doAuth(false); break;
     case "authSignup":  doAuth(true); break;
@@ -3426,7 +3443,7 @@ document.addEventListener("click",function(e){
                        planMode:"inspect", tool:"select", rightTab:"props", ribbonTab:"structure", answers:{}, photos:[], note:"", zoom:1, panX:0, panY:0});
       break;
     }
-    case "floorHistory": { var fFH=getFloor(id); go("history",{qh:fFH?fFH.name:""}); break; }
+    case "floorHistory": { go("history",{qh:"", hFloorId:id}); break; }
     case "openCategory":
       go("planEditor",{catType:el.getAttribute("data-type"), unified:false, selMemberId:null,
                        tool:"select", rightTab:"palette", answers:{}, photos:[], note:"",
@@ -3446,7 +3463,7 @@ document.addEventListener("click",function(e){
                        tool:"select", rightTab:"inspect", answers:{}, photos:[], note:"", zoom:1, panX:0, panY:0});
       break;
     }
-    case "history":     go("history",{qh:""}); break;
+    case "history":     go("history",{qh:"", hFloorId:null}); break;
     case "filterType":  state.typeFilter=el.getAttribute("data-type"); render(); break;
 
     /* --- เอดิเตอร์แปลน --- */
@@ -3597,6 +3614,7 @@ document.addEventListener("click",function(e){
         var cp=JSON.parse(JSON.stringify(src));
         cp.id=uid("m"); cp.hidden=false;
         if(cp.typeId) cp.doc={els:[]};   // ผูกประเภทเดียวกัน → ใช้แผ่นร่วม ไม่ต้องก็อป
+        else if(cp.doc && Array.isArray(cp.doc.els)) cp.doc={els:deCloneEls(cp.doc.els), page:cp.doc.page};   // id ใหม่ + ก็อปรูป/PDF ของตัวเอง
         if(cp.plan){                                  // ขยับตำแหน่งเล็กน้อยไม่ให้ทับตัวเดิม
           var off=0.03;
           if(cp.plan.kind==="point"){ cp.plan.x=Math.min(1,(cp.plan.x||0.5)+off); cp.plan.y=Math.min(1,(cp.plan.y||0.5)+off); }
@@ -3735,7 +3753,7 @@ document.addEventListener("click",function(e){
     }
     case "switchPlan": {       // สลับไปแปลนที่เลือก
       var fS=getFloor(state.floorId); fS.activePlanId=el.getAttribute("data-pid"); state.pendingPlanId=null;
-      state.zoom=1; state.panX=0; state.panY=0; state.selMemberId=null;
+      state.zoom=1; state.panX=0; state.panY=0; state.selMemberId=null; state.selMulti=[]; state.selZoneId=null; state.selAnnotId=null;
       saveDB(); render(); break;
     }
     case "renamePlan": {       // เปลี่ยนชื่อแปลน (จากการ์ดแปลน)
@@ -3964,6 +3982,7 @@ document.addEventListener("click",function(e){
     /* --- ข้อมูล --- */
     case "export": exportData(); break;
     case "reset":
+      if(CLOUD && _fbUser){ toast("โหมดคลาวด์: ปุ่มนี้จะลบข้อมูลกลางของทุกคนในทีม — ปิดใช้งานไว้เพื่อความปลอดภัย",true); break; }
       if(confirm("ล้างข้อมูลทั้งหมดในเครื่องนี้ แล้วโหลดข้อมูลตัวอย่างใหม่?")){
         DB=seedData(); saveDB();
         PLAN_DOCS={}; idbClear();   // ล้างต้นฉบับแปลนใน IndexedDB ด้วย
@@ -4146,7 +4165,7 @@ function annotStyleOf(a){
            bold:(a.bold!=null?a.bold:d.bold), italic:(a.italic!=null?a.italic:d.italic), underline:(a.underline!=null?a.underline:d.underline),
            a1:a.a1||d.a1||"open", a2:a.a2||d.a2||"none" };
 }
-function _hx(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function _hx(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
 /** จำรูปแบบล่าสุดไว้ใช้กับหมายเหตุชิ้นถัดไป (ไม่ต้องตั้งซ้ำทุกครั้ง) */
 function annotRemember(a){
   var s=annotStyleOf(a);
@@ -4417,7 +4436,7 @@ function plRestore(j){
     var have={}; arr.forEach(function(x){ have[x.id]=x; });
     want.forEach(function(w){
       var ex=have[w.id];
-      if(ex){ Object.keys(ex).forEach(function(k){ delete ex[k]; }); Object.assign(ex,w); }
+      if(ex){ var _doc=ex.doc; Object.keys(ex).forEach(function(k){ delete ex[k]; }); Object.assign(ex,w); if(_doc!==undefined) ex.doc=_doc; else delete ex.doc; }   // ไม่ย้อนงานในชีตรายละเอียด
       else arr.push(w);
     });
   }
@@ -5549,6 +5568,7 @@ function deApplyFrame(elm){
 /** ครอบตัด — PDF เรนเดอร์สดความละเอียดสูงก่อนตัด (คมสุด), รูปตัดจากต้นฉบับ; ผลลัพธ์เป็นรูปนิ่งใน IDB */
 function deApplyCrop(elm, done){
   var c=elm._crop||{x:0,y:0,w:1,h:1};
+  if(!(c.w>0&&c.h>0&&isFinite(c.x)&&isFinite(c.y))){ done(); return; }   // ค่าครอบตัดเสีย → ไม่ทำอะไร
   function fromCanvasSized(getSrcCanvas){
     getSrcCanvas.then(function(scv){
       var iw=scv.width, ih=scv.height;
@@ -5557,11 +5577,12 @@ function deApplyCrop(elm, done){
       var cv=document.createElement('canvas'); cv.width=Math.round(sw); cv.height=Math.round(sh);
       cv.getContext('2d').drawImage(scv, sx,sy,sw,sh, 0,0,sw,sh);
       var url; try{ url=cv.toDataURL('image/jpeg',0.93); }catch(e){ done(); return; }
-      idbPut('deimg_'+elm.id, url).then(function(){
-        DE_IMG[elm.id]=url; deCloudSaveImg(elm.id, url);
-        if(DE_PDF[elm.id]){ delete DE_PDF[elm.id]; idbDel('depdf_'+elm.id).catch(function(){}); cloudDeletePlan('de_pdf_'+elm.id); }
-        elm.type='image'; delete elm.pageNo; if(elm.w) elm.h=elm.w*(sh/sw);
-        delete DE_ADJ[elm.id]; delete DE_NAT[elm.id];
+      var nid=deUid();
+      idbPut('deimg_'+nid, url).then(function(){
+        DE_IMG[nid]=url; deCloudSaveImg(nid, url);
+        var wasSel=(state.deSel===elm.id);
+        elm.id=nid; elm.type='image'; delete elm.pageNo; if(elm.w) elm.h=elm.w*(sh/sw);
+        if(wasSel) state.deSel=nid;
         done();
       }).catch(function(){ toast('บันทึกภาพครอบตัดไม่สำเร็จ',true); done(); });
     }).catch(function(){ done(); });
@@ -5792,7 +5813,7 @@ function bindDetailEditor(){
   function deleteEls(ids){
     if(!ids.length) return;
     dePushUndo(_mid); var _ld=liveDoc();
-    ids.forEach(function(id){ idbDel('deimg_'+id).catch(function(){}); idbDel('depdf_'+id).catch(function(){}); cloudDeletePlan('de_img_'+id); cloudDeletePlan('de_pdf_'+id); delete DE_IMG[id]; delete DE_PDF[id]; });
+    // เก็บไฟล์สื่อไว้ (IDB/คลาวด์) เพื่อให้ "ย้อนกลับ" คืนรูป/PDF ได้ครบ
     _ld.els=_ld.els.filter(function(x){ return ids.indexOf(x.id)<0; });
     state.deSel=null; state.deSelMulti=[]; saveDB(); render();
   }
@@ -5823,8 +5844,8 @@ function bindDetailEditor(){
     if(act==='zoomfit'){ zoomFit(); return; }
     if(act==='zoom100'){ applyZoom(1); return; }
     if(act==='panel'){ state.deSideOff=!state.deSideOff; render(); return; }
-    if(act==='guides'){ var gon=!deGuidesOn(); DE_GUIDES.el=DE_GUIDES.page=DE_GUIDES.gap=gon; deGuidesSave(); deCommitEditable(); render(); toast(gon?'เปิดไกด์อัจฉริยะ — ลากชิ้นแล้วจะสแนปเข้าแนวให้เอง':'ปิดไกด์อัจฉริยะแล้ว'); return; }
-    if(act==='snapgrid'){ DE_GUIDES.grid=!DE_GUIDES.grid; deGuidesSave(); deCommitEditable(); render(); return; }
+    if(act==='guides'){ var _gv=b.getAttribute('data-v'), gon=(_gv!=null)?(_gv==="1"):!deGuidesOn(); DE_GUIDES.el=DE_GUIDES.page=DE_GUIDES.gap=gon; deGuidesSave(); deCommitEditable(); render(); toast(gon?'เปิดไกด์อัจฉริยะ — ลากชิ้นแล้วจะสแนปเข้าแนวให้เอง':'ปิดไกด์อัจฉริยะแล้ว'); return; }
+    if(act==='snapgrid'){ var _sv=b.getAttribute('data-v'); DE_GUIDES.grid=(_sv!=null)?(_sv==="1"):!DE_GUIDES.grid; deGuidesSave(); deCommitEditable(); render(); return; }
     if(act==='gset'){ var gk=b.getAttribute('data-k'); DE_GUIDES[gk]=!!b.checked; deGuidesSave();
       var gb=root.querySelector('[data-de="guides"]'); if(gb) gb.classList.toggle('on',deGuidesOn());
       var sg=root.querySelector('[data-de="snapgrid"]'); if(sg) sg.classList.toggle('on',!!DE_GUIDES.grid); return; }
@@ -5835,7 +5856,7 @@ function bindDetailEditor(){
       return;
     }
     if(act==='page'){ var _d0=liveDoc(); _d0.page=_d0.page||{}; _d0.page.size=b.getAttribute('data-size'); state.deZoom=null; saveDB(); render(); return; }
-    if(act==='titletoggle'){ var _d1=liveDoc(); _d1.page=_d1.page||{}; _d1.page.title=deTitleOn(_d1)?0:1; saveDB(); render(); return; }
+    if(act==='titletoggle'){ var _d1=liveDoc(); _d1.page=_d1.page||{}; var _tv=b.getAttribute('data-v'); _d1.page.title=(_tv!=null)?(+_tv):(deTitleOn(_d1)?0:1); saveDB(); render(); return; }
     if(act==='libadd'){
       var kind=b.getAttribute('data-kind'), sub=b.getAttribute('data-sub'), w=+b.getAttribute('data-w')||120, h=+b.getAttribute('data-h')||100, col=b.getAttribute('data-col');
       var c0=visCenter(), newEl={id:deUid(), type:kind, subtype:sub, x:Math.max(0,c0.x-w/2), y:Math.max(0,c0.y-h/2), w:w, h:h};
@@ -5898,6 +5919,7 @@ function bindDetailEditor(){
     if(editing) return;
     if(k==='delete'||k==='backspace'){ var ids=selIds(); if(ids.length){ e.preventDefault(); if(confirm(ids.length>1?'ลบ '+ids.length+' ชิ้น?':'ลบสิ่งนี้?')) deleteEls(ids); } return; }
     if(k==='escape'){ if(state.deTool!=='select'||state.deLibOpen){ state.deTool='select'; state.deLibOpen=false; render(); } else selectDom(null); return; }
+    if(e.ctrlKey||e.metaKey||e.altKey) return;     // ปล่อยคีย์ผสมของเบราว์เซอร์ (Ctrl+C/V/P/0/±)
     if(k==='v'){ state.deTool='select'; render(); return; }
     if(k==='c'||k==='d'||k==='p'||k==='h'){ state.deTool={c:'callout',d:'dim',p:'pen',h:'hilite'}[k]; state.deTab='annot'; render(); return; }
     if(k==='+'||k==='='){ applyZoom(deZ()*1.25); return; }
@@ -5911,7 +5933,9 @@ function bindDetailEditor(){
     var elm=findEl(elDiv.getAttribute('data-eid')); if(!elm) return;
     if(t.classList.contains('de-txt')) elm.html=t.innerHTML;
     else if(t.matches('.de-table [contenteditable]')){ var r=+t.getAttribute('data-r'),c=+t.getAttribute('data-c'); if(elm.rows[r]) elm.rows[r][c]=t.textContent; }
+    clearTimeout(_deTypeT); _deTypeT=setTimeout(function(){ saveDB(); },800);   // กันข้อความหายถ้าปิดแท็บก่อน blur
   });
+  var _deTypeT=null;
   canvas.addEventListener('blur',function(e){ if(e.target.isContentEditable) saveDB(); },true);
   // ---- drag / resize / crop / วาดหมายเหตุ (pointer · หาร zoom) ----
   var drag=null;
@@ -5948,7 +5972,8 @@ function bindDetailEditor(){
       drag={mode:'marquee',sx:e.clientX,sy:e.clientY,mx:mp.x,my:mp.y,box:mbx,add:e.shiftKey,hit:[]};
       try{canvas.setPointerCapture(e.pointerId);}catch(x){} e.preventDefault(); return;
     }
-    selectDom(elDiv, e.shiftKey);
+    var _pid=elDiv?elDiv.getAttribute('data-eid'):null, _keepGrp=!!(_pid && !b && !e.shiftKey && state.deTool==='select' && selIds().length>1 && selIds().indexOf(_pid)>=0);
+    if(!_keepGrp) selectDom(elDiv, e.shiftKey);   // กดชิ้นที่อยู่ในกลุ่มที่เลือก → คงทั้งกลุ่มไว้เพื่อลากย้ายพร้อมกัน
     if(b && elDiv){
       var elm=findEl(elDiv.getAttribute('data-eid')), act=b.getAttribute('data-de');
       if(act==='resize'){ drag={mode:'resize',elm:elm,elDiv:elDiv,corner:b.getAttribute('data-corner'),sx:e.clientX,sy:e.clientY,ox:elm.x,oy:elm.y,ow:elm.w,oh:elm.h||elDiv.offsetHeight}; }
@@ -5967,7 +5992,7 @@ function bindDetailEditor(){
       var em=findEl(elDiv.getAttribute('data-eid')); if(!em) return;
       // ย้ายทั้งกลุ่มที่เลือก (ถ้าชิ้นนี้อยู่ในกลุ่ม)
       var grp=selIds().indexOf(em.id)>=0 ? selIds().map(findEl).filter(Boolean) : [em];
-      drag={mode:'move',elm:em,elDiv:elDiv,sx:e.clientX,sy:e.clientY,ox:em.x,oy:em.y,grp:grp.map(function(g){ return {el:g, x:g.x||0, y:g.y||0}; })};
+      drag={mode:'move',elm:em,elDiv:elDiv,sx:e.clientX,sy:e.clientY,ox:em.x,oy:em.y,keepGrp:_keepGrp,grp:grp.map(function(g){ return {el:g, x:g.x||0, y:g.y||0}; })};
       try{canvas.setPointerCapture(e.pointerId);}catch(x){} e.preventDefault();
     }
   });
@@ -6064,6 +6089,7 @@ function bindDetailEditor(){
       if((state.deSelMulti||[]).length>1) render();
       return;
     }
+    if(d.mode==='move' && d.keepGrp && !d.moved){ selectDom(d.elDiv,false); }   // คลิกเฉย ๆ (ไม่ลาก) = เลือกชิ้นเดียว
     var wasResize=d.mode==='resize', el=d.elm;
     var changed=(d.mode!=='move') || d.moved;
     if(changed) saveDB();
@@ -6373,7 +6399,7 @@ function rvPaletteHtml(type, m, p, f, plans, plan){
     if(isBox(m.plan)){ h+=rvPh('การแสดงผลบนแปลน'); h+=rvStyleRows(m.plan.fill||"#f59e0b",(m.plan.fillA!=null?m.plan.fillA:0.28),(m.plan.strokeW!=null?m.plan.strokeW:10),null);
       h+=rvPh('ป้ายเบอร์ (เฉพาะกล่องนี้)');
       var _bls=state.labelStyle||{}, _blc=m.plan.labelColor||_bls.color||"#1d2229", _blf=m.plan.labelFont||_bls.font||"JetBrains Mono";
-      h+='<div class="rv-prow"><span>สีตัวเลข</span><b><input type="color" id="boxLabColor" value="'+esc(_blc)+'" class="rv-color">'+(m.plan.labelColor?'<button class="lab-auto on" data-act="boxLabelReset" title="กลับไปใช้ค่าเริ่มต้น (ตามแท็บมุมมอง)">ค่าเริ่มต้น</button>':'<span class="mono" style="opacity:.55;font-size:10.5px">= ค่ารวม</span>')+'</b></div>';
+      h+='<div class="rv-prow"><span>สีตัวเลข</span><b><input type="color" id="boxLabColor" value="'+esc(_blc)+'" class="rv-color">'+((m.plan.labelColor||m.plan.labelFont)?'<button class="lab-auto on" data-act="boxLabelReset" title="กลับไปใช้ค่าเริ่มต้น (ตามแท็บมุมมอง)">ค่าเริ่มต้น</button>':'<span class="mono" style="opacity:.55;font-size:10.5px">= ค่ารวม</span>')+'</b></div>';
       h+='<div class="rv-prow"><span>ฟอนต์</span><b><select id="boxLabFont" class="rv-in" style="width:150px">'+ANNOT_FONTS.map(function(fn){ return '<option'+(_blf===fn?' selected':'')+'>'+esc(fn)+'</option>'; }).join("")+'</select></b></div>';
       h+='<div class="rv-pnote">ปรับสี/ฟอนต์ของเลขกล่องนี้ · ตั้งค่ารวมทุกกล่องได้ที่แท็บ “มุมมอง”</div>';
     }
@@ -6873,10 +6899,10 @@ function mDetailSheetHtml(m,t,sib){
     var b4='';
     if(sib.length>1){ b4+='<div class="m-sec">ชิ้นอื่นในประเภทเดียวกัน — แผ่นเดียวกัน</div><div class="m-chips">'+sib.map(function(x){ return '<button class="m-chip'+(x.id===m.id?' on':'')+'" data-de="switchmember" data-id="'+esc(x.id)+'">'+esc(x.code)+'</button>'; }).join('')+'</div>'; }
     b4+='<div class="m-sec">หน้ากระดาษ · '+dePageCount(doc)+' หน้า (อัตโนมัติ)</div><div class="m-row"><span>ขนาด</span><span class="rv-seg">'+Object.keys(DE_PAGES).map(function(k){ return '<button data-de="page" data-size="'+k+'" aria-pressed="'+(pgk===k)+'">'+esc(DE_PAGES[k].label)+'</button>'; }).join('')+'</span></div>';
-    b4+='<div class="m-row"><span>หัวกระดาษ</span><span class="rv-seg"><button data-de="titletoggle" aria-pressed="'+deTitleOn(doc)+'">แสดง</button><button data-de="titletoggle" aria-pressed="'+(!deTitleOn(doc))+'">ซ่อน</button></span></div>';
+    b4+='<div class="m-row"><span>หัวกระดาษ</span><span class="rv-seg"><button data-de="titletoggle" data-v="1" aria-pressed="'+deTitleOn(doc)+'">แสดง</button><button data-de="titletoggle" data-v="0" aria-pressed="'+(!deTitleOn(doc))+'">ซ่อน</button></span></div>';
     b4+='<div class="m-sec">ไกด์อัจฉริยะ — ลากแล้วสแนปเข้าแนวชิ้นอื่น</div>';
-    b4+='<div class="m-row"><span>ไกด์</span><span class="rv-seg"><button data-de="guides" aria-pressed="'+deGuidesOn()+'">เปิด</button><button data-de="guides" aria-pressed="'+(!deGuidesOn())+'">ปิด</button></span></div>';
-    b4+='<div class="m-row"><span>สแนปกริด</span><span class="rv-seg"><button data-de="snapgrid" aria-pressed="'+!!DE_GUIDES.grid+'">เปิด</button><button data-de="snapgrid" aria-pressed="'+!DE_GUIDES.grid+'">ปิด</button></span></div>';
+    b4+='<div class="m-row"><span>ไกด์</span><span class="rv-seg"><button data-de="guides" data-v="1" aria-pressed="'+deGuidesOn()+'">เปิด</button><button data-de="guides" data-v="0" aria-pressed="'+(!deGuidesOn())+'">ปิด</button></span></div>';
+    b4+='<div class="m-row"><span>สแนปกริด</span><span class="rv-seg"><button data-de="snapgrid" data-v="1" aria-pressed="'+!!DE_GUIDES.grid+'">เปิด</button><button data-de="snapgrid" data-v="0" aria-pressed="'+!DE_GUIDES.grid+'">ปิด</button></span></div>';
     b4+='<div class="m-sec">ชิ้นส่วนนี้</div><div class="m-grid">'+mGd("inspect",'','check','ตรวจเหล็ก')+mGd("exportpdf",'','pdf','ออก PDF')
       +(t?mG("typeManage",'','gear','จัดการประเภท')+mG("typeDetach",'','unlink','แยกออก'):mG("back",'','back','กลับหน้าแปลน'))+'</div>';
     if(t) b4+='<div class="m-note">🔗 '+esc(t.name)+' · ใช้ร่วมกัน '+typeMembers(t.id).length+' ชิ้น — แก้ที่นี่ = เปลี่ยนทุกชิ้น</div>';
@@ -7197,9 +7223,9 @@ function bindPlanEditor(){
   }
   function saveStyle(){ applyStyle(); saveDB(); }
   [dc,da,ds].forEach(function(inp){ if(inp) inp.addEventListener("pointerdown",function(){ plPushUndo(); }); });   // เก็บสภาพก่อนปรับ ครั้งเดียวต่อการลาก
-  if(dc){ dc.addEventListener("input",applyStyle); dc.addEventListener("change",saveStyle); }
-  if(da){ da.addEventListener("input",applyStyle); da.addEventListener("change",saveStyle); }
-  if(ds){ ds.addEventListener("input",applyStyle); ds.addEventListener("change",saveStyle); }
+  if(dc){ dc.addEventListener("input",function(){ applyStyle(); }); dc.addEventListener("change",saveStyle); }
+  if(da){ da.addEventListener("input",function(){ applyStyle(); }); da.addEventListener("change",saveStyle); }
+  if(ds){ ds.addEventListener("input",function(){ applyStyle(); }); ds.addEventListener("change",saveStyle); }
   // จานสีใช้บ่อย — กดเลือกแล้วใช้ทันที
   $$(".swatch").forEach(function(b){ b.addEventListener("click",function(){
     if(getMember(state.selMemberId)) plPushUndo();
@@ -7553,7 +7579,7 @@ function bindPlanEditor(){
         state.selMulti=[];
         state.selMemberId=id; state.memberId=id; state.selZoneId=null; state.mSheet=null; state.mSheetMin=false; if(!isMobile()) state.ribbonTab="modify";  // แค่แตะ → เลือก (คอม: เปิดแท็บแก้ไข)
         if(state.rightTab!=="inspect") state.rightTab="props";   // เหมือน Inspector: เลือกแล้วโชว์คุณสมบัติ (ถ้ากำลังตรวจอยู่ คงแท็บตรวจ)
-        state.answers={}; state.photos=[]; state.note=""; render();
+        render();   // คำตอบตรวจผูกกับชิ้น (ansMid) — เปลี่ยนชิ้นแล้วล้างเองใน bindInspectionInputs
         return;
       }
       if(!ps) return;
@@ -8103,7 +8129,7 @@ function nextCode(type){
   var ab=TYPES[type].ab, list=membersOfFloor(state.floorId).filter(function(m){ return m.type===type; });
   var max=0;
   list.forEach(function(m){
-    var mt=String(m.code).match(new RegExp("^"+ab+"(\\d+)"));
+    var mt=String(m.code).match(new RegExp("^"+String(ab).replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(\\d+)"));
     if(mt) max=Math.max(max, parseInt(mt[1],10));
   });
   return ab+(max+1);
@@ -9196,7 +9222,19 @@ function toggleTheme(){
 /* ===== ชนิดชิ้นส่วน "กำหนดเอง" — เพิ่มเองได้ ระบบใส่สีให้อัตโนมัติ (เก็บใน localStorage) ===== */
 var CUSTOM_TYPE_PALETTE=["#c2410c","#0e7490","#6d28d9","#be123c","#15803d","#a16207","#0f766e","#4338ca","#9d174d","#3f6212"];
 var CUSTOM_TYPES=[];   // [{key,label,color,ab}]
-function _loadCustomTypes(){ try{ var a=JSON.parse(localStorage.getItem("rebarcheck.customTypes")||"[]"); if(Array.isArray(a)) CUSTOM_TYPES=a; }catch(e){} }
+function _loadCustomTypes(){
+  try{ var a=JSON.parse(localStorage.getItem("rebarcheck.customTypes")||"[]"); if(Array.isArray(a)) CUSTOM_TYPES=a; }catch(e){}
+  // รวมนิยามจากฐานข้อมูลกลาง (DB.ctypes) — ชื่อจริงแทนตัวชั่วคราวที่ใช้ key เป็นชื่อ
+  (DB.ctypes||[]).forEach(function(d){
+    if(!d||!d.key) return;
+    var ex=CUSTOM_TYPES.filter(function(c){ return c.key===d.key; })[0];
+    if(!ex) CUSTOM_TYPES.push({key:d.key,label:d.label||d.key,color:d.color,ab:d.ab});
+    else if(!ex.label||ex.label===ex.key){ ex.label=d.label||ex.label; if(d.color) ex.color=d.color; if(d.ab) ex.ab=d.ab; }
+  });
+  // นิยามที่มีแค่ในเครื่อง → ใส่ DB.ctypes ให้ซิงก์ต่อ (ไม่รวมตัวชั่วคราว label===key)
+  if(!Array.isArray(DB.ctypes)) DB.ctypes=[];
+  CUSTOM_TYPES.forEach(function(c){ if(c.label && c.label!==c.key && !DB.ctypes.some(function(d){ return d&&d.key===c.key; })) DB.ctypes.push({id:c.key,key:c.key,label:c.label,color:c.color,ab:c.ab}); });
+}
 function _saveCustomTypes(){ try{ localStorage.setItem("rebarcheck.customTypes",JSON.stringify(CUSTOM_TYPES)); }catch(e){} }
 function _ctAb(name){ name=(name||"").trim(); if(!name) return "X"; var m=name.match(/[A-Za-z]+/); return m ? m[0].slice(0,2).toUpperCase() : name.slice(0,2); }
 /** ลงทะเบียนชนิดกำหนดเองเข้า TYPES/TYPE_ORDER/TYPE_EN + ฉีดตัวแปรสี CSS (เรียกซ้ำได้) */
@@ -9224,7 +9262,7 @@ function addCustomType(name){
   var dup=CUSTOM_TYPES.filter(function(c){ return c.label===name; })[0]; if(dup) return dup.key;
   var key="ct"+Date.now().toString(36);
   CUSTOM_TYPES.push({ key:key, label:name, ab:_ctAb(name), color:CUSTOM_TYPE_PALETTE[CUSTOM_TYPES.length%CUSTOM_TYPE_PALETTE.length] });
-  _saveCustomTypes(); registerCustomTypes(); return key;
+  _saveCustomTypes(); registerCustomTypes(); saveDB(); return key;
 }
 
 function normalizePlanShapes(){
@@ -9264,8 +9302,10 @@ function normalizeFloorPlans(){
    ------------------------------------------------------------------------ */
 var CLOUD = !!(window.fbAuth && window.fbDb);
 var _fbUser=null, _fbLoaded=false, _syncT=null, _fbUnsub=[];
-var _syncBase={projects:{},floors:{},members:{},inspections:{},types:{}};
-var CLOUD_COLLS=["projects","floors","members","inspections","types"];
+var CLOUD_COLLS=["projects","floors","members","inspections","types","zones","annots","headMarks","ctypes"];
+function _emptySyncBase(){ var b={}; CLOUD_COLLS.forEach(function(c){ b[c]={}; }); return b; }
+var _syncBase=_emptySyncBase();
+var _deferSnap={}, _bigWarned={};   // snapshot ที่ถูกเลื่อน (กำลังพิมพ์/อัปโหลดอยู่) — ลองใหม่ภายหลัง
 
 function _isEditing(){ var a=document.activeElement; return !!(a && (a.tagName==="INPUT"||a.tagName==="TEXTAREA"||a.isContentEditable)); }
 
@@ -9278,21 +9318,20 @@ function cloudBoot(){
   });
 }
 function teardownCloud(){ _fbUnsub.forEach(function(u){ try{u();}catch(e){} }); _fbUnsub=[]; _fbLoaded=false;
-  _syncBase={projects:{},floors:{},members:{},inspections:{},types:{}}; }
+  _syncBase=_emptySyncBase(); _deferSnap={}; }
 
 function startCloudSession(user){
   renderLoading();
   var got={};
   CLOUD_COLLS.forEach(function(c){
-    var un=fbDb.collection(c).onSnapshot(function(snap){
+    var un=fbDb.collection(c).onSnapshot(function handler(snap){
       var pending=snap.metadata && snap.metadata.hasPendingWrites;
       var editing=_isEditing();
       // เก็บ syncBase "เก่า" ไว้เทียบก่อน — ใช้ตัดสินว่า item ไหนถูกแก้ local (unsynced) หรือแค่ไม่เปลี่ยน
       var oldBase=_syncBase[c]||{};
       var newBase={};
       snap.docs.forEach(function(d){ newBase[d.id]=d.data().data; });
-      _syncBase[c]=newBase;
-      if(!_fbLoaded){
+      if(!_fbLoaded){ _syncBase[c]=newBase;
         DB[c]=snap.docs.map(function(d){ try{ return JSON.parse(d.data().data); }catch(e){ return null; } }).filter(Boolean);
         got[c]=true;
         if(CLOUD_COLLS.every(function(x){return got[x];})){
@@ -9307,7 +9346,9 @@ function startCloudSession(user){
         return;
       }
       // เพิกเฉย snapshot ทั้งก้อนถ้าอยู่ในช่วงเสี่ยง (upload กำลังไปหรือค้าง / พิมพ์อยู่)
-      if(pending || editing || _syncT || _syncing>0) return;
+      // ข้าม snapshot นี้ไว้ก่อน — ห้ามขยับ _syncBase (ไม่งั้นรอบซิงก์ถัดไปจะลบ/ย้อนงานของคนอื่น) แล้วลองใหม่ภายหลัง
+      if(pending || editing || _syncT || _syncing>0){ _deferSnap[c]=snap; setTimeout(function(){ if(_deferSnap[c]===snap){ _deferSnap[c]=null; handler(snap); } },900); return; }
+      _deferSnap[c]=null; _syncBase[c]=newBase;
       DB[c]=DB[c]||[];
       var incomingIds={};
       // LOCK: ถ้าผู้ใช้กำลังเปิดหน้าแก้ไข member ใดอยู่ (memberDetail / memberForm /
@@ -9330,7 +9371,7 @@ function startCloudSession(user){
         var incoming; try{ incoming=JSON.parse(incomingJson); }catch(e){ return; }
         if(!incoming || !incoming.id) return;
         incomingIds[incoming.id]=1;
-        if(_isLockedMember(incoming.id) || _isLockedType(incoming.id)) return;   // 🔒 กำลังเปิดหน้าแก้ไขอยู่ — อย่าแตะ
+        if(_isLockedMember(incoming.id) || _isLockedType(incoming.id)){ if(oldBase[incoming.id]!=null) newBase[incoming.id]=oldBase[incoming.id]; else delete newBase[incoming.id]; return; }   // 🔒 กำลังเปิดหน้าแก้ไขอยู่ — อย่าแตะ (คงฐานเดิม)
         var ex=DB[c].filter(function(x){return x&&x.id===incoming.id;})[0];
         if(!ex){ DB[c].push(incoming); return; }
         // 🔒🔒 HARD LOCK สำหรับ members: ห้าม cloud snapshot เขียนทับ .doc ของ member ที่มีอยู่แล้ว
@@ -9340,9 +9381,10 @@ function startCloudSession(user){
           var localJson0; try{ localJson0=JSON.stringify(_forCloud(c, ex)); }catch(e){ localJson0=null; }
           var lastSynced0=oldBase[incoming.id];
           if(localJson0!=null && lastSynced0!=null && localJson0!==lastSynced0) return;   // มีงาน local ค้าง → เก็บ local
-          Object.keys(ex).forEach(function(k){ if(k!=='doc') delete ex[k]; });   // เคลียร์ทุกฟิลด์ ยกเว้น doc
-          Object.keys(incoming).forEach(function(k){ if(k!=='doc') ex[k]=incoming[k]; });   // รับ metadata ใหม่
-          ex.doc=preservedDoc;   // คง doc เดิมไว้เสมอ
+          // local ตรงกับที่ซิงก์ล่าสุด = ไม่มีงานค้าง → รับทั้งก้อนรวม doc (ชิ้นที่เปิดแก้อยู่ถูกล็อกไว้แล้วข้างบน)
+          Object.keys(ex).forEach(function(k){ delete ex[k]; });
+          Object.assign(ex, incoming);
+          if(ex.doc===undefined && preservedDoc!==undefined && lastSynced0==null) ex.doc=preservedDoc;
           return;
         }
         // collections อื่น (projects/floors/inspections) — merge in-place ตามปกติ
@@ -9357,15 +9399,23 @@ function startCloudSession(user){
       for(var i=DB[c].length-1;i>=0;i--){
         var it=DB[c][i]; if(!it){ DB[c].splice(i,1); continue; }
         if(incomingIds[it.id]) continue;
-        if(_isLockedMember(it.id) || _isLockedType(it.id)) continue;   // 🔒 กำลังเปิดหน้าแก้ไขอยู่ — อย่าลบ
+        if(_isLockedMember(it.id) || _isLockedType(it.id)){ if(oldBase[it.id]!=null) newBase[it.id]=oldBase[it.id]; continue; }   // 🔒 กำลังเปิดหน้าแก้ไขอยู่ — อย่าลบ (คงฐานเดิม)
         var wasSynced=oldBase[it.id];
         if(!wasSynced) continue;   // เพิ่ง add local ยังไม่ sync → เก็บไว้ (จะ sync รอบถัดไป)
         var localJson2; try{ localJson2=JSON.stringify(_forCloud(c,it)); }catch(e){ continue; }
         if(localJson2===wasSynced) DB[c].splice(i,1);   // ตรงกับ base เดิม = ไม่ได้แก้ → ลบตาม remote
         // ถ้า localJson2 !== wasSynced = แก้ local ค้างไว้ + remote ลบ → ข้อพิพาท, เก็บ local ไว้
       }
+      if(c==="members"||c==="ctypes"){ try{ registerCustomTypes(); }catch(e){} }   // ชนิดกำหนดเองที่มากับการซิงก์ — กันหน้าพัง
       render();
-    }, function(err){ console.warn("Firestore listen error ["+c+"]", err); toast("เชื่อมต่อฐานข้อมูลมีปัญหา: "+(err&&err.code||err),true); });
+    }, function(err){
+      console.warn("Firestore listen error ["+c+"]", err); toast("เชื่อมต่อฐานข้อมูลมีปัญหา: "+(err&&err.code||err),true);
+      // อย่าค้างหน้าโหลด: นับคอลเลกชันที่ error ว่า "โหลดแล้ว (ว่าง)" แล้วไปต่อ
+      if(!_fbLoaded && !got[c]){ got[c]=true; DB[c]=DB[c]||[];
+        if(CLOUD_COLLS.every(function(x){return got[x];})){ _fbLoaded=true; DB.inspector=user.email||"";
+          try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); }catch(e){}
+          document.body.classList.remove("auth-mode"); if(!state.screen||state.screen==="login"||state.screen==="loading") state.screen="home"; render(); } }
+    });
     _fbUnsub.push(un);
   });
 }
@@ -9389,7 +9439,12 @@ function _syncCollection(coll, items){
   items.forEach(function(it){
     if(!it || !it.id) return;
     var json; try{ json=JSON.stringify(_forCloud(coll,it)); }catch(e){ return; }
-    if(json.length>950000){ console.warn("ข้าม (ใหญ่เกิน 1MB): "+coll+"/"+it.id); return; }   // กัน doc เกินลิมิต
+    if(json.length>950000){   // กัน doc เกินลิมิต — คงของเดิมบนคลาวด์ไว้ (ไม่ลบ) และแจ้งเตือน
+      console.warn("ข้าม (ใหญ่เกิน 1MB): "+coll+"/"+it.id);
+      if(base[it.id]!=null) next[it.id]=base[it.id];
+      if(!_bigWarned[coll+"/"+it.id]){ _bigWarned[coll+"/"+it.id]=1; toast(coll==="inspections"?"ผลตรวจมีรูปมากเกินจะซิงก์ขึ้นคลาวด์ได้ — ลดจำนวนรูปแล้วบันทึกใหม่":"ข้อมูลรายการหนึ่งใหญ่เกินจะซิงก์ขึ้นคลาวด์ ("+coll+")",true); }
+      return;
+    }
     next[it.id]=json;
     if(base[it.id]!==json){ batch.set(fbDb.collection(coll).doc(it.id), {id:it.id, data:json}); writes++; }
   });
@@ -9521,6 +9576,7 @@ function offerLocalMigration(){
 function migrateLocalToCloud(local){
   toast("กำลังอัปข้อมูลขึ้นคลาวด์…");
   DB.projects=local.projects||[]; DB.floors=local.floors||[]; DB.members=local.members||[]; DB.inspections=local.inspections||[]; DB.types=local.types||[];
+  DB.zones=local.zones||[]; DB.annots=local.annots||[]; DB.headMarks=local.headMarks||[]; DB.ctypes=local.ctypes||[];
   try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); }catch(e){}
   cloudSyncNow();   // ดันข้อมูลหลักขึ้นก่อน
   render();
@@ -9584,6 +9640,10 @@ function init(){
       e.preventDefault(); saveMemberForm(false);
     }
   });
+
+  function _flushCloud(){ try{ if(CLOUD && _fbUser && _fbLoaded && _syncT){ clearTimeout(_syncT); _syncT=null; cloudSyncNow(); } }catch(e){} }
+  window.addEventListener("pagehide", _flushCloud);
+  document.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden") _flushCloud(); });
 
   if(CLOUD){ cloudBoot(); } else { render(); }
 }

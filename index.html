@@ -28,6 +28,7 @@
     });
     window.fbAuth = firebase.auth();
     window.fbDb   = firebase.firestore();
+    try{ window.fbDb.enablePersistence({synchronizeTabs:true}).catch(function(e){ console.warn("Firestore persistence off:", e&&e.code); }); }catch(e){}
     try{ window.fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); }catch(e){}
   }catch(e){ console.warn("Firebase init failed — ใช้โหมดออฟไลน์ (localStorage) แทน", e); }
 </script>
