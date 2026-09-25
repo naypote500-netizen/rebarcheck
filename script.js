@@ -3190,7 +3190,7 @@ var state = {
   autoCode:false,        // วาดต่อเนื่อง: ใส่เบอร์ถัดไปให้เอง ไม่ถาม
   selMulti:[],           // เลือกหลายชิ้น (id) — ใช้ร่วมกับ selMemberId (ตัวหลัก)
   marquee:false,         // เครื่องมือลากกรอบเลือก (ครั้งเดียวแล้วปิดเอง)
-  zoneShape:"rect",      // รูปทรงที่จะวาดโซนเท: rect | poly
+  zoneShape:"rect",      // รูปทรงที่จะวาดโซนเท: rect | poly | oval
   areaShape:"poly",      // วัดพื้นที่: poly (คลิกทีละมุม) | rect (ลากสี่เหลี่ยม)
   areaThick:0.2,         // ความหนาเริ่มต้นของพื้นที่ที่วัดใหม่ (ม.) — จำค่าล่าสุดที่ตั้ง
   showLegend:false,                   // ตารางสีบนแปลน (ตรึงมุมขวาล่าง)
@@ -4275,6 +4275,8 @@ function planShapesSVG(VW,VH){
       if(zp.kind==="poly" && zp.pts && zp.pts.length){
         var pstr=zp.pts.map(function(p){ return (zx+p[0]*zw).toFixed(1)+","+(zy+p[1]*zh).toFixed(1); }).join(" ");
         shapes+='<polygon data-zid="'+z.id+'" points="'+pstr+'" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:'+cur+'"/>';
+      }else if(zp.kind==="oval"){
+        shapes+='<ellipse data-zid="'+z.id+'" cx="'+(zx+zw/2)+'" cy="'+(zy+zh/2)+'" rx="'+(zw/2)+'" ry="'+(zh/2)+'" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:'+cur+'"/>';
       }else{
         shapes+='<rect data-zid="'+z.id+'" x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh
           +'" rx="3" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:'+cur+'"/>';
@@ -6278,8 +6280,9 @@ function rvRibbonHtml(type, f, plan, plans, selM){
     else body+=rvGrp('', '<div class="rv-hintbox">คลิกหมายเหตุ/พื้นที่บนแปลนเพื่อแก้ในแผงด้านขวา</div>');
   }else if(rt==="progress"){
     body+=selBtn;
-    body+=rvGrp('วาดโซนเท', rvBig(state.tool==="drawZone"&&state.zoneShape!=="poly","drawZoneStart",'data-shape="rect"','zone','สี่เหลี่ยม','วาดโซนสี่เหลี่ยม  (R)')
+    body+=rvGrp('วาดโซนเท', rvBig(state.tool==="drawZone"&&(state.zoneShape||"rect")==="rect","drawZoneStart",'data-shape="rect"','rect','สี่เหลี่ยม','วาดโซนสี่เหลี่ยม  (R)')
       +rvBig(state.tool==="drawZone"&&state.zoneShape==="poly","drawZoneStart",'data-shape="poly"','poly','หลายเหลี่ยม','วาดโซนหลายเหลี่ยม  (P)')
+      +rvBig(state.tool==="drawZone"&&state.zoneShape==="oval","drawZoneStart",'data-shape="oval"','oval','วงรี','วาดโซนวงรี  (O)')
       +rvCol(rvSm(!!state.snap,"toggleSnap",'','snap','สแนบเส้น','ดูดเข้าเส้นแปลนตอนวาดโซน  (S)')));
     body+=rvGrp('โซน', rvCol((hasZone?rvSm(false,"deleteZone",'','trash','ลบโซนที่เลือก','ลบโซนที่เลือก'):'')+rvSm(false,"manageZoneStatus",'','gear','จัดการสถานะ + สี')));
     body+=rvGrp('นำออก', rvBig(false,"exportProgressPdf",'','pdf','PDF อัพเดท','นำออกความคืบหน้าเทคอนกรีต'));
@@ -6760,7 +6763,7 @@ function mPlanSheetHtml(f,type,p,plan,plans,selM,prog){
   }
   if(sh==="zone"){
     var zones=zonesOfPlan(f.id,_pid), cnt={}; zones.forEach(function(q){ cnt[q.status]=(cnt[q.status]||0)+1; });
-    var b3='<div class="m-grid">'+mG("drawZoneStart",'data-shape="rect"','zone','โซนสี่เหลี่ยม','',0,state.tool==="drawZone"&&state.zoneShape!=="poly")+mG("drawZoneStart",'data-shape="poly"','poly','โซนหลายเหลี่ยม','',0,state.tool==="drawZone"&&state.zoneShape==="poly")
+    var b3='<div class="m-grid">'+mG("drawZoneStart",'data-shape="rect"','rect','โซนสี่เหลี่ยม','',0,state.tool==="drawZone"&&(state.zoneShape||"rect")==="rect")+mG("drawZoneStart",'data-shape="poly"','poly','โซนหลายเหลี่ยม','',0,state.tool==="drawZone"&&state.zoneShape==="poly")+mG("drawZoneStart",'data-shape="oval"','oval','โซนวงรี','',0,state.tool==="drawZone"&&state.zoneShape==="oval")
       +mG("manageZoneStatus",'','gear','สถานะ + สี')+mG("exportProgressPdf",'','pdf','PDF อัพเดท')+'</div>';
     b3+='<div class="m-sec">โซนบนแปลนนี้ ('+zones.length+')</div>';
     zoneStatuses(f.id,_pid).forEach(function(st){ b3+='<div class="m-row"><span><i class="rv-zdot sm" style="background:'+st.color+'"></i>'+esc(st.label)+'</span><b>'+(cnt[st.id]||0)+' โซน</b></div>'; });
@@ -7133,7 +7136,7 @@ function bindPlanEditor(){
     else if(kl==="m" && !isMobile()){ state.marquee=!state.marquee; state.tool="select"; render(); }
     else if(kl==="r"){ if(prog){ state.zoneShape="rect"; state.tool="drawZone"; } else { state.tool="draw"; state.drawShape="rect"; } render(); }
     else if(kl==="p"){ if(prog){ state.zoneShape="poly"; state.tool="drawZone"; } else if(drawKind(state.catType)==="rect"){ state.tool="draw"; state.drawShape="poly"; } render(); }
-    else if(kl==="o" && !prog && drawKind(state.catType)==="rect"){ state.tool="draw"; state.drawShape="oval"; render(); }
+    else if(kl==="o"){ if(prog){ state.zoneShape="oval"; state.tool="drawZone"; render(); } else if(drawKind(state.catType)==="rect"){ state.tool="draw"; state.drawShape="oval"; render(); } }
     else if(kl==="s"){ state.snap=!state.snap; render(); }
     else if(k==="0"){ planFit(); }
     else if(k==="+"||k==="="||k==="-"){ var st=$("#planStage"); if(st){ var r=st.getBoundingClientRect(); planZoomBy(k==="-"?1/1.35:1.35, r.width/2, r.height/2); } }
@@ -7739,13 +7742,18 @@ function bindPlanEditor(){
       overlay.addEventListener("dblclick",function(ev){ ev.preventDefault(); if(zpts.length) zpts.pop(); zfinishPoly(); });
       return;
     }
-    var zStart=null, zTemp=null;
+    var zStart=null, zTemp=null, zIsOval=(state.zoneShape==="oval");
     function zDrawMove(ev2){
       if(!zStart||!zTemp) return;
       if(ev2.cancelable) ev2.preventDefault();
       var p=snapAt(ev2);
-      zTemp.setAttribute("x",Math.min(zStart.x,p.x)*VW); zTemp.setAttribute("y",Math.min(zStart.y,p.y)*VH);
-      zTemp.setAttribute("width",Math.abs(p.x-zStart.x)*VW); zTemp.setAttribute("height",Math.abs(p.y-zStart.y)*VH);
+      if(zIsOval){
+        zTemp.setAttribute("cx",(zStart.x+p.x)/2*VW); zTemp.setAttribute("cy",(zStart.y+p.y)/2*VH);
+        zTemp.setAttribute("rx",Math.abs(p.x-zStart.x)/2*VW); zTemp.setAttribute("ry",Math.abs(p.y-zStart.y)/2*VH);
+      }else{
+        zTemp.setAttribute("x",Math.min(zStart.x,p.x)*VW); zTemp.setAttribute("y",Math.min(zStart.y,p.y)*VH);
+        zTemp.setAttribute("width",Math.abs(p.x-zStart.x)*VW); zTemp.setAttribute("height",Math.abs(p.y-zStart.y)*VH);
+      }
     }
     function zDrawEnd(ev2){
       window.removeEventListener("pointermove",zDrawMove,true);
@@ -7756,7 +7764,7 @@ function bindPlanEditor(){
       if(zTemp){ zTemp.remove(); zTemp=null; }
       var rb=overlay.getBoundingClientRect();
       if(Math.abs(p.x-s.x)*rb.width<5 && Math.abs(p.y-s.y)*rb.height<5) return;
-      finishDrawZone({kind:"rect", x1:s.x, y1:s.y, x2:p.x, y2:p.y});
+      finishDrawZone({kind:(zIsOval?"oval":"rect"), x1:s.x, y1:s.y, x2:p.x, y2:p.y});
     }
     overlay.addEventListener("pointermove",function(ev){ if(!zStart) snapAt(ev); });
     overlay.addEventListener("pointerleave",function(){ if(!zStart) showSnap(null); });
@@ -7765,12 +7773,12 @@ function bindPlanEditor(){
       if(ev.button!=null && ev.button!==0) return;
       ev.preventDefault();
       zStart=snapAt(ev);
-      zTemp=document.createElementNS(NS,"rect");
+      zTemp=document.createElementNS(NS, zIsOval?"ellipse":"rect");
       var z=state.zoom||1;
       zTemp.setAttribute("stroke",ZCOL); zTemp.setAttribute("stroke-width",(2.4/z));
       zTemp.setAttribute("stroke-dasharray",(7/z)+" "+(5/z));
       zTemp.setAttribute("fill",ZCOL); zTemp.setAttribute("fill-opacity","0.08");
-      zTemp.setAttribute("rx","4");
+      if(!zIsOval) zTemp.setAttribute("rx","4");
       overlay.appendChild(zTemp);
       window.addEventListener("pointermove",zDrawMove,true);
       window.addEventListener("pointerup",zDrawEnd,true);
