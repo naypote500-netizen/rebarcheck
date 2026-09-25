@@ -5939,9 +5939,30 @@ function bindDetailEditor(){
   canvas.addEventListener('blur',function(e){ if(e.target.isContentEditable) saveDB(); },true);
   // ---- drag / resize / crop / วาดหมายเหตุ (pointer · หาร zoom) ----
   var drag=null;
+  // ---- ลากจนชิดขอบกรอบ → เลื่อนแผ่นตามอัตโนมัติ (ยิ่งชิดยิ่งเร็ว) แล้วชดเชยจุดเริ่มลากให้ชิ้นตามเคอร์เซอร์ ----
+  var _ae={raf:0, ev:null};
+  function autoScroll(e){ _ae.ev=e; if(!_ae.raf) _ae.raf=requestAnimationFrame(_aeTick); }
+  function autoScrollStop(){ if(_ae.raf) cancelAnimationFrame(_ae.raf); _ae.raf=0; _ae.ev=null; }
+  function _aeTick(){
+    _ae.raf=0;
+    var e=_ae.ev; if(!e || !drag || !vp) return;
+    if(drag.mode==='pan' || drag.mode==='cropmove' || drag.mode==='crophandle') return;   // เลื่อนเอง / ครอปยึดกรอบรูปบนจอ
+    var r=vp.getBoundingClientRect(); if(!r.width || !r.height) return;
+    var M=Math.min(36, r.width/8, r.height/8), MAX=16;
+    function v(d){ return d>=M ? 0 : (M-Math.max(0,d))/M*MAX; }
+    var vx=v(r.right-e.clientX)-v(e.clientX-r.left), vy=v(r.bottom-e.clientY)-v(e.clientY-r.top);
+    if(!vx && !vy) return;
+    var sl=vp.scrollLeft, st=vp.scrollTop;
+    vp.scrollLeft=sl+vx; vp.scrollTop=st+vy;
+    var ddx=vp.scrollLeft-sl, ddy=vp.scrollTop-st;
+    if(!ddx && !ddy) return;                       // สุดขอบแผ่นแล้ว
+    if(drag.sx!=null) drag.sx-=ddx; if(drag.sy!=null) drag.sy-=ddy;   // ระยะลาก (clientX-sx) ต้องรวมระยะที่แผ่นเลื่อนไป
+    deMove(e);
+    if(!_ae.raf) _ae.raf=requestAnimationFrame(_aeTick);
+  }
   /** นิ้วที่สองแตะลง = ถ่างซูม → ยกเลิกการลากของนิ้วแรก (คืนตำแหน่ง/ลบเส้นร่าง) */
   function cancelDrag(){
-    if(!drag) return; var d=drag; drag=null;
+    if(!drag) return; var d=drag; drag=null; autoScrollStop();
     deDrawGuides(canvas,null);
     if(d.box && d.box.parentNode) d.box.parentNode.removeChild(d.box);
     if(d.mode==='marquee'){ $$('.de-el.mpre',canvas).forEach(function(x){ x.classList.remove('mpre'); }); }
@@ -5996,8 +6017,9 @@ function bindDetailEditor(){
       try{canvas.setPointerCapture(e.pointerId);}catch(x){} e.preventDefault();
     }
   });
-  canvas.addEventListener('pointermove',function(e){
+  function deMove(e){
     if(!drag) return;
+    autoScroll(e);   // ชิดขอบกรอบ → เลื่อนแผ่นตาม
     var z=deZ(), rdx=e.clientX-drag.sx, rdy=e.clientY-drag.sy, dx=rdx/z, dy=rdy/z, el=drag.elm;
     if(drag.mode==='annot'){ var p=sheetPt(e); deAnnotDrag(drag, p); return; }
     if(drag.mode==='pan'){ if(Object.keys(tpts).length>1) return; if(Math.abs(rdx)>3||Math.abs(rdy)>3) drag.moved=true; vp.scrollLeft=drag.sl-rdx; vp.scrollTop=drag.st-rdy; return; }
@@ -6061,11 +6083,12 @@ function bindDetailEditor(){
       }
       el._crop=nc; var s=drag.cropDiv.style; s.left=(nc.x*100)+'%'; s.top=(nc.y*100)+'%'; s.width=(nc.w*100)+'%'; s.height=(nc.h*100)+'%';
     }
-  });
+  }
+  canvas.addEventListener('pointermove',deMove);
   var _lastTap=0;
   function endDrag(e){
     if(!drag) return;
-    var d=drag; drag=null;
+    var d=drag; drag=null; autoScrollStop();
     if(d.mode==='pan'){   // แตะสองครั้งบนพื้นว่าง (นิ้ว) = พอดีจอ
       if(d.pt==='touch' && !d.moved){ var now=(window.performance&&performance.now)?performance.now():0; if(now-_lastTap<320){ zoomFit(); _lastTap=0; } else _lastTap=now; }
       return;
@@ -7275,6 +7298,25 @@ function bindPlanEditor(){
     if(sp){ showSnap(sp,r); return {x:sp.x,y:sp.y}; }
     showSnap(null); return p;
   }
+  // ---- ลาก/วาดจนชิดขอบกรอบ → เลื่อนแปลนตามอัตโนมัติ (ยิ่งชิดยิ่งเร็ว) แล้วเรียกตัวจัดการลากซ้ำให้ชิ้นตามไปด้วย ----
+  var _ep={raf:0, ev:null, fn:null};
+  function edgePan(ev, fn){ _ep.ev=ev; _ep.fn=fn; if(!_ep.raf) _ep.raf=requestAnimationFrame(_epTick); }
+  function edgePanStop(){ if(_ep.raf) cancelAnimationFrame(_ep.raf); _ep.raf=0; _ep.ev=null; _ep.fn=null; }
+  function _epTick(){
+    _ep.raf=0;
+    var ev=_ep.ev; if(!ev || !stage || window.__planPinch) return;
+    var r=stage.getBoundingClientRect(); if(!r.width || !r.height) return;
+    var M=Math.min(36, r.width/8, r.height/8), MAX=16;
+    function v(d){ return d>=M ? 0 : (M-Math.max(0,d))/M*MAX; }   // ระยะจากขอบ → ความเร็ว (นอกกรอบ = เร็วสุด)
+    var vx=v(ev.clientX-r.left)-v(r.right-ev.clientX), vy=v(ev.clientY-r.top)-v(r.bottom-ev.clientY);
+    if(!vx && !vy) return;
+    var px=state.panX, py=state.panY;
+    state.panX+=vx; state.panY+=vy; planClampPan();
+    if(state.panX===px && state.panY===py) return;   // สุดขอบแปลนแล้ว
+    planApplyTransform();
+    if(_ep.fn) _ep.fn(ev);                            // ชิ้น/เส้นร่างตามเคอร์เซอร์ (ตำแหน่งจอเดิม แต่แปลนเลื่อน)
+    if(!_ep.raf) _ep.raf=requestAnimationFrame(_epTick);
+  }
 
   // ล้อเมาส์ = ซูมเข้า/ออก (ทุกโหมด) โดยซูมไปที่ตำแหน่งเคอร์เซอร์
   stage.addEventListener("wheel",function(ev){
@@ -7418,6 +7460,7 @@ function bindPlanEditor(){
     });
     function selMove(ev){
       if(window.__planPinch) return;   // สองนิ้วซูมอยู่ → หยุดลาก/เลื่อน
+      if(lsz||ml||tf||atf||amv||ztf||zmv||mv) edgePan(ev, selMove);   // ลากชิดขอบกรอบ → เลื่อนแปลนตาม
       if(lsz){       // ปรับขนาดป้ายเบอร์
         var m=getMember(lsz.mid); if(!m) return;
         var c=lblCenterClient(m), d=Math.hypot(ev.clientX-c.x,ev.clientY-c.y);
@@ -7539,6 +7582,7 @@ function bindPlanEditor(){
       if(moved){ state.panX=ps.px+dx; state.panY=ps.py+dy; planClampPan(); planApplyTransform(); }
     }
     function selUp(ev){
+      edgePanStop();
       window.removeEventListener("pointermove",selMove,true);
       window.removeEventListener("pointerup",selUp,true);
       window.removeEventListener("pointercancel",selUp,true);
@@ -7598,6 +7642,7 @@ function bindPlanEditor(){
       window.removeEventListener("pointermove",aMove,true);
       window.removeEventListener("pointerup",aEnd,true);
       window.removeEventListener("pointercancel",aEnd,true);
+      edgePanStop();
       if(!aStart) return;
       var p=snapAt(ev2), s0=aStart; aStart=null; showSnap(null);
       if(aTemp){ aTemp.remove(); aTemp=null; }
@@ -7608,6 +7653,7 @@ function bindPlanEditor(){
     function aMove(ev2){
       if(!aStart||!aTemp) return;
       if(ev2.cancelable) ev2.preventDefault();
+      edgePan(ev2, aMove);
       var p=snapAt(ev2), z=state.zoom||1;
       if(isDimTool){
         aTemp.setAttribute("x1",s0x()*VW); aTemp.setAttribute("y1",s0y()*VH);
@@ -7643,7 +7689,7 @@ function bindPlanEditor(){
   if(state.tool==="setScale"){
     var scStart=null, scTemp=null, SCOL="#dc2626";
     function scEnd(ev2){
-      window.removeEventListener("pointermove",scMove,true); window.removeEventListener("pointerup",scEnd,true); window.removeEventListener("pointercancel",scEnd,true);
+      window.removeEventListener("pointermove",scMove,true); window.removeEventListener("pointerup",scEnd,true); window.removeEventListener("pointercancel",scEnd,true); edgePanStop();
       if(!scStart) return;
       var p=snapAt(ev2), s0=scStart; scStart=null; showSnap(null);
       if(scTemp){ scTemp.remove(); scTemp=null; }
@@ -7651,7 +7697,7 @@ function bindPlanEditor(){
       if(Math.hypot((p.x-s0.x)*rb.width,(p.y-s0.y)*rb.height)<8) return;
       finishSetScale(s0,p);
     }
-    function scMove(ev2){ if(!scStart||!scTemp) return; if(ev2.cancelable) ev2.preventDefault(); var p=snapAt(ev2); scTemp.setAttribute("x2",p.x*VW); scTemp.setAttribute("y2",p.y*VH); }
+    function scMove(ev2){ if(!scStart||!scTemp) return; if(ev2.cancelable) ev2.preventDefault(); edgePan(ev2, scMove); var p=snapAt(ev2); scTemp.setAttribute("x2",p.x*VW); scTemp.setAttribute("y2",p.y*VH); }
     overlay.addEventListener("pointermove",function(ev){ if(!scStart) snapAt(ev); });
     overlay.addEventListener("pointerleave",function(){ if(!scStart) showSnap(null); });
     overlay.addEventListener("pointerdown",function(ev){
@@ -7703,12 +7749,13 @@ function bindPlanEditor(){
     function arMove(ev2){
       if(!arStart||!arTemp) return;
       if(ev2.cancelable) ev2.preventDefault();
+      edgePan(ev2, arMove);
       var p=snapAt(ev2);
       arTemp.setAttribute("x",Math.min(arStart.x,p.x)*VW); arTemp.setAttribute("y",Math.min(arStart.y,p.y)*VH);
       arTemp.setAttribute("width",Math.abs(p.x-arStart.x)*VW); arTemp.setAttribute("height",Math.abs(p.y-arStart.y)*VH);
     }
     function arEnd(ev2){
-      window.removeEventListener("pointermove",arMove,true); window.removeEventListener("pointerup",arEnd,true); window.removeEventListener("pointercancel",arEnd,true);
+      window.removeEventListener("pointermove",arMove,true); window.removeEventListener("pointerup",arEnd,true); window.removeEventListener("pointercancel",arEnd,true); edgePanStop();
       if(!arStart) return;
       var p=snapAt(ev2), s=arStart; arStart=null; showSnap(null);
       if(arTemp){ arTemp.remove(); arTemp=null; }
@@ -7772,6 +7819,7 @@ function bindPlanEditor(){
     function zDrawMove(ev2){
       if(!zStart||!zTemp) return;
       if(ev2.cancelable) ev2.preventDefault();
+      edgePan(ev2, zDrawMove);
       var p=snapAt(ev2);
       if(zIsOval){
         zTemp.setAttribute("cx",(zStart.x+p.x)/2*VW); zTemp.setAttribute("cy",(zStart.y+p.y)/2*VH);
@@ -7785,6 +7833,7 @@ function bindPlanEditor(){
       window.removeEventListener("pointermove",zDrawMove,true);
       window.removeEventListener("pointerup",zDrawEnd,true);
       window.removeEventListener("pointercancel",zDrawEnd,true);
+      edgePanStop();
       if(!zStart) return;
       var p=snapAt(ev2), s=zStart; zStart=null; showSnap(null);
       if(zTemp){ zTemp.remove(); zTemp=null; }
@@ -7865,6 +7914,7 @@ function bindPlanEditor(){
     if(window.__planPinch) return;   // สองนิ้วซูมอยู่ → ไม่วาด
     if(!start || !tempEl) return;
     if(ev.cancelable) ev.preventDefault();
+    edgePan(ev, drawMove);
     var p=snapAt(ev);
     if(shape==="line"){
       tempEl.setAttribute("x1",start.x*VW); tempEl.setAttribute("y1",start.y*VH);
@@ -7881,6 +7931,7 @@ function bindPlanEditor(){
     window.removeEventListener("pointermove",drawMove,true);
     window.removeEventListener("pointerup",drawEnd,true);
     window.removeEventListener("pointercancel",drawEnd,true);
+    edgePanStop();
     if(!start) return;
     var p=snapAt(ev), s=start; start=null; showSnap(null);
     if(tempEl){ tempEl.remove(); tempEl=null; }
