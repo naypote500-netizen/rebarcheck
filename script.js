@@ -3256,6 +3256,8 @@ var state = {
   showProgress:true, selZoneId:null,  // ความคืบหน้าเทคอนกรีต
   selAnnotId:null,                    // หมายเหตุที่เลือก (callout / dim)
   selTypeId:null,                     // ประเภทชิ้นส่วนที่เลือกในผังโครงการ (โชว์ในพาเนลคุณสมบัติ)
+  mCardPos:null,                      // การ์ดลอยของชิ้นที่เลือก: {x,y,forId} = ตำแหน่งที่ผู้ใช้ลากไว้
+  _mCardHideId:null,                  // id ของชิ้นที่ผู้ใช้กดปิดการ์ดไว้ (คลิกชิ้นใหม่แล้วโชว์อีก)
   deTab:"add", deTool:"select", deZoom:null, deSelMulti:[], deLibOpen:false, deSideOff:false,   // หน้ารายละเอียด (เลย์เอาต์ Revit)
   mSheet:null, mSheetMin:false,       // มือถือ: แผงเลื่อนขึ้นที่เปิดอยู่ (draw/annot/zone/more/search/add/lib/style) · ย่อแผงของสิ่งที่เลือก
   annotStyle:{color:"#1d4ed8", fill:"#ffffff", sw:1.6, font:"Sarabun", size:12, bold:1, italic:0, underline:0, radius:7, a1:"open", a2:"none"},
@@ -3748,6 +3750,7 @@ document.addEventListener("click",function(e){
       deOpen();                  // เปลี่ยนเป็นหน้าจอรายละเอียดเต็ม (ไม่ใช่ป็อปอัปทับแปลน)
       break;
     }
+    case "closeMCard": { state._mCardHideId=state.selMemberId; var _mc=document.getElementById("mCard"); if(_mc) _mc.remove(); break; }
     case "goInspect": {
       var im=getMember(activeMemberId());
       if(im){ state.selMemberId=im.id; state.rpCollapsed=false; go("planEditor",{rightTab:"inspect"}); }
@@ -6742,6 +6745,60 @@ function annotFormatHtml(){
   h+='<div class="fx-acts"><button class="btn soft" data-act="annotDup">'+rvIc('copy',14)+' ทำซ้ำ</button><button class="btn danger" data-act="annotDel">'+rvIc('trash',14)+' ลบ</button></div>';
   return h+'</div></div>';
 }
+/* ---- การ์ดลอยของชิ้นที่เลือกบนแปลน (เฉพาะคอม) ---- */
+function mCardHtml(m){
+  if(!m || isMobile() || selIds().length>1) return '';
+  if(state._mCardHideId===m.id) return '';
+  var st=memberStatus(m), ins=lastInspection(m.id), t=memberTypeOf(m), sp=shortSpec(m)||'';
+  if(sp.indexOf('undefined')>=0) sp='';   // ยังไม่ได้ใส่ขนาด → ไม่โชว์บรรทัดสเปกที่ยังไม่สมบูรณ์
+  var stTx = st==="pass"?'<span class="ok">● ผ่าน พร้อมเท</span>' : st==="fail"?'<span class="bad">● ต้องแก้ไข</span>' : '<span class="wait">● รอตรวจ</span>';
+  var h='<div class="pl-card" id="mCard" data-mfor="'+esc(m.id)+'">';
+  h+='<div class="pl-card-h" id="mCardDrag"><span class="rv-tdot" style="background:var(--t-'+TYPES[m.type].css+')"></span>';
+  h+='<b>'+esc(TYPES[m.type].label)+' · <button class="rv-editcode" data-act="renameMember" title="แก้ชื่อ/เบอร์ชิ้นส่วน">'+esc(m.code)+' '+rvIc("edit",11)+'</button></b>';
+  h+='<button class="pl-card-x" data-act="closeMCard" title="ปิดการ์ด">'+rvIc("cross",14)+'</button></div>';
+  h+='<div class="pl-card-b">';
+  h+='<div class="pl-crow">'+stTx+'</div>';
+  if(sp) h+='<div class="pl-crow dim mono">'+esc(sp)+'</div>';
+  h+='<div class="pl-crow dim">'+(t?('ประเภท '+esc(t.name)+' · ใช้ร่วม '+typeMembers(t.id).length+' ชิ้น'):'รายละเอียดของตัวเอง')+'</div>';
+  if(ins) h+='<div class="pl-crow dim">ตรวจโดย '+esc(ins.inspector||"—")+' · '+esc(new Date(ins.ts).toLocaleDateString("th-TH",{year:"2-digit",month:"short",day:"numeric"}))+'</div>';
+  if(m.note) h+='<div class="pl-crow"><span class="note-warn">'+esc(m.note)+'</span></div>';
+  h+='<div class="pl-card-acts"><button class="btn soft" data-act="goInspect">'+rvIc("check",14)+' ตรวจเหล็ก</button>';
+  h+='<button class="btn soft" data-act="showDetails">'+rvIc("sheet",14)+' รายละเอียด</button></div>';
+  return h+'</div></div>';
+}
+function positionMCard(){
+  var card=document.getElementById('mCard'); if(!card) return;
+  var wrap=card.parentElement; if(!wrap) return;
+  var id=card.getAttribute('data-mfor');
+  var cw=card.offsetWidth||240, ch=card.offsetHeight||150;
+  var clamp=function(x,y){ return { x:Math.max(4,Math.min(x, wrap.clientWidth-cw-4)), y:Math.max(4,Math.min(y, wrap.clientHeight-ch-4)) }; };
+  if(state.mCardPos && state.mCardPos.forId===id){ var p=clamp(state.mCardPos.x,state.mCardPos.y); card.style.left=p.x+'px'; card.style.top=p.y+'px'; return; }
+  // จอดใกล้ชิ้นที่เลือก
+  var wr=wrap.getBoundingClientRect(), sel=(window.CSS&&CSS.escape)?CSS.escape(id):id, bx=null;
+  wrap.querySelectorAll('[data-mid="'+sel+'"]').forEach(function(el){ var r=el.getBoundingClientRect(); if(!(r.width||r.height)) return; if(!bx) bx={l:r.left,t:r.top,r:r.right,b:r.bottom}; else{ bx.l=Math.min(bx.l,r.left); bx.t=Math.min(bx.t,r.top); bx.r=Math.max(bx.r,r.right); bx.b=Math.max(bx.b,r.bottom); } });
+  var left, top;
+  if(bx){ left=(bx.r-wr.left)+12; top=(bx.t-wr.top); if(left+cw>wrap.clientWidth-4) left=(bx.l-wr.left)-cw-12; }
+  else{ left=wrap.clientWidth-cw-16; top=16; }
+  var p2=clamp(left,top); card.style.left=p2.x+'px'; card.style.top=p2.y+'px';
+}
+function bindMCard(){
+  var card=document.getElementById('mCard'); if(!card) return;
+  positionMCard();
+  var head=document.getElementById('mCardDrag'); if(!head) return;
+  head.addEventListener('pointerdown', function(ev){
+    if(ev.target.closest('button')) return;   // ปุ่มแก้ชื่อ/ปิด ไม่นับเป็นการลาก
+    ev.preventDefault();
+    var wrap=card.parentElement, sx=ev.clientX, sy=ev.clientY, ox=card.offsetLeft, oy=card.offsetTop;
+    try{ head.setPointerCapture(ev.pointerId); }catch(e){}
+    function mv(e){
+      var nx=Math.max(4,Math.min(ox+(e.clientX-sx), wrap.clientWidth-card.offsetWidth-4));
+      var ny=Math.max(4,Math.min(oy+(e.clientY-sy), wrap.clientHeight-card.offsetHeight-4));
+      card.style.left=nx+'px'; card.style.top=ny+'px';
+    }
+    function up(){ head.removeEventListener('pointermove',mv); head.removeEventListener('pointerup',up); state.mCardPos={x:card.offsetLeft, y:card.offsetTop, forId:card.getAttribute('data-mfor')}; }
+    head.addEventListener('pointermove',mv); head.addEventListener('pointerup',up);
+  });
+}
 function viewPlanEditor(){
   var f=getFloor(state.floorId), type=state.catType, p=getProject(state.projectId);
   if(!f||!type) return emptyBox('<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>',"ไม่พบหมวด","");
@@ -6768,7 +6825,7 @@ function viewPlanEditor(){
   var side='<div class="rv-side rp-'+(state.rpSheet||"peek")+'"><button class="rp-handle" data-act="toggleSheet" title="เปิด/ย่อพาเนล"><span></span></button>'
     + rvPaletteHtml(type, selM, p, f, plans, plan) + '</div>';
   var main='<div class="rv-main">'+rvViewTabsHtml(f, plans)
-    + '<div class="rv-view"><div class="plan-wrap">'+planStageHtml()+hint+'</div>'+annotFormatHtml()+'</div></div>';
+    + '<div class="rv-view"><div class="plan-wrap">'+planStageHtml()+hint+mCardHtml(selM)+'</div>'+annotFormatHtml()+'</div></div>';
   return '<div class="rv'+(state.rpCollapsed?" side-off":"")+'" id="editorGrid" style="--rp-w:'+(state.rpWidth||272)+'px">'
     + rvQatHtml(p,f,plan)
     + rvRibbonHtml(type, f, plan, plans, selM)
@@ -7073,6 +7130,7 @@ function planZoomBy(f, cx, cy){
 function planFit(){ state.zoom=1; state.panX=0; state.panY=0; planClampPan(); planApplyTransform(); scheduleEnsure(); }
 
 function bindPlanEditor(){
+  bindMCard();   // การ์ดลอยของชิ้นที่เลือก
   // นำเข้าแปลน (รูป / PDF)
   var pf=$("#planFile");
   if(pf) pf.addEventListener("change",function(e){
@@ -7663,7 +7721,7 @@ function bindPlanEditor(){
           setMulti(cur); if(cur.length) _toModifyTab(); if(state.rightTab!=="inspect") state.rightTab="props"; render(); return;
         }
         state.selMulti=[];
-        state.selMemberId=id; state.memberId=id; state.selZoneId=null; state.mSheet=null; state.mSheetMin=false; if(!isMobile()) _toModifyTab();  // แค่แตะ → เลือก (คอม: เปิดแท็บแก้ไข)
+        state.selMemberId=id; state.memberId=id; state.selZoneId=null; state.mSheet=null; state.mSheetMin=false; state._mCardHideId=null; if(!isMobile()) _toModifyTab();  // แค่แตะ → เลือก (คอม: เปิดแท็บแก้ไข + การ์ดลอย)
         if(state.rightTab!=="inspect") state.rightTab="props";   // เหมือน Inspector: เลือกแล้วโชว์คุณสมบัติ (ถ้ากำลังตรวจอยู่ คงแท็บตรวจ)
         render();   // คำตอบตรวจผูกกับชิ้น (ansMid) — เปลี่ยนชิ้นแล้วล้างเองใน bindInspectionInputs
         return;
