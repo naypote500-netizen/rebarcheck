@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RebarCheck — กู้ข้อมูลในเครื่อง</title>
+<style>
+  body{font-family:'Sarabun',Tahoma,sans-serif;background:#f1f5f9;color:#1e293b;margin:0;padding:24px;display:flex;justify-content:center}
+  .card{background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(15,40,80,.10);max-width:640px;width:100%;padding:26px 30px}
+  h1{font-size:20px;margin:0 0 4px} .sub{color:#64748b;font-size:13.5px;margin-bottom:18px}
+  .nums{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0}
+  .n{flex:1;min-width:110px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center}
+  .n b{display:block;font-size:30px;color:#1d4ed8} .n span{font-size:12.5px;color:#64748b}
+  .ok{color:#15803d} .bad{color:#b91c1c}
+  ul{font-size:13.5px;line-height:1.9;padding-left:20px;margin:10px 0}
+  .btn{display:inline-block;background:#1d4ed8;color:#fff;border:none;border-radius:10px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px}
+  .note{font-size:12.5px;color:#64748b;margin-top:14px;line-height:1.6}
+  .warn{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:10px;padding:12px;font-size:14px}
+</style></head><body><div class="card" id="c">กำลังอ่านข้อมูล…</div>
+<script>
+(function(){
+  // หน้านี้ "อ่านอย่างเดียว" — ไม่มี Firebase ไม่มีการบันทึก/แก้ไขอะไรทั้งสิ้น
+  var el=document.getElementById('c');
+  var raw=null; try{ raw=localStorage.getItem('rebarcheck.v2'); }catch(e){}
+  if(!raw){ el.innerHTML='<div class="warn">ไม่พบข้อมูลสำรองในเบราว์เซอร์นี้ (คีย์ rebarcheck.v2 ว่าง)<br>ลองเปิดหน้านี้จากเบราว์เซอร์/โปรไฟล์ที่เคยใช้งานแอปจริง</div>'; return; }
+  var p=null; try{ p=JSON.parse(raw); }catch(e){ el.innerHTML='<div class="warn">ข้อมูลในเครื่องเสียหาย อ่านไม่ได้: '+e.message+'</div>'; return; }
+  var nf=(p.floors||[]).length, nm=(p.members||[]).length, np=(p.projects||[]).length, ni=(p.inspections||[]).length;
+  var mb=(raw.length/1048576).toFixed(2);
+  var perFloor={}; (p.members||[]).forEach(function(m){ perFloor[m.floorId]=(perFloor[m.floorId]||0)+1; });
+  var fl=(p.floors||[]).map(function(f){ return '<li>'+ (f.name||f.id) +' — '+(perFloor[f.id]||0)+' ชิ้นส่วน</li>'; }).join('');
+  el.innerHTML='<h1>ข้อมูลสำรองในเครื่องนี้</h1><div class="sub">อ่านจาก localStorage ของเบราว์เซอร์ (ณ ครั้งล่าสุดที่แอปบันทึก) — หน้านี้อ่านอย่างเดียว ไม่แตะต้นฉบับ</div>'
+    +'<div class="nums">'
+    +'<div class="n"><b>'+np+'</b><span>โครงการ</span></div>'
+    +'<div class="n"><b class="'+(nf>=2?'ok':'bad')+'">'+nf+'</b><span>ชั้น</span></div>'
+    +'<div class="n"><b>'+nm+'</b><span>ชิ้นส่วน</span></div>'
+    +'<div class="n"><b>'+ni+'</b><span>ผลตรวจ</span></div>'
+    +'</div>'
+    +'<b style="font-size:14px">รายชื่อชั้น:</b><ul>'+(fl||'<li>—</li>')+'</ul>'
+    +'<button class="btn" id="dl">⬇ ดาวน์โหลดไฟล์สำรอง (rebarcheck-backup.json · '+mb+' MB)</button>'
+    +'<div class="note">โหลดเสร็จแล้ว แคปหน้านี้ + ส่งไฟล์ให้ Claude ต่อได้เลย</div>';
+  function dl(){ var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([raw],{type:'application/json'})); a.download='rebarcheck-backup.json'; document.body.appendChild(a); a.click(); }
+  document.getElementById('dl').addEventListener('click',dl);
+  dl();   // โหลดให้อัตโนมัติทันทีด้วย
+})();
+</script></body></html>
