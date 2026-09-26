@@ -9534,6 +9534,7 @@ var CLOUD_COLLS=["projects","floors","members","inspections","types","zones","an
 function _emptySyncBase(){ var b={}; CLOUD_COLLS.forEach(function(c){ b[c]={}; }); return b; }
 var _syncBase=_emptySyncBase();
 var _deferSnap={}, _bigWarned={};   // snapshot ที่ถูกเลื่อน (กำลังพิมพ์/อัปโหลดอยู่) — ลองใหม่ภายหลัง
+var _listenErr={};                  // collection ที่ listener ตาย (สิทธิ์/เน็ต) — ห้ามซิงก์ขึ้นจนกว่าจะรีเฟรช
 
 function _isEditing(){ var a=document.activeElement; return !!(a && (a.tagName==="INPUT"||a.tagName==="TEXTAREA"||a.isContentEditable)); }
 
@@ -9546,7 +9547,7 @@ function cloudBoot(){
   });
 }
 function teardownCloud(){ _fbUnsub.forEach(function(u){ try{u();}catch(e){} }); _fbUnsub=[]; _fbLoaded=false;
-  _syncBase=_emptySyncBase(); _deferSnap={}; }
+  _syncBase=_emptySyncBase(); _deferSnap={}; _listenErr={}; _cloudBannerHide(); }
 
 function startCloudSession(user){
   renderLoading();
@@ -9638,6 +9639,7 @@ function startCloudSession(user){
       render();
     }, function(err){
       console.warn("Firestore listen error ["+c+"]", err); toast("เชื่อมต่อฐานข้อมูลมีปัญหา: "+(err&&err.code||err),true);
+      _listenErr[c]=true; _cloudBannerShow();   // listener ตายถาวร — กันซิงก์ขึ้นจากข้อมูลที่โหลดไม่ครบ
       // อย่าค้างหน้าโหลด: นับคอลเลกชันที่ error ว่า "โหลดแล้ว (ว่าง)" แล้วไปต่อ
       if(!_fbLoaded && !got[c]){ got[c]=true; DB[c]=DB[c]||[];
         if(CLOUD_COLLS.every(function(x){return got[x];})){ _fbLoaded=true; DB.inspector=user.email||"";
@@ -9651,7 +9653,17 @@ function startCloudSession(user){
 /** ซิงค์ข้อมูลขึ้น Firestore แบบเทียบส่วนต่าง (เขียนเฉพาะที่เปลี่ยน/ลบที่หายไป) */
 var _syncing=0;   // จำนวน batch commit ที่ยัง in-flight — ใช้กันสวมข้อมูลระหว่างอัป
 function scheduleCloudSync(){ clearTimeout(_syncT); _syncT=setTimeout(function(){ _syncT=null; cloudSyncNow(); }, 450); }
-function cloudSyncNow(){ CLOUD_COLLS.forEach(function(c){ _syncCollection(c, DB[c]||[]); }); }
+function cloudSyncNow(){
+  if(Object.keys(_listenErr).length){ _cloudBannerShow(); return; }   // โหลดไม่ครบ/หลุดจากคลาวด์ — ห้ามดันขึ้น (กันลบ/ทับข้อมูลดีบนคลาวด์)
+  CLOUD_COLLS.forEach(function(c){ _syncCollection(c, DB[c]||[]); });
+}
+function _cloudBannerShow(){
+  if(document.getElementById("cloudErrBar")) return;
+  var d=document.createElement("div"); d.id="cloudErrBar";
+  d.innerHTML='⚠ การเชื่อมต่อคลาวด์มีปัญหา — ข้อมูลอาจโหลดไม่ครบ และการแก้ไขจะยังไม่ถูกบันทึกขึ้นคลาวด์ <button onclick="location.reload()">รีเฟรชหน้า</button>';
+  document.body.appendChild(d);
+}
+function _cloudBannerHide(){ var d=document.getElementById("cloudErrBar"); if(d) d.remove(); }
 /** เตรียม item ก่อนขึ้นคลาวด์ — floor: ตัดพรีวิว/ไบต์แปลนออก (เก็บแยกใน planfiles) ให้ doc เล็ก */
 function _forCloud(coll, it){
   if(coll==="floors" && it && it.planList){
@@ -9795,16 +9807,21 @@ function cloudDeletePlan(key){
 /** ครั้งแรกที่ล็อกอินแล้วคลาวด์ยังว่าง แต่มีข้อมูลเดิมในเครื่อง → เสนออัปขึ้นคลาวด์ (รวมไฟล์แปลน) */
 function offerLocalMigration(){
   if((DB.projects||[]).length>0) return;                 // คลาวด์มีข้อมูลแล้ว
+  if(Object.keys(_listenErr).length) return;             // โหลดจากคลาวด์ไม่ครบ — คลาวด์อาจไม่ได้ว่างจริง อย่าเสนอ (กันเอาของเก่าทับ)
   var raw; try{ raw=localStorage.getItem(STORE_KEY); }catch(e){ return; }
   if(!raw) return; var local; try{ local=JSON.parse(raw); }catch(e){ return; }
   if(!local || !Array.isArray(local.projects) || !local.projects.length) return;
+  if(!((local.members&&local.members.length) || (local.floors&&local.floors.length))) return;   // เปลือกโครงการเปล่า — ไม่มีอะไรให้ย้าย ไม่ต้องถาม
   if(!confirm("พบข้อมูลเดิมในเครื่องนี้ ("+local.projects.length+" โครงการ)\nอัปขึ้นคลาวด์ให้ทุกคนเห็นไหม? (รวมไฟล์แปลน)")) return;
   migrateLocalToCloud(local);
 }
 function migrateLocalToCloud(local){
   toast("กำลังอัปข้อมูลขึ้นคลาวด์…");
-  DB.projects=local.projects||[]; DB.floors=local.floors||[]; DB.members=local.members||[]; DB.inspections=local.inspections||[]; DB.types=local.types||[];
-  DB.zones=local.zones||[]; DB.annots=local.annots||[]; DB.headMarks=local.headMarks||[]; DB.ctypes=local.ctypes||[];
+  // เติมเฉพาะรายการที่คลาวด์ยังไม่มี (id ไม่ซ้ำ) — ห้ามแทนที่/ลบของบนคลาวด์เด็ดขาด
+  CLOUD_COLLS.forEach(function(coll){
+    var have={}; (DB[coll]=DB[coll]||[]).forEach(function(x){ if(x&&x.id) have[x.id]=1; });
+    (local[coll]||[]).forEach(function(x){ if(x&&x.id&&!have[x.id]) DB[coll].push(x); });
+  });
   try{ normalizePlanShapes(); normalizeFloorPlans(); registerCustomTypes(); normalizeMemberTypes(); }catch(e){}
   cloudSyncNow();   // ดันข้อมูลหลักขึ้นก่อน
   render();
