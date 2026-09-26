@@ -4372,7 +4372,9 @@ function applyTplToMember(m, d){
   (FIELDS[m.type]||[]).forEach(function(g){ g.f.forEach(function(fd){ if(d[fd.k]!=null) m[fd.k]=d[fd.k]; }); });
   if(d.fc!=null) m.fc=d.fc;
   if(m.type==="beam" && d.stations) m.stations=JSON.parse(JSON.stringify(d.stations));
-  if(m.plan){ if(d.fill!=null)m.plan.fill=d.fill; if(d.fillA!=null)m.plan.fillA=d.fillA; if(d.strokeW!=null)m.plan.strokeW=d.strokeW; }
+  if(m.plan){ if(d.fill!=null)m.plan.fill=d.fill; if(d.fillA!=null)m.plan.fillA=d.fillA; if(d.strokeW!=null)m.plan.strokeW=d.strokeW;
+    if(isBox(m.plan) && (d.fill!=null||d.fillA!=null)) setGroupFill(m, d.fill||null, d.fillA);
+    if(isBox(m.plan) && d.strokeW!=null) setGroupStroke(m, d.strokeW); }
   if(m.type==="beam") syncBeamLegacy(m);
 }
 var _assignData=null;   // ข้อมูลเทมเพลตที่กำลังจะใส่ลงฟอร์ม (รีเฟรชครั้งเดียว)
@@ -4894,6 +4896,7 @@ function saveMemberForm(andNew){
     var dup=membersOfFloor(state.floorId).some(function(x){ return x.code===m.code; });
     if(dup && !confirm("มีรหัส "+m.code+" ในชั้นนี้อยู่แล้ว ต้องการเพิ่มซ้ำหรือไม่?")) return;
     if(!m.planId) m.planId=curPlanId();   // ผูกกับแปลนที่กำลังเปิด
+    adoptGroupStyle(m);
     DB.members.push(m);
     if(!saveDB()){ DB.members.pop(); return; }
     toast("เพิ่ม "+m.code+" แล้ว");
@@ -4902,6 +4905,7 @@ function saveMemberForm(andNew){
     var i=DB.members.indexOf(editing);
     var backup=DB.members[i];
     DB.members[i]=m;
+    if(m.code!==editing.code || m.type!==editing.type) adoptGroupStyle(m);   // เปลี่ยนเบอร์ → สีตามเบอร์ใหม่
     if(!saveDB()){ DB.members[i]=backup; return; }
     toast("บันทึกการแก้ไขแล้ว");
   }
@@ -5576,6 +5580,7 @@ document.addEventListener("click",function(e){
       if(!confirm("ปรับสี/ความเข้ม/เส้นกรอบ ของกล่องทั้งหมด "+_list.length+" กล่องในแปลนนี้ ให้เท่ากับค่าเริ่มต้น?\n(เห็นผลในโหมดสี “สีที่ตั้งเอง”)")) break;
       plPushUndo();
       _list.forEach(function(mm){ mm.plan.fill=state.fillColor; mm.plan.fillA=state.fillAlpha; mm.plan.strokeW=state.strokeW; });
+      _list.forEach(function(mm){ setGroupFill(mm, state.fillColor, state.fillAlpha); setGroupStroke(mm, state.strokeW); });   // เบอร์/ประเภทเดียวกันชั้นอื่นตาม
       saveDB();
       if(state.colorMode!=="plain"){ state.colorMode="plain"; }
       render();
@@ -5813,7 +5818,7 @@ document.addEventListener("click",function(e){
     case "renameMember": {
       var rm=getMember(activeMemberId()); if(!rm){ toast("ยังไม่ได้เลือกชิ้นส่วน",true); break; }
       var oldC=rm.code||""; var nc=prompt("ชื่อ / เบอร์ชิ้นส่วน", oldC); if(nc==null) break; nc=nc.trim(); if(!nc||nc===oldC) break;
-      plPushUndo(); rm.code=nc; saveDB(); render(); toast("เปลี่ยนเป็น “"+nc+"”");
+      plPushUndo(); rm.code=nc; adoptGroupStyle(rm); saveDB(); render(); toast("เปลี่ยนเป็น “"+nc+"”");
       break;
     }
     case "saveMember": saveMemberForm(false); break;
@@ -6526,12 +6531,13 @@ function plRestore(j){
     });
   }
   merge(DB.members, snap.m||[]);
-  (snap.m||[]).forEach(function(w){   // สีประเภท: ให้ตรงกับชิ้นที่คืนค่า แล้วกระจายทุกชิ้นในประเภท (กันเด้งกลับตอนเปิดแอป)
-    if(!w.typeId || !w.plan || !isBox(w.plan)) return;
-    var t=getType(w.typeId); if(!t) return;
-    var cc=(w.plan.fill && String(t.color||"").toLowerCase()!==String(w.plan.fill).toLowerCase());
-    var ac=(w.plan.fillA!=null && (t.fillA==null || Math.abs(t.fillA-w.plan.fillA)>0.0005));
-    if(cc||ac) setTypeFill(t, cc?w.plan.fill:null, ac?w.plan.fillA:null);
+  var _rgSeen={};
+  (snap.m||[]).forEach(function(w){   // สีที่คืนค่า → เบอร์/ประเภทเดียวกัน (ทุกชั้น) ตามด้วย (กันสีไม่ตรงกันตอนเปิดแอป)
+    if(!w.plan || !isBox(w.plan)) return;
+    var lm=getMember(w.id); if(!lm) return;
+    var gk=lm.typeId?("t:"+lm.typeId):("c:"+_codeKey(lm)); if(_rgSeen[gk]) return; _rgSeen[gk]=1;
+    setGroupFill(lm, lm.plan.fill||null, (lm.plan.fillA!=null)?lm.plan.fillA:null);
+    if(lm.plan.strokeW!=null) setGroupStroke(lm, lm.plan.strokeW, lm.plan.strokeCol||"");
   });
   if(!DB.zones) DB.zones=[];
   merge(DB.zones, snap.z||[]);
@@ -9492,8 +9498,8 @@ function bindPlanEditor(){
       _multi.forEach(function(s){
         if(which!=="stroke"){ s.plan.fill=col; s.plan.fillA=a; }   // สี + ความเข้มเท่ากันทุกกล่องที่เลือก (ไม่งั้นสีดูไม่ตรงกัน)
         if(!which||which==="stroke") s.plan.strokeW=ww;
-        var _st=s.typeId?getType(s.typeId):null;
-        if(_st) setTypeFill(_st, s.plan.fill, s.plan.fillA);   // ประเภทเดียวกันตามด้วย
+        if(which!=="stroke") setGroupFill(s, s.plan.fill, s.plan.fillA);   // เบอร์/ประเภทเดียวกันตามด้วย
+        if(!which||which==="stroke") setGroupStroke(s, ww);
         var r=_ov && _ov.querySelector('[data-mid="'+s.id+'"]');
         if(r){
           r.setAttribute("fill",s.plan.fill); r.setAttribute("fill-opacity",s.plan.fillA);
@@ -9506,8 +9512,8 @@ function bindPlanEditor(){
     var mm=getMember(state.selMemberId);
     if(mm && isBox(mm.plan)){    // มีคานเลือกอยู่ → ปรับคานนั้น
       mm.plan.fill=col; mm.plan.fillA=a; mm.plan.strokeW=ww;
-      var _mt=mm.typeId?getType(mm.typeId):null;
-      if(_mt) setTypeFill(_mt, col, a);   // ประเภทเดียวกัน = สี + ความเข้มเดียวกันเสมอ (แก้ชิ้นที่ค้างค่าผิดจากข้อมูลเก่าด้วย)
+      setGroupFill(mm, col, a);   // เบอร์/ประเภทเดียวกัน = สี + ความเข้มเดียวกันเสมอ (แก้ชิ้นที่ค้างค่าผิดจากข้อมูลเก่าด้วย)
+      setGroupStroke(mm, ww);     // เส้นกรอบเท่ากันทั้งกลุ่มด้วย
       var r=$("#planOverlay").querySelector('[data-mid="'+mm.id+'"]');   // rect/ellipse/polygon
       if(r){
         r.setAttribute("fill",col); r.setAttribute("fill-opacity",a);
@@ -9516,13 +9522,14 @@ function bindPlanEditor(){
     }else{                                          // ไม่ได้เลือกกล่อง → ปรับ "ทุกกล่อง" ในแปลนนี้ทันที + ตั้งเป็นค่าเริ่มของกล่องใหม่
       state.fillColor=col; state.fillAlpha=a; state.strokeW=ww;
       var _doF=(!which||which==="fill"), _doA=(!which||which==="alpha"), _doW=(!which||which==="stroke");
-      var _f=getFloor(state.floorId), _pid=curPlanId(), _n=0, _tSeen={};
+      var _f=getFloor(state.floorId), _pid=curPlanId(), _n=0, _gSeen={};
       membersOfFloor(_f.id).forEach(function(mm){ if(mm.plan && isBox(mm.plan) && memberPlanId(mm)===_pid){
         if(_doF) mm.plan.fill=col; if(_doA) mm.plan.fillA=a; if(_doW) mm.plan.strokeW=ww; _n++;
-        if(mm.typeId) _tSeen[mm.typeId]=1;
+        var _gk=mm.typeId?("t:"+mm.typeId):("c:"+_codeKey(mm)); if(!_gSeen[_gk]) _gSeen[_gk]=mm;
       } });
-      // กล่องที่ผูกประเภท: ตั้งค่าที่ประเภทด้วย (ไม่งั้นเปิดแอปใหม่เด้งกลับ) — ชิ้นประเภทเดียวกันชั้นอื่นตามด้วย
-      if(_doF||_doA) Object.keys(_tSeen).forEach(function(tid){ var _t=getType(tid); if(_t) setTypeFill(_t, _doF?col:null, _doA?a:null); });
+      // เบอร์/ประเภทเดียวกันในชั้นอื่นตามด้วย (ไม่งั้นเปิดแอปใหม่สีไม่ตรงกัน)
+      if(_doF||_doA) Object.keys(_gSeen).forEach(function(gk){ setGroupFill(_gSeen[gk], _doF?col:null, _doA?a:null); });
+      if(_doW) Object.keys(_gSeen).forEach(function(gk){ setGroupStroke(_gSeen[gk], ww); });
       if(_n) repaintPlanShapes();
     }
   }
@@ -9555,6 +9562,7 @@ function bindPlanEditor(){
     var list=(selIds().length>1?selIds():[state.selMemberId]).map(getMember).filter(function(x){ return x && x.plan && isBox(x.plan); });
     var ov=$("#planOverlay");
     list.forEach(function(mm2){
+      setGroupStroke(mm2, undefined, v||"");   // เบอร์/ประเภทเดียวกันตามด้วย
       if(v) mm2.plan.strokeCol=v; else delete mm2.plan.strokeCol;
       var r2=ov&&ov.querySelector('[data-mid="'+mm2.id+'"]');
       var w2=(mm2.plan.strokeW!=null)?mm2.plan.strokeW:10;
@@ -10365,6 +10373,62 @@ function setTypeFill(t, col, fa){
     }
   });
 }
+/* ---- กลุ่มสี: ชนิด + เบอร์เดียวกันในโครงการ (รวมทุกชิ้นของประเภทที่เกี่ยวข้อง) ---- */
+function _codeKey(m){ return m.projectId+"|"+m.type+"|"+String(m.code||"").trim(); }
+function colorGroupOf(m){
+  if(!m) return [];
+  var out=[], tids={}, hasCode=!!String(m.code||"").trim(), k=hasCode?_codeKey(m):null;
+  if(m.typeId) tids[m.typeId]=1;
+  (DB.members||[]).forEach(function(x){
+    if(x.id===m.id || (hasCode && _codeKey(x)===k)){ out.push(x); if(x.typeId) tids[x.typeId]=1; }
+  });
+  Object.keys(tids).forEach(function(tid){ typeMembers(tid).forEach(function(x){ if(out.indexOf(x)<0) out.push(x); }); });
+  return out;
+}
+/** ตั้งสี/ความเข้มให้ทั้งกลุ่ม + ประเภทที่เกี่ยวข้อง แล้ววาดใหม่ทันที · null = ไม่แตะ */
+function setGroupFill(m, col, fa){
+  if(!m || (!col && fa==null)) return;
+  var grp=colorGroupOf(m), ts={};
+  grp.forEach(function(s){ if(s.typeId) ts[s.typeId]=1; });
+  Object.keys(ts).forEach(function(tid){ var t=getType(tid); if(t) setTypeFill(t, col, fa); });
+  var ov=document.getElementById("planOverlay");
+  grp.forEach(function(s){
+    if(!s.plan || !isBox(s.plan)) return;
+    if(col) s.plan.fill=col;
+    if(fa!=null) s.plan.fillA=fa;
+    var r=ov && ov.querySelector('[data-mid="'+s.id+'"]');
+    if(r && state.colorMode!=="status"){
+      if(col){ r.setAttribute("fill",col); var w=(s.plan.strokeW!=null)?s.plan.strokeW:10; if(w>0) r.setAttribute("stroke", s.plan.strokeCol||col); }
+      if(fa!=null) r.setAttribute("fill-opacity",fa);
+    }
+  });
+}
+/** เส้นกรอบทั้งกลุ่ม: w = ความหนา (undefined = ไม่แตะ) · sc = สีเส้น (undefined = ไม่แตะ, "" = ตามสีพื้น) */
+function setGroupStroke(m, w, sc){
+  if(!m || (w==null && sc===undefined)) return;
+  var ov=document.getElementById("planOverlay");
+  colorGroupOf(m).forEach(function(s){
+    if(!s.plan || !isBox(s.plan)) return;
+    if(w!=null) s.plan.strokeW=w;
+    if(sc!==undefined){ if(sc) s.plan.strokeCol=sc; else delete s.plan.strokeCol; }
+    var r=ov && ov.querySelector('[data-mid="'+s.id+'"]');
+    if(r && state.colorMode!=="status"){
+      var ww=(s.plan.strokeW!=null)?s.plan.strokeW:10;
+      if(ww>0){ r.setAttribute("stroke", s.plan.strokeCol||s.plan.fill||state.fillColor); r.setAttribute("stroke-width", ww); } else r.setAttribute("stroke","none");
+    }
+  });
+}
+/** ชิ้นที่เพิ่งวาด/เปลี่ยนเบอร์ → ใช้สี ความเข้ม และเส้นกรอบเดียวกับกลุ่มเดิม (ถ้ามี) */
+function adoptGroupStyle(m){
+  if(!m || !m.plan || !isBox(m.plan)) return;
+  var others=colorGroupOf(m).filter(function(x){ return x.id!==m.id && x.plan && isBox(x.plan); });
+  var ref=others.filter(function(x){ return x.typeId && getType(x.typeId); })[0] || others[0];
+  if(ref){
+    ["fill","fillA","strokeW","strokeCol"].forEach(function(k){ if(ref.plan[k]!=null) m.plan[k]=ref.plan[k]; else delete m.plan[k]; });
+  }
+  var t=m.typeId?getType(m.typeId):null;
+  if(t) syncMemberToType(m, t);
+}
 /** ผูกชิ้นกับประเภท (t=null → ถอดออก) */
 function typeAssign(m, t){
   if(t && t.mtype!==m.type){ toast("ประเภทนี้เป็น"+TYPES[t.mtype].label+" ใช้กับ"+TYPES[m.type].label+"ไม่ได้",true); render(); return false; }
@@ -10439,6 +10503,7 @@ function finishDraw(geom){
   var unplaced=membersOfFloor(state.floorId).filter(function(x){ return x.type===type && x.code===code && !x.plan; })[0];
   if(unplaced){
     unplaced.plan=geom; unplaced.planId=curPlanId();
+    adoptGroupStyle(unplaced);
     if(!saveDB()){ delete unplaced.plan; delete unplaced.planId; render(); return; }
     state.selMemberId=unplaced.id; if(!isMobile()) _toModifyTab();
     render(); toast("วาง "+code+" บนแปลนแล้ว (ข้อมูลเหล็กเดิม)");
@@ -10450,6 +10515,7 @@ function finishDraw(geom){
     var m=JSON.parse(JSON.stringify(twin));       // สำเนาสเปกทั้งหมด (รวมสถานีเหล็ก)
     m.id=uid("m"); m.projectId=state.projectId; m.floorId=state.floorId; m.plan=geom; m.planId=curPlanId();
     if(twin.typeId) m.doc={els:[]}; else delete m.doc;   // ผูกประเภทเดียวกับตัวเดิม (แผ่นรายละเอียดร่วม) — ไม่ก็อป element id ซ้ำ
+    adoptGroupStyle(m);   // สี/ความเข้ม/เส้นกรอบ = เบอร์เดิม (ไม่ใช้สีที่ตั้งไว้สำหรับวาดใหม่)
     DB.members.push(m);
     if(!saveDB()){ DB.members.pop(); render(); return; }
     state.selMemberId=m.id;   // เลือกไว้ อยู่หน้าแปลนต่อ (ไม่เด้งไปหน้าอื่น)
@@ -10459,6 +10525,7 @@ function finishDraw(geom){
   }
   var m=mkMember(state.projectId, state.floorId, type, code, "", "", {plan:geom}, "");
   m.planId=curPlanId();
+  adoptGroupStyle(m);   // เบอร์นี้มีในชั้นอื่นแล้ว → ใช้สีเดียวกัน
   DB.members.push(m);
   if(!saveDB()){ DB.members.pop(); render(); return; }
   state.selMemberId=m.id;    // วาดเสร็จอยู่หน้าแปลนต่อ — กรอกข้อมูลทีหลังได้ที่ "แก้สเปก"
@@ -11814,6 +11881,33 @@ function normalizeMemberTypes(){
     if(!m || !m.typeId) return;
     var t=getType(m.typeId); if(!t) return;
     if(syncMemberToType(m, t)) changed=true;
+  });
+  // เบอร์เดียวกันที่ไม่ผูกประเภท → สี/ความเข้มตามกลุ่ม · อ้างอิง = ประเภทของเบอร์นั้น (ถ้ามี) ไม่งั้นชิ้นที่สร้างก่อนสุด (id น้อยสุด) → ทุกเครื่องได้ผลเดียวกัน
+  var groups={};
+  (DB.members||[]).forEach(function(m){
+    if(!m || !m.plan || !isBox(m.plan) || !String(m.code||"").trim()) return;
+    var k=_codeKey(m); (groups[k]=groups[k]||[]).push(m);
+  });
+  var byId=function(a,b){ return a.id<b.id?-1:(a.id>b.id?1:0); };
+  Object.keys(groups).forEach(function(k){
+    var g=groups[k]; if(g.length<2) return;
+    var typed=g.filter(function(x){ return x.typeId && getType(x.typeId); }).sort(function(a,b){ return a.typeId<b.typeId?-1:(a.typeId>b.typeId?1:byId(a,b)); })[0];
+    var rf, ra, rsrc;
+    if(typed){ var tt=getType(typed.typeId); rf=tt.color||typed.plan.fill; ra=(tt.fillA!=null)?tt.fillA:typed.plan.fillA; rsrc=typed; }
+    else { var r0=g.slice().sort(byId)[0]; rf=r0.plan.fill; ra=r0.plan.fillA; rsrc=r0; }
+    var rw=rsrc.plan.strokeW, rc=rsrc.plan.strokeCol;
+    g.forEach(function(x){   // เส้นกรอบ (ความหนา/สีเส้น) — ทุกชิ้นในกลุ่ม รวมชิ้นที่ผูกประเภท
+      if(x===rsrc) return;
+      if(rw!=null){ if(x.plan.strokeW!==rw){ x.plan.strokeW=rw; changed=true; } } else if(x.plan.strokeW!=null){ delete x.plan.strokeW; changed=true; }
+      if(rc){ if(x.plan.strokeCol!==rc){ x.plan.strokeCol=rc; changed=true; } } else if(x.plan.strokeCol){ delete x.plan.strokeCol; changed=true; }
+    });
+    g.forEach(function(x){
+      if(x.typeId && getType(x.typeId)) return;   // ชิ้นที่ผูกประเภทตามประเภทของตัวเอง (ด้านบน)
+      if(rf!=null){ if(String(x.plan.fill||"").toLowerCase()!==String(rf).toLowerCase()){ x.plan.fill=rf; changed=true; } }
+      else if(x.plan.fill!=null){ delete x.plan.fill; changed=true; }
+      if(ra!=null){ if(x.plan.fillA!==ra){ x.plan.fillA=ra; changed=true; } }
+      else if(x.plan.fillA!=null){ delete x.plan.fillA; changed=true; }
+    });
   });
   if(changed) saveDB();
 }
