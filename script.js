@@ -3264,7 +3264,7 @@ var state = {
   rightTab:"palette",    // แท็บพาเนลขวา: palette | spec | inspect
   selMemberId:null,      // ชิ้นส่วนที่เลือกบนแปลน
   colorMode:"plain",     // ลงสีตาม: status | plain — ค่าเริ่มต้น = สีประจำประเภท
-  showLabels:true,       // แสดงเบอร์บนแปลน
+  showLabels:false,      // แสดงเบอร์บนแปลน — เริ่มต้นซ่อนไว้ กดปุ่ม "ป้ายเบอร์" แถบล่างเพื่อเปิด
   zoom:1, panX:0, panY:0,// สถานะซูม/เลื่อนแปลน
   fillColor:"#f59e0b",   // สีกรอบที่จะวาด (คาน/พื้น/PT)
   fillAlpha:0.35,        // ความเข้มสีด้านในกรอบ (0..1)
