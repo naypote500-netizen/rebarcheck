@@ -1723,7 +1723,8 @@ function viewHome(){
     +'<div class="hi">ยินดีต้อนรับสู่</div><h1>Rebar<b>Check</b></h1>'
     +'<p>ระบบตรวจสอบและประเมินผลเหล็กเสริมในงานคอนกรีตเสริมเหล็ก เพื่อความปลอดภัยและมาตรฐานงานก่อสร้าง</p>'
     +'<div class="dh-badge"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg> ตรวจเหล็กเสริมก่อนเทคอนกรีต</div></div>'
-    +'<div class="dh-hero-r"><svg viewBox="0 0 360 232" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="dhsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe0ff"/><stop offset="1" stop-color="#e9f4ff"/></linearGradient></defs><rect width="360" height="232" fill="url(#dhsky)"/><g fill="#cdd8e6"><rect x="150" y="70" width="80" height="162"/><rect x="232" y="100" width="70" height="132"/><rect x="300" y="55" width="60" height="177"/></g><g stroke="#9fb3cc" stroke-width="2"><path d="M160 232V60M180 232V60M200 232V60M220 232V60M150 90h80M150 120h80M150 150h80M150 180h80"/></g><g stroke="#8aa0bd" stroke-width="2.4"><path d="M320 232V40M340 232V40M312 60h36M312 100h36M312 150h36"/></g><g stroke="#f4b73d" stroke-width="3" opacity=".85"><path d="M120 232 132 44M120 44h20M118 70h18M116 96h18"/></g></svg></div></section>';
+    +'<div class="dh-hero-r"><svg viewBox="0 0 360 232" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="dhsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe0ff"/><stop offset="1" stop-color="#e9f4ff"/></linearGradient></defs><rect width="360" height="232" fill="url(#dhsky)"/><g fill="#cdd8e6"><rect x="150" y="70" width="80" height="162"/><rect x="232" y="100" width="70" height="132"/><rect x="300" y="55" width="60" height="177"/></g><g stroke="#9fb3cc" stroke-width="2"><path d="M160 232V60M180 232V60M200 232V60M220 232V60M150 90h80M150 120h80M150 150h80M150 180h80"/></g><g stroke="#8aa0bd" stroke-width="2.4"><path d="M320 232V40M340 232V40M312 60h36M312 100h36M312 150h36"/></g><g stroke="#f4b73d" stroke-width="3" opacity=".85"><path d="M120 232 132 44M120 44h20M118 70h18M116 96h18"/></g></svg>'
+    +'<img class="dh-hero-img" src="img/hero.webp" alt="" decoding="async" onerror="this.remove()"></div></section>';
   // ---- recent projects (real) ----
   var projs=(DB.projects||[]).slice().sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
   var main='<div class="dh-sec"><h2>'+IC.folder+' โครงการทั้งหมด <span class="dh-count">'+projs.length+'</span></h2></div>';
@@ -1734,7 +1735,11 @@ function viewHome(){
       var ms=membersOfProject(p.id), c={}; ms.forEach(function(m){ c[m.type]=(c[m.type]||0)+1; });
       var chips=[["column","เสา"],["beam","คาน"],["slab","พื้น"],["footing","ฐานราก"]].map(function(t){ return '<span class="dh-chip">'+t[1]+' '+(c[t[0]]||0)+' ชิ้น</span>'; }).join("");
       main+='<button class="dh-pcard" data-act="openProject" data-id="'+esc(p.id)+'">'
-        +'<span class="dh-thumb"><svg viewBox="0 0 150 104"><rect width="150" height="104" fill="#c7dbf5"/><g fill="#a9c3e8"><rect x="18" y="34" width="46" height="70"/><rect x="70" y="20" width="60" height="84"/></g><g stroke="#8fabd0" stroke-width="1.5"><path d="M82 104V26M100 104V26M118 104V26M70 44h60M70 64h60M70 84h60"/></g></svg></span>'
+        +'<span class="dh-thumb">'+(projPhotoOk(p)
+          ? '<img src="'+esc(p.photo)+'" alt="">'
+          : '<svg viewBox="0 0 150 104"><rect width="150" height="104" fill="#c7dbf5"/><g fill="#a9c3e8"><rect x="18" y="34" width="46" height="70"/><rect x="70" y="20" width="60" height="84"/></g><g stroke="#8fabd0" stroke-width="1.5"><path d="M82 104V26M100 104V26M118 104V26M70 44h60M70 64h60M70 84h60"/></g></svg>')
+        +'<span class="dh-cam" role="button" data-act="projPhoto" data-id="'+esc(p.id)+'" title="'+(projPhotoOk(p)?'เปลี่ยน / ลบรูปโครงการ':'ใส่รูปโครงการ')+'" aria-label="รูปโครงการ">'
+        +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/></svg></span></span>'
         +'<span class="dh-pbody"><span class="t1">'+esc(p.name)+'</span>'
         +(p.location?'<span class="dh-meta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> '+esc(p.location)+'</span>':'')
         +'<span class="dh-meta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> สร้างเมื่อ '+dMY(p.createdAt)+' | อัปเดตล่าสุด '+dMY(projUpdated(p))+'</span>'
@@ -3093,6 +3098,38 @@ function importData(file){
 function openSheet(html){ $("#sheet").innerHTML=html; $("#overlay").classList.add("open"); }
 function closeSheet(){ $("#overlay").classList.remove("open"); }
 
+/* ---- รูปปกโครงการ (หน้าแรก) — ย่อเป็น JPEG เล็กเก็บใน p.photo แล้วซิงก์ไปกับข้อมูลโครงการ ---- */
+function projPhotoOk(p){ return !!(p && typeof p.photo==="string" && /^data:image\/(jpeg|png|webp);base64,/.test(p.photo)); }
+function projPhotoMenu(id){
+  var p=getProject(id); if(!p) return;
+  if(!projPhotoOk(p)){ projPhotoPick(id); return; }
+  openSheet('<h3>รูปโครงการ</h3>'
+    +'<img class="dh-photo-prev" src="'+esc(p.photo)+'" alt="">'
+    +'<div class="row-end"><button class="btn danger" data-act="projPhotoDel" data-id="'+esc(id)+'">ลบรูป</button>'
+    +'<button class="btn soft" data-act="closeSheet">ยกเลิก</button>'
+    +'<button class="btn" data-act="projPhotoNew" data-id="'+esc(id)+'">เลือกรูปใหม่</button></div>');
+}
+function projPhotoPick(id){
+  var prev=document.getElementById("projPhotoIn"); if(prev) prev.remove();
+  var inp=document.createElement("input"); inp.type="file"; inp.accept="image/*"; inp.id="projPhotoIn"; inp.style.display="none";
+  document.body.appendChild(inp);
+  inp.addEventListener("change",function(){
+    var f=inp.files&&inp.files[0]; inp.remove(); if(!f) return;
+    resizeImage(f,480,0.75).then(function(url){
+      var p=getProject(id); if(!p) return;
+      var had=("photo" in p), old=p.photo; p.photo=url;
+      if(!saveDB()){ if(had) p.photo=old; else delete p.photo; return; }
+      closeSheet(); render(); toast("ใส่รูปโครงการแล้ว");
+    }).catch(function(e){ toast((e&&e.message)||"ใส่รูปไม่สำเร็จ",true); });
+  });
+  inp.click();
+}
+function projPhotoDel(id){
+  var p=getProject(id); if(!p||!("photo" in p)) return;
+  var old=p.photo; delete p.photo;
+  if(!saveDB()){ p.photo=old; return; }
+  closeSheet(); render(); toast("ลบรูปโครงการแล้ว");
+}
 function dlgProject(editId){
   var p=editId?getProject(editId):null;
   openSheet('<h3>'+(p?"แก้ไขโครงการ":"สร้างโครงการใหม่")+'</h3>'
@@ -3451,6 +3488,9 @@ document.addEventListener("click",function(e){
   switch(act){
     /* --- นำทาง --- */
     case "openProject": go("floors",{projectId:id, floorId:null, q:"", typeFilter:"all"}); break;
+    case "projPhoto":    projPhotoMenu(id); break;
+    case "projPhotoNew": projPhotoPick(id); break;
+    case "projPhotoDel": projPhotoDel(id); break;
     case "goHome":      navigate("home"); break;
     case "goProjects": {   // เข้าสู่การตรวจ → โครงการที่เปิดอยู่ (หรือล่าสุด) · ยังไม่มีโครงการ → เปิดฟอร์มสร้าง
       var _gp=getProject(state.projectId)||(DB.projects||[]).slice().sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); })[0];
