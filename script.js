@@ -4499,9 +4499,11 @@ function plRestore(j){
   }
   merge(DB.members, snap.m||[]);
   (snap.m||[]).forEach(function(w){   // สีประเภท: ให้ตรงกับชิ้นที่คืนค่า แล้วกระจายทุกชิ้นในประเภท (กันเด้งกลับตอนเปิดแอป)
-    if(!w.typeId || !w.plan || !isBox(w.plan) || !w.plan.fill) return;
-    var t=getType(w.typeId);
-    if(t && String(t.color||"").toLowerCase()!==String(w.plan.fill).toLowerCase()) setTypeFill(t, w.plan.fill);
+    if(!w.typeId || !w.plan || !isBox(w.plan)) return;
+    var t=getType(w.typeId); if(!t) return;
+    var cc=(w.plan.fill && String(t.color||"").toLowerCase()!==String(w.plan.fill).toLowerCase());
+    var ac=(w.plan.fillA!=null && (t.fillA==null || Math.abs(t.fillA-w.plan.fillA)>0.0005));
+    if(cc||ac) setTypeFill(t, cc?w.plan.fill:null, ac?w.plan.fillA:null);
   });
   if(!DB.zones) DB.zones=[];
   merge(DB.zones, snap.z||[]);
@@ -7385,7 +7387,10 @@ function bindPlanEditor(){
     if(mm && isBox(mm.plan)){    // มีคานเลือกอยู่ → ปรับคานนั้น
       mm.plan.fill=col; mm.plan.fillA=a; mm.plan.strokeW=ww;
       var _mt=mm.typeId?getType(mm.typeId):null;
-      if(_mt && String(_mt.color||"").toLowerCase()!==String(col).toLowerCase()) setTypeFill(_mt, col);   // ประเภทเดียวกัน = สีเดียวกัน
+      if(_mt){   // ประเภทเดียวกัน = สี + ความเข้มเดียวกัน
+        var _cc=String(_mt.color||"").toLowerCase()!==String(col).toLowerCase(), _ac=(_mt.fillA==null || Math.abs(_mt.fillA-a)>0.0005);
+        if(_cc||_ac) setTypeFill(_mt, _cc?col:null, _ac?a:null);
+      }
       var r=$("#planOverlay").querySelector('[data-mid="'+mm.id+'"]');   // rect/ellipse/polygon
       if(r){
         r.setAttribute("fill",col); r.setAttribute("fill-opacity",a);
@@ -8165,21 +8170,27 @@ function syncMemberToType(m, t){
   var tnm=String(t.name||"").split(" — ")[0].trim();
   if(tnm && m.code!==tnm){ m.code=tnm; changed=true; }
   if(t.color && m.plan && isBox(m.plan) && String(m.plan.fill||"").toLowerCase()!==String(t.color).toLowerCase()){ m.plan.fill=t.color; changed=true; }
+  if(t.fillA!=null && m.plan && isBox(m.plan) && m.plan.fillA!==t.fillA){ m.plan.fillA=t.fillA; changed=true; }
   return changed;
 }
-/** ตั้งสีประเภท แล้วให้ทุกชิ้นในประเภทเดียวกันใช้สีพื้นนี้ (ทุกชั้น) — วาดสีใหม่บนแปลนที่เปิดอยู่ทันที */
-function setTypeFill(t, col){
-  if(!t || !col) return;
-  t.color=col;
+/** ตั้งสี/ความเข้มของประเภท แล้วให้ทุกชิ้นในประเภทเดียวกันใช้ตาม (ทุกชั้น) — วาดใหม่บนแปลนที่เปิดอยู่ทันที · ค่า null = ไม่แตะ */
+function setTypeFill(t, col, fa){
+  if(!t || (!col && fa==null)) return;
+  if(col) t.color=col;
+  if(fa!=null) t.fillA=fa;
   var ov=document.getElementById("planOverlay");
   typeMembers(t.id).forEach(function(s){
     if(!s.plan || !isBox(s.plan)) return;
-    s.plan.fill=col;
+    if(col) s.plan.fill=col;
+    if(fa!=null) s.plan.fillA=fa;
     var r=ov && ov.querySelector('[data-mid="'+s.id+'"]');
     if(r && state.colorMode!=="status"){
-      r.setAttribute("fill",col);
-      var w=(s.plan.strokeW!=null)?s.plan.strokeW:10;
-      if(w>0) r.setAttribute("stroke", s.plan.strokeCol||col);
+      if(col){
+        r.setAttribute("fill",col);
+        var w=(s.plan.strokeW!=null)?s.plan.strokeW:10;
+        if(w>0) r.setAttribute("stroke", s.plan.strokeCol||col);
+      }
+      if(fa!=null) r.setAttribute("fill-opacity",fa);
     }
   });
 }
