@@ -6209,6 +6209,12 @@ function rpSec(title, badge, body, open){
    QAT (แถบเข้ม) / แท็บริบบอน / ริบบอน / [คุณสมบัติ + ผังโครงการ] | แท็บวิว + แปลน / แถบสถานะ
    ========================================================================== */
 var RV_IC={
+  // แถบล่างมือถือ — ชุดธีมงานก่อสร้าง
+  mb_tap:'<path d="M9 11.5V5.2a1.6 1.6 0 0 1 3.2 0v5.3"/><path d="M12.2 10V8.6a1.6 1.6 0 0 1 3.2 0v2.2"/><path d="M15.4 10.2a1.6 1.6 0 0 1 3.2 0v4.3a6.5 6.5 0 0 1-6.5 6.5h-.6a6.5 6.5 0 0 1-5.4-2.9L3.6 14a1.6 1.6 0 0 1 2.6-1.8L9 15"/>',
+  mb_square:'<path d="M3.5 20.5V5l15.5 15.5Z"/><path d="M7.5 16.5v-3.8l3.8 3.8Z"/><path d="M14 3.5l6.5 6.5-2.2 2.2L11.8 5.7Z"/>',
+  mb_clip:'<rect x="5" y="4.5" width="14" height="17" rx="2"/><path d="M9 3h6v3H9z"/><path d="m8.5 12 1.8 1.8L13.6 10.5M8.5 17h7"/>',
+  mb_truck:'<path d="M2 16.5h13.2"/><path d="M15.2 16.5V9.5h3.6l2.7 3.3v3.7h-1.3"/><path d="M16.4 12.4h3.5"/><ellipse cx="8.2" cy="10.6" rx="5.6" ry="3.7" transform="rotate(-14 8.2 10.6)"/><path d="M5.6 8.5l5.2 4.6M8.4 7.4l4.4 3.9"/><circle cx="6" cy="18.3" r="1.9"/><circle cx="17.6" cy="18.3" r="1.9"/>',
+  mb_grid:'<rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/>',
   sel:'<path d="m4 4 7 17 2.5-7.5L21 11Z"/>',
   rect:'<rect x="3" y="6" width="18" height="12" rx="1.5"/>',
   poly:'<path d="M12 3l8 6-3 10H7L4 9z"/>',
@@ -6919,11 +6925,11 @@ function viewPlanEditorMobile(f,type,p,plan,plans,vm,selM,hint){
     +'<div class="m-ztag"><span id="zoomLabel">'+Math.round((state.zoom||1)*100)+'%</span></div>';
   var dk=drawKind(type);
   var bar='<div class="m-bar">'
-    + mBarBtn(state.tool==="select"&&!state.mSheet,"mTool",'data-tool="select"','sel','เลือก')
-    + mBarBtn(state.tool==="draw"||state.mSheet==="draw","mSheet",'data-sheet="draw"',dk==="point"?'point':dk==="line"?'line':'rect','วาด')
-    + mBarBtn(state.tool==="drawCallout"||state.tool==="drawDim"||state.mSheet==="annot","mSheet",'data-sheet="annot"','callout','หมายเหตุ')
-    + mBarBtn(prog,"mSheet",'data-sheet="zone"','zone','เทคอนกรีต')
-    + mBarBtn(state.mSheet==="more","mSheet",'data-sheet="more"','more','เพิ่มเติม')+'</div>';
+    + mBarBtn(state.tool==="select"&&!state.mSheet,"mTool",'data-tool="select"','mb_tap','เลือก')
+    + mBarBtn(state.tool==="draw"||state.mSheet==="draw","mSheet",'data-sheet="draw"','mb_square','วาด')
+    + mBarBtn(state.tool==="drawCallout"||state.tool==="drawDim"||state.mSheet==="annot","mSheet",'data-sheet="annot"','mb_clip','หมายเหตุ')
+    + mBarBtn(prog,"mSheet",'data-sheet="zone"','mb_truck','เทคอนกรีต')
+    + mBarBtn(state.mSheet==="more","mSheet",'data-sheet="more"','mb_grid','เพิ่มเติม')+'</div>';
   return '<div class="rv mrv" id="editorGrid">'+top
     +'<input type="file" id="planFile" accept="image/*,application/pdf,.pdf" hidden>'
     +'<div class="m-body"><div class="rv-view"><div class="plan-wrap">'+planStageHtml()+hint+'</div></div>'+floats+mPlanSheetHtml(f,type,p,plan,plans,selM,prog)+'</div>'+bar+'</div>';
