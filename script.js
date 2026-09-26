@@ -7393,10 +7393,7 @@ function bindPlanEditor(){
     if(mm && isBox(mm.plan)){    // มีคานเลือกอยู่ → ปรับคานนั้น
       mm.plan.fill=col; mm.plan.fillA=a; mm.plan.strokeW=ww;
       var _mt=mm.typeId?getType(mm.typeId):null;
-      if(_mt){   // ประเภทเดียวกัน = สี + ความเข้มเดียวกัน — บังคับทุกชิ้นเสมอ (แก้ชิ้นที่ค้างค่าผิดจากข้อมูลเก่าด้วย)
-        var _pf=(!which||which==="fill"), _pa=(!which||which==="alpha");
-        if(_pf||_pa) setTypeFill(_mt, _pf?col:null, _pa?a:null);
-      }
+      if(_mt) setTypeFill(_mt, col, a);   // ประเภทเดียวกัน = สี + ความเข้มเดียวกันเสมอ (แก้ชิ้นที่ค้างค่าผิดจากข้อมูลเก่าด้วย)
       var r=$("#planOverlay").querySelector('[data-mid="'+mm.id+'"]');   // rect/ellipse/polygon
       if(r){
         r.setAttribute("fill",col); r.setAttribute("fill-opacity",a);
