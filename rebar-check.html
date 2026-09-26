@@ -8551,8 +8551,7 @@ function annotFormatHtml(){
 function mCardHtml(m){
   if(!m || isMobile() || selIds().length>1) return '';
   if(state._mCardHideId===m.id) return '';
-  var st=memberStatus(m), ins=lastInspection(m.id), t=memberTypeOf(m), sp=shortSpec(m)||'';
-  if(sp.indexOf('undefined')>=0) sp='';   // ยังไม่ได้ใส่ขนาด → ไม่โชว์บรรทัดสเปกที่ยังไม่สมบูรณ์
+  var st=memberStatus(m), ins=lastInspection(m.id);
   var stTx = st==="pass"?'<span class="ok">● ผ่าน พร้อมเท</span>' : st==="fail"?'<span class="bad">● ต้องแก้ไข</span>' : '<span class="wait">● รอตรวจ</span>';
   var h='<div class="pl-card" id="mCard" data-mfor="'+esc(m.id)+'">';
   h+='<div class="pl-card-h" id="mCardDrag"><span class="rv-tdot" style="background:var(--t-'+TYPES[m.type].css+')"></span>';
@@ -8560,8 +8559,6 @@ function mCardHtml(m){
   h+='<button class="pl-card-x" data-act="closeMCard" title="ปิดการ์ด">'+rvIc("cross",14)+'</button></div>';
   h+='<div class="pl-card-b">';
   h+='<div class="pl-crow">'+stTx+'</div>';
-  if(sp) h+='<div class="pl-crow dim mono">'+esc(sp)+'</div>';
-  h+='<div class="pl-crow dim">'+(t?('ประเภท '+esc(t.name)+' · ใช้ร่วม '+typeMembers(t.id).length+' ชิ้น'):'รายละเอียดของตัวเอง')+'</div>';
   if(ins) h+='<div class="pl-crow dim">ตรวจโดย '+esc(ins.inspector||"—")+' · '+esc(new Date(ins.ts).toLocaleDateString("th-TH",{year:"2-digit",month:"short",day:"numeric"}))+'</div>';
   if(m.note) h+='<div class="pl-crow"><span class="note-warn">'+esc(m.note)+'</span></div>';
   h+='<div class="pl-card-acts"><button class="btn soft" data-act="goInspect">'+rvIc("check",14)+' ตรวจเหล็ก</button>';
