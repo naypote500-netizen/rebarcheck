@@ -1778,3 +1778,8 @@ body:has(.rv.mrv) #toast.show{transform:translateX(-50%) translateY(0)}
 
 /* ไอคอนแถบล่างมือถือ ชุดธีมงานก่อสร้าง (patch55) */
 .m-bar .m-bb svg.ic{stroke-width:1.9}
+
+/* ช่องตัวเลข % / px ในแผงสี — ชนะสไตล์ input[type=number] ทั่วไป (patch56) */
+.rv-prow>b.rv-range{flex-wrap:nowrap}
+.rv-range input.rv-num{width:48px;flex:none;padding:3px 4px;border-radius:6px;font-size:11.5px;text-align:center;line-height:1.2}
+.rv-range input[type=range]{flex:1;min-width:70px}

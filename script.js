@@ -7393,9 +7393,9 @@ function bindPlanEditor(){
     if(mm && isBox(mm.plan)){    // มีคานเลือกอยู่ → ปรับคานนั้น
       mm.plan.fill=col; mm.plan.fillA=a; mm.plan.strokeW=ww;
       var _mt=mm.typeId?getType(mm.typeId):null;
-      if(_mt){   // ประเภทเดียวกัน = สี + ความเข้มเดียวกัน
-        var _cc=String(_mt.color||"").toLowerCase()!==String(col).toLowerCase(), _ac=(_mt.fillA==null || Math.abs(_mt.fillA-a)>0.0005);
-        if(_cc||_ac) setTypeFill(_mt, _cc?col:null, _ac?a:null);
+      if(_mt){   // ประเภทเดียวกัน = สี + ความเข้มเดียวกัน — บังคับทุกชิ้นเสมอ (แก้ชิ้นที่ค้างค่าผิดจากข้อมูลเก่าด้วย)
+        var _pf=(!which||which==="fill"), _pa=(!which||which==="alpha");
+        if(_pf||_pa) setTypeFill(_mt, _pf?col:null, _pa?a:null);
       }
       var r=$("#planOverlay").querySelector('[data-mid="'+mm.id+'"]');   // rect/ellipse/polygon
       if(r){

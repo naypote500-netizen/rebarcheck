@@ -1799,6 +1799,11 @@ body:has(.rv.mrv) #toast.show{transform:translateX(-50%) translateY(0)}
 
 /* ไอคอนแถบล่างมือถือ ชุดธีมงานก่อสร้าง (patch55) */
 .m-bar .m-bb svg.ic{stroke-width:1.9}
+
+/* ช่องตัวเลข % / px ในแผงสี — ชนะสไตล์ input[type=number] ทั่วไป (patch56) */
+.rv-prow>b.rv-range{flex-wrap:nowrap}
+.rv-range input.rv-num{width:48px;flex:none;padding:3px 4px;border-radius:6px;font-size:11.5px;text-align:center;line-height:1.2}
+.rv-range input[type=range]{flex:1;min-width:70px}
 </style>
 
 <!-- ===== Firebase (คลาวด์: login + ฐานข้อมูลกลาง) ===== -->
@@ -9245,9 +9250,9 @@ function bindPlanEditor(){
     if(mm && isBox(mm.plan)){    // มีคานเลือกอยู่ → ปรับคานนั้น
       mm.plan.fill=col; mm.plan.fillA=a; mm.plan.strokeW=ww;
       var _mt=mm.typeId?getType(mm.typeId):null;
-      if(_mt){   // ประเภทเดียวกัน = สี + ความเข้มเดียวกัน
-        var _cc=String(_mt.color||"").toLowerCase()!==String(col).toLowerCase(), _ac=(_mt.fillA==null || Math.abs(_mt.fillA-a)>0.0005);
-        if(_cc||_ac) setTypeFill(_mt, _cc?col:null, _ac?a:null);
+      if(_mt){   // ประเภทเดียวกัน = สี + ความเข้มเดียวกัน — บังคับทุกชิ้นเสมอ (แก้ชิ้นที่ค้างค่าผิดจากข้อมูลเก่าด้วย)
+        var _pf=(!which||which==="fill"), _pa=(!which||which==="alpha");
+        if(_pf||_pa) setTypeFill(_mt, _pf?col:null, _pa?a:null);
       }
       var r=$("#planOverlay").querySelector('[data-mid="'+mm.id+'"]');   // rect/ellipse/polygon
       if(r){
