@@ -1688,6 +1688,45 @@ function emptyBox(icon, title, sub){
 /* ---- หน้าแรก: DASHBOARD (sidebar + hero + โครงการล่าสุด + ทางลัด) ---- */
 function dMY(ts){ try{ return new Date(ts).toLocaleDateString("th-TH",{day:"numeric",month:"short",year:"numeric"}); }catch(e){ return "-"; } }
 function projUpdated(p){ var t=p.createdAt||0; (DB.inspections||[]).forEach(function(ins){ var mm=getMember(ins.memberId); if(mm && mm.projectId===p.id && ins.ts>t) t=ins.ts; }); return t; }
+/** ภาพประกอบ hero หน้าหลัก: โครงคอนกรีต + กรงเหล็กเสาโผล่ + ทาวเวอร์เครน + เส้นเฉียงสีมะนาว */
+function dhHeroArt(){
+  function cage(x,yT,yB,w){
+    var s='', bars=4, i;
+    for(i=0;i<bars;i++){ var bx=(x+1.5+i*(w-3)/(bars-1)).toFixed(1); s+='<line x1="'+bx+'" y1="'+yT+'" x2="'+bx+'" y2="'+yB+'" stroke="#1d2631" stroke-width="1.9"/>'; }
+    for(var y=yT+7;y<yB;y+=9) s+='<line x1="'+(x)+'" y1="'+y+'" x2="'+(x+w)+'" y2="'+y+'" stroke="#3a4656" stroke-width="1.15"/>';
+    return s;
+  }
+  var cols=[196,258,320,382,444], cw=22, g='';
+  g+='<defs><linearGradient id="dhsky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfe3fb"/><stop offset=".6" stop-color="#e8f2fd"/><stop offset="1" stop-color="#f5f9fe"/></linearGradient>'
+    +'<linearGradient id="dhcon2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#eef2f7"/><stop offset="1" stop-color="#c7d1dd"/></linearGradient>'
+    +'<linearGradient id="dhslab2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1f4f8"/><stop offset="1" stop-color="#bcc7d4"/></linearGradient>'
+    +'<clipPath id="dhclip2"><path d="M86 0H480V300H0Z"/></clipPath></defs>';
+  g+='<g clip-path="url(#dhclip2)"><rect width="480" height="300" fill="url(#dhsky2)"/>';
+  // เมืองพื้นหลังจาง ๆ
+  g+='<g fill="#b9d0ec" opacity=".55"><rect x="240" y="150" width="30" height="150"/><rect x="300" y="112" width="36" height="188"/><rect x="340" y="88" width="24" height="212"/><rect x="424" y="104" width="44" height="196"/></g>';
+  // ทาวเวอร์เครน
+  var z1='', z2='', k;
+  for(k=0;k<14;k++){ z1+=(k? ' ':'M')+(k%2?164:152)+' '+(300-k*16); }
+  for(k=0;k<26;k++){ z2+=(k? ' ':'M')+(100+k*8)+' '+(k%2?78:86); }
+  g+='<g stroke="#79a3d6" stroke-width="1.4" fill="none" stroke-linejoin="round"><path d="M152 300V78M164 300V78"/><path d="'+z1+'"/>'
+    +'<path d="M100 78H304M100 86H304"/><path d="'+z2+'"/><path d="M158 78V54M158 54 100 78M158 54 304 78"/><path d="M270 86V150"/></g>'
+    +'<rect x="102" y="86" width="18" height="13" rx="1.5" fill="#79a3d6"/><path d="M265 150h10l-2 8h-6z" fill="#79a3d6"/>';
+  // กรงเหล็กเสาเดี่ยวหน้าเครน
+  g+=cage(110,150,300,26);
+  // โครงคอนกรีต 2 ชั้น
+  g+='<rect x="184" y="294" width="296" height="6" fill="#d3dde8"/>';
+  function col(x,y,h){ return '<rect x="'+x+'" y="'+y+'" width="'+cw+'" height="'+h+'" fill="#e4e9ef"/><rect x="'+(x+cw-7)+'" y="'+y+'" width="7" height="'+h+'" fill="#c6cfda"/>'; }
+  cols.forEach(function(x){ g+=col(x,272,24); });
+  g+='<rect x="184" y="260" width="296" height="9" fill="#e9edf2"/><rect x="184" y="269" width="296" height="4" fill="#b9c4d1"/>';
+  cols.forEach(function(x){ g+=col(x,216,44); });
+  g+='<rect x="184" y="204" width="296" height="9" fill="#e9edf2"/><rect x="184" y="213" width="296" height="4" fill="#b9c4d1"/>';
+  // กรงเหล็กเสาโผล่พ้นพื้นชั้นบน
+  g+=cage(196,74,204,cw)+cage(258,48,204,cw)+cage(320,150,204,cw)+cage(382,62,204,cw)+cage(444,92,204,cw);
+  // เหล็กคานพาดบนพื้นชั้นบน
+  g+='<path d="M196 196H466M196 200H466" stroke="#3a4656" stroke-width="1.3"/>';
+  g+='</g><path d="M86 0 0 300" stroke="#c4dd5a" stroke-width="4"/>';
+  return '<svg viewBox="0 0 480 300" preserveAspectRatio="xMidYMid slice">'+g+'</svg>';
+}
 function homeNav(act,on,label,svg){ return '<a class="dh-nav'+(on?' on':'')+'" data-act="'+act+'">'+svg+' <span>'+label+'</span></a>'; }
 function viewHome(){
   var IC={
@@ -1717,13 +1756,13 @@ function viewHome(){
   var top='<div class="dh-top"><div class="sp"></div>'
     +'<button class="dh-bell" data-act="theme" title="สลับโหมดสว่าง/มืด"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+RV_IC[(document.documentElement.getAttribute("data-theme")==="dark")?'sun':'moon']+'</svg></button>'
     +'<div class="dh-user"><span class="dh-ava"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>'
-    +'<span><b>'+esc(user)+'</b><small>ผู้ตรวจ</small></span></div></div>';
+    +'<span><b>'+esc(user)+'</b><small>ผู้ตรวจ</small></span><svg class="dh-caret" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div></div>';
   // ---- hero ----
   var hero='<section class="dh-hero"><div class="dh-hero-l">'
     +'<div class="hi">ยินดีต้อนรับสู่</div><h1>Rebar<b>Check</b></h1>'
     +'<p>ระบบตรวจสอบและประเมินผลเหล็กเสริมในงานคอนกรีตเสริมเหล็ก เพื่อความปลอดภัยและมาตรฐานงานก่อสร้าง</p>'
     +'<div class="dh-badge"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg> ตรวจเหล็กเสริมก่อนเทคอนกรีต</div></div>'
-    +'<div class="dh-hero-r"><svg viewBox="0 0 360 232" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="dhsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe0ff"/><stop offset="1" stop-color="#e9f4ff"/></linearGradient></defs><rect width="360" height="232" fill="url(#dhsky)"/><g fill="#cdd8e6"><rect x="150" y="70" width="80" height="162"/><rect x="232" y="100" width="70" height="132"/><rect x="300" y="55" width="60" height="177"/></g><g stroke="#9fb3cc" stroke-width="2"><path d="M160 232V60M180 232V60M200 232V60M220 232V60M150 90h80M150 120h80M150 150h80M150 180h80"/></g><g stroke="#8aa0bd" stroke-width="2.4"><path d="M320 232V40M340 232V40M312 60h36M312 100h36M312 150h36"/></g><g stroke="#f4b73d" stroke-width="3" opacity=".85"><path d="M120 232 132 44M120 44h20M118 70h18M116 96h18"/></g></svg></div></section>';
+    +'<div class="dh-hero-r">'+dhHeroArt()+'</div></section>';
   // ---- recent projects (real) ----
   var projs=(DB.projects||[]).slice().sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
   var main='<div class="dh-sec"><h2>'+IC.folder+' โครงการทั้งหมด <span class="dh-count">'+projs.length+'</span></h2></div>';
@@ -1744,14 +1783,17 @@ function viewHome(){
   }
   // ---- right column ----
   var col='<div class="dh-col">'
-    +'<button class="dh-new" data-act="newProject"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> สร้างโครงการใหม่</button>'
+    +'<button class="dh-new" data-act="newProject"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#c4dd5a" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> สร้างโครงการใหม่</button>'
     +'<div class="dh-panel"><div class="ph"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg> ทางลัด</div>'
-    +'<a class="dh-short" data-act="goProjects"><span class="ic">'+IC.report+'</span><span><b>เข้าสู่การตรวจสอบ</b><small>เริ่มตรวจสอบชิ้นส่วนในโครงการ</small></span><span class="cv">›</span></a>'
-    +'<a class="dh-short" data-act="goProgress"><span class="ic">'+IC.progress+'</span><span><b>เทคอนกรีต</b><small>เทคอนกรีตถึงโซนไหน + ออก PDF</small></span><span class="cv">›</span></a>'
-    +'<a class="dh-short" data-act="goReports"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></span><span><b>ดูรายงาน</b><small>สรุปผลการตรวจสอบทั้งหมด</small></span><span class="cv">›</span></a>'
-    +'<a class="dh-short" data-act="goData"><span class="ic">'+IC.gear+'</span><span><b>ตั้งค่า / สำรองข้อมูล</b><small>นำเข้า-ส่งออกข้อมูล</small></span><span class="cv">›</span></a></div>'
+    +'<div class="dh-sgrid">'
+    +'<a class="dh-short" data-act="goProjects"><span class="ic">'+IC.report+'</span><span class="tx"><b>ตรวจสอบชิ้นส่วน <i>›</i></b><small>เริ่มตรวจสอบชิ้นส่วนในโครงการ</small></span></a>'
+    +'<a class="dh-short" data-act="goProgress"><span class="ic">'+IC.progress+'</span><span class="tx"><b>เทคอนกรีต <i>›</i></b><small>เทคอนกรีตถึงโซนไหน + ออก PDF</small></span></a>'
+    +'<a class="dh-short" data-act="goReports"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></span><span class="tx"><b>ดูรายงาน <i>›</i></b><small>สรุปผลการตรวจสอบทั้งหมด</small></span></a>'
+    +'<a class="dh-short" data-act="goData"><span class="ic">'+IC.gear+'</span><span class="tx"><b>ตั้งค่า <i>›</i></b><small>นำเข้า-ส่งออกข้อมูล</small></span></a>'
+    +'</div></div>'
     +'<div class="dh-tip"><div class="ph"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/></svg> สาระน่ารู้</div>'
-    +'<p>"การตรวจสอบเหล็กเสริมที่ถูกต้อง ช่วยลดความเสี่ยงของโครงสร้าง และเพิ่มความปลอดภัยในระยะยาว"</p></div></div>';
+    +'<p>"การตรวจสอบเหล็กเสริมที่ถูกต้อง ช่วยลดความเสี่ยงของโครงสร้าง และเพิ่มความปลอดภัยในระยะยาว"</p>'
+    +'<svg class="dh-tipart" viewBox="0 0 120 90" fill="currentColor"><rect x="8" y="46" width="22" height="44"/><rect x="34" y="20" width="26" height="70"/><rect x="64" y="34" width="20" height="56"/><rect x="88" y="10" width="26" height="80"/><rect x="99" y="2" width="4" height="10"/></svg></div></div>';
   return '<div class="dh">'+side+'<div class="dh-wrap">'+top+'<div class="dh-content">'+hero+'<div class="dh-main">'+main+'</div>'+col+'</div></div></div>';
 }
 
