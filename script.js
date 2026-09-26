@@ -6524,6 +6524,12 @@ function rvPaletteHtml(type, m, p, f, plans, plan){
     h+=rvPh('ชิ้นที่เลือก');
     h+='<div class="rv-pnote" style="display:flex;flex-wrap:wrap;gap:4px">'+_ids.map(function(id){ var x=getMember(id); return x?'<span class="pj-chip"><i style="background:var(--t-'+TYPES[x.type].css+')"></i>'+esc(x.code)+'</span>':''; }).join('')+'</div>';
     h+='<div class="rv-pnote">ลากที่ชิ้นใดก็ได้ = ย้ายทั้งชุด · Shift+คลิก เพิ่ม/ลด · ซ่อน/ลบทั้งชุดอยู่ในแท็บ “แก้ไข · '+_ids.length+' ชิ้น”</div>';
+    var _bx=_ids.map(getMember).filter(function(x){ return x && x.plan && isBox(x.plan); });
+    if(_bx.length){   // สีของทุกกล่องที่เลือกพร้อมกัน
+      h+=rvPh('การแสดงผลบนแปลน · '+_bx.length+' กล่องที่เลือก');
+      h+='<div class="rv-pnote">กดสี/ความเข้มครั้งเดียว = ทุกกล่องที่เลือกเป็นค่าเดียวกัน (กล่องที่ผูกประเภท ทั้งประเภทเปลี่ยนตาม)</div>';
+      h+=rvStyleTabRows(isBox(m.plan)?m:_bx[0]);
+    }
   }else if(m){
     var ins=lastInspection(m.id), st=memberStatus(m);
     var stTx = st==="pass"?'<span class="ok">● ผ่าน พร้อมเท</span>' : st==="fail"?'<span class="bad">● ต้องแก้ไข</span>' : '<span class="wait">● รอตรวจ</span>';
@@ -7389,6 +7395,23 @@ function bindPlanEditor(){
     var _ael=document.querySelector('.rv-range em[data-for="drawAlpha"]'); if(_ael) _ael.textContent=Math.round(a*100)+'%';
     var _sel=document.querySelector('.rv-range em[data-for="drawStroke"]'); if(_sel) _sel.textContent=ww+' px';
     if(dsw){ dsw.style.background=col; dsw.style.opacity=a; }
+    var _multi=selIds().length>1 ? selIds().map(getMember).filter(function(x){ return x && x.plan && isBox(x.plan); }) : null;
+    if(_multi && _multi.length){   // เลือกหลายกล่อง → ใช้ค่าที่กดกับทุกกล่องที่เลือก
+      var _ov=$("#planOverlay");
+      _multi.forEach(function(s){
+        if(which!=="stroke"){ s.plan.fill=col; s.plan.fillA=a; }   // สี + ความเข้มเท่ากันทุกกล่องที่เลือก (ไม่งั้นสีดูไม่ตรงกัน)
+        if(!which||which==="stroke") s.plan.strokeW=ww;
+        var _st=s.typeId?getType(s.typeId):null;
+        if(_st) setTypeFill(_st, s.plan.fill, s.plan.fillA);   // ประเภทเดียวกันตามด้วย
+        var r=_ov && _ov.querySelector('[data-mid="'+s.id+'"]');
+        if(r){
+          r.setAttribute("fill",s.plan.fill); r.setAttribute("fill-opacity",s.plan.fillA);
+          var _w=(s.plan.strokeW!=null)?s.plan.strokeW:10;
+          if(_w>0){ r.setAttribute("stroke",s.plan.strokeCol||s.plan.fill); r.setAttribute("stroke-width",_w); } else r.setAttribute("stroke","none");
+        }
+      });
+      return;
+    }
     var mm=getMember(state.selMemberId);
     if(mm && isBox(mm.plan)){    // มีคานเลือกอยู่ → ปรับคานนั้น
       mm.plan.fill=col; mm.plan.fillA=a; mm.plan.strokeW=ww;
@@ -7438,11 +7461,14 @@ function bindPlanEditor(){
   // แท็บ "เส้นกรอบ" ของชิ้นที่เลือก — สีเส้นแยกจากสีพื้น (ว่าง = ตามสีพื้น)
   var dsc=$("#drawStrokeCol");
   function _applyStrokeCol(v){
-    var mm2=getMember(state.selMemberId); if(!mm2||!isBox(mm2.plan)) return;
-    if(v) mm2.plan.strokeCol=v; else delete mm2.plan.strokeCol;
-    var ov=$("#planOverlay"), r2=ov&&ov.querySelector('[data-mid="'+mm2.id+'"]');
-    var w2=(mm2.plan.strokeW!=null)?mm2.plan.strokeW:10;
-    if(r2&&w2>0) r2.setAttribute("stroke", mm2.plan.strokeCol||mm2.plan.fill||state.fillColor);
+    var list=(selIds().length>1?selIds():[state.selMemberId]).map(getMember).filter(function(x){ return x && x.plan && isBox(x.plan); });
+    var ov=$("#planOverlay");
+    list.forEach(function(mm2){
+      if(v) mm2.plan.strokeCol=v; else delete mm2.plan.strokeCol;
+      var r2=ov&&ov.querySelector('[data-mid="'+mm2.id+'"]');
+      var w2=(mm2.plan.strokeW!=null)?mm2.plan.strokeW:10;
+      if(r2&&w2>0) r2.setAttribute("stroke", mm2.plan.strokeCol||mm2.plan.fill||state.fillColor);
+    });
   }
   $$("[data-strokecol]").forEach(function(b){ b.addEventListener("click",function(){
     plPushUndo(); _applyStrokeCol(b.getAttribute("data-strokecol")||""); saveDB(); render();
