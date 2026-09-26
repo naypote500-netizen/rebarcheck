@@ -3933,6 +3933,14 @@ document.addEventListener("click",function(e){
       if(em){ closeSheet(); go("memberForm",{addType:em.type, editId:em.id}); }
       break;
     }
+    case "kindHide": kindSetHidden(el.getAttribute("data-k"), true); break;
+    case "kindShow": kindSetHidden(el.getAttribute("data-k"), false); break;
+    case "kindDel":  kindDelete(el.getAttribute("data-k")); break;
+    case "kindAdd": {
+      var _kn=prompt("ชื่อชนิดใหม่ (เช่น เสาเอ็น, ทับหลัง, ครีบกันแดด)"); var _kk=_kn?addCustomType(_kn):null;
+      if(_kk){ state.catType=_kk; if(state.hiddenTypes) delete state.hiddenTypes[_kk]; kindSetHidden(_kk,false); }
+      break;
+    }
     case "renameMember": {
       var rm=getMember(activeMemberId()); if(!rm){ toast("ยังไม่ได้เลือกชิ้นส่วน",true); break; }
       var oldC=rm.code||""; var nc=prompt("ชื่อ / เบอร์ชิ้นส่วน", oldC); if(nc==null) break; nc=nc.trim(); if(!nc||nc===oldC) break;
@@ -6508,7 +6516,7 @@ function rvRibbonHtml(type, f, plan, plans, selM){
   var dk=drawKind(type);
   var hasZone=!!(state.selZoneId&&getZone(state.selZoneId));
   var typeSel='<div class="rv-typesel"><span class="sel-dot" style="background:var(--t-'+TYPES[type].css+')"></span><select id="drawTypeSel" class="rv-sel" title="ชนิดที่วาด">'
-    + TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPES[t].label+(TYPE_EN[t]?' ('+TYPE_EN[t]+')':''))+'</option>'; }).join("")+'<option value="__addtype">+ เพิ่มชนิด…</option></select></div>';
+    + kindsForDraw(type).map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPES[t].label+(TYPE_EN[t]?' ('+TYPE_EN[t]+')':''))+'</option>'; }).join("")+'<option value="__addtype">+ เพิ่มชนิด…</option><option value="__kinds">⚙ จัดการชนิด (ลบ / ซ่อน)…</option></select></div>';
   var drawBtns = dk==="rect"
     ? rvBig(isD("rect"),"setShape",'data-shape="rect"','rect','สี่เหลี่ยม','วาดสี่เหลี่ยม  (R)')
       +rvBig(isD("poly"),"setShape",'data-shape="poly"','poly','หลายเหลี่ยม','วาดหลายเหลี่ยม  (P)')
@@ -7163,7 +7171,7 @@ function mPlanSheetHtml(f,type,p,plan,plans,selM,prog){
   if(sh==="draw"){
     var isD=function(shp){ return state.tool==="draw" && (state.drawShape||"rect")===shp; }, dk=drawKind(type);
     var b='<div class="m-sec">ชนิดที่จะวาด</div><select id="drawTypeSel" class="m-in" style="width:100%">'
-      + TYPE_ORDER.map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPES[t].label+(TYPE_EN[t]?' ('+TYPE_EN[t]+')':''))+'</option>'; }).join("")+'<option value="__addtype">+ เพิ่มชนิด…</option></select>';
+      + kindsForDraw(type).map(function(t){ return '<option value="'+t+'"'+(t===type?" selected":"")+'>'+esc(TYPES[t].label+(TYPE_EN[t]?' ('+TYPE_EN[t]+')':''))+'</option>'; }).join("")+'<option value="__addtype">+ เพิ่มชนิด…</option><option value="__kinds">⚙ จัดการชนิด (ลบ / ซ่อน)…</option></select>';
     b+='<div class="m-sec">รูปทรง — เลือกแล้วลากบนแปลน</div><div class="m-grid">';
     if(dk==="rect") b+=mG("setShape",'data-shape="rect"','rect','สี่เหลี่ยม','',0,isD("rect"))+mG("setShape",'data-shape="poly"','poly','หลายเหลี่ยม','',0,isD("poly"))+mG("setShape",'data-shape="oval"','oval','วงรี','',0,isD("oval"));
     else b+=mG("setShape",'data-shape="rect"',dk==="point"?'point':'line',dk==="point"?'วางจุด':'วาดแนว','',0,state.tool==="draw");
@@ -7588,6 +7596,7 @@ function bindPlanEditor(){
   if(_bxf){ _bxf.addEventListener("change",function(){ var mm=getMember(state.selMemberId); if(mm&&mm.plan){ mm.plan.labelFont=_bxf.value; saveDB(); render(); } }); }
   // ดรอปดาวน์เลือกชนิดที่กำลังวาด
   $$("#drawTypeSel").forEach(function(dts){ dts.addEventListener("change",function(){
+    if(dts.value==="__kinds"){ dts.value=state.catType; kindsSheet(); return; }
     if(dts.value==="__addtype"){
       var nm=prompt("ชื่อชนิดใหม่ (เช่น เสาเอ็น, ทับหลัง, ครีบกันแดด)");
       var k=nm?addCustomType(nm):null;
@@ -9920,9 +9929,12 @@ var CUSTOM_TYPE_PALETTE=["#c2410c","#0e7490","#6d28d9","#be123c","#15803d","#a16
 var CUSTOM_TYPES=[];   // [{key,label,color,ab}]
 function _loadCustomTypes(){
   try{ var a=JSON.parse(localStorage.getItem("rebarcheck.customTypes")||"[]"); if(Array.isArray(a)) CUSTOM_TYPES=a; }catch(e){}
+  // ชนิดที่ถูกลบแล้ว (ป้ายลบใน DB.ctypes) → เอาออก ไม่ให้เครื่องไหนดึงกลับมา
+  var _dead={}; (DB.ctypes||[]).forEach(function(d){ if(d && d.key && d.deleted) _dead[d.key]=1; });
+  CUSTOM_TYPES=CUSTOM_TYPES.filter(function(c){ return !_dead[c.key]; });
   // รวมนิยามจากฐานข้อมูลกลาง (DB.ctypes) — ชื่อจริงแทนตัวชั่วคราวที่ใช้ key เป็นชื่อ
   (DB.ctypes||[]).forEach(function(d){
-    if(!d||!d.key) return;
+    if(!d||!d.key||d.deleted) return;
     var ex=CUSTOM_TYPES.filter(function(c){ return c.key===d.key; })[0];
     if(!ex) CUSTOM_TYPES.push({key:d.key,label:d.label||d.key,color:d.color,ab:d.ab});
     else if(!ex.label||ex.label===ex.key){ ex.label=d.label||ex.label; if(d.color) ex.color=d.color; if(d.ab) ex.ab=d.ab; }
@@ -9959,6 +9971,56 @@ function addCustomType(name){
   var key="ct"+Date.now().toString(36);
   CUSTOM_TYPES.push({ key:key, label:name, ab:_ctAb(name), color:CUSTOM_TYPE_PALETTE[CUSTOM_TYPES.length%CUSTOM_TYPE_PALETTE.length] });
   _saveCustomTypes(); registerCustomTypes(); saveDB(); return key;
+}
+/* ---- จัดการชนิด: ซ่อน/แสดง (ต่อโครงการ) + ลบชนิดที่เพิ่มเอง ---- */
+function kindHidden(k){ var p=getProject(state.projectId); return !!(p && Array.isArray(p.hiddenKinds) && p.hiddenKinds.indexOf(k)>=0); }
+function kindsForDraw(cur){ return TYPE_ORDER.filter(function(t){ return TYPES[t] && (!kindHidden(t) || t===cur); }); }
+function _kindCount(k, pid){ return (DB.members||[]).filter(function(m){ return m.type===k && (!pid || m.projectId===pid); }).length; }
+function _kindFallback(){ var v=TYPE_ORDER.filter(function(t){ return TYPES[t] && !kindHidden(t); }); return v[0]||"column"; }
+function kindsSheet(){
+  var pid=state.projectId;
+  var rows=TYPE_ORDER.filter(function(t){ return TYPES[t]; }).map(function(t){
+    var T=TYPES[t], nP=_kindCount(t,pid), nAll=_kindCount(t), hid=kindHidden(t), custom=!!T.custom;
+    var col=T.color || ("var(--t-"+T.css+")");
+    var meta=(custom?"ชนิดที่เพิ่มเอง":"ชนิดมาตรฐาน")+" · ใช้ในโครงการนี้ "+nP+" ชิ้น"+(custom&&nAll>nP?" (ทุกโครงการ "+nAll+")":"")+(hid?" · ซ่อนอยู่":"");
+    var btns=hid ? '<button class="btn soft sm" data-act="kindShow" data-k="'+esc(t)+'">แสดง</button>'
+                 : '<button class="btn soft sm" data-act="kindHide" data-k="'+esc(t)+'" title="ซ่อนจากรายการวาดของโครงการนี้ (ชิ้นที่วาดไว้ยังอยู่)">ซ่อน</button>';
+    if(custom) btns+='<button class="btn danger sm" data-act="kindDel" data-k="'+esc(t)+'"'+(nAll?' disabled title="ยังมี '+nAll+' ชิ้นใช้ชนิดนี้ — ลบหรือเปลี่ยนชนิดของชิ้นเหล่านั้นก่อน"':' title="ลบชนิดนี้ถาวร"')+'>ลบ</button>';
+    return '<div class="kind-row'+(hid?' hid':'')+'"><span class="sw-dot" style="background:'+col+'"></span><div class="kind-b"><b>'+esc(T.label+(TYPE_EN[t]&&TYPE_EN[t]!==T.label?' ('+TYPE_EN[t]+')':''))+'</b><small>'+esc(meta)+'</small></div><div class="kind-a">'+btns+'</div></div>';
+  }).join("");
+  openSheet('<h3>จัดการชนิดชิ้นส่วน</h3>'
+    +'<p class="small muted" style="margin:0 0 10px">ซ่อน = ไม่แสดงในรายการ “ชนิดที่วาด” ของโครงการนี้ (ชิ้นที่วาดไว้ยังอยู่ครบ) · ลบ = ลบชนิดที่เพิ่มเองถาวร (ต้องไม่มีชิ้นใช้อยู่)</p>'
+    +'<div class="kind-list">'+rows+'</div>'
+    +'<div class="row-end"><button class="btn soft" data-act="kindAdd">+ เพิ่มชนิด</button><button class="btn" data-act="closeSheet">เสร็จ</button></div>');
+}
+function kindSetHidden(k, hide){
+  var p=getProject(state.projectId); if(!p || !TYPES[k]) return;
+  var arr=Array.isArray(p.hiddenKinds)?p.hiddenKinds.slice():[];
+  if(hide){
+    var visible=TYPE_ORDER.filter(function(t){ return TYPES[t] && t!==k && arr.indexOf(t)<0; });
+    if(!visible.length){ toast("ต้องเหลืออย่างน้อย 1 ชนิดในรายการ",true); return; }
+    if(arr.indexOf(k)<0) arr.push(k);
+  }else arr=arr.filter(function(t){ return t!==k; });
+  var old=p.hiddenKinds; p.hiddenKinds=arr;
+  if(!saveDB()){ p.hiddenKinds=old; return; }
+  if(hide && state.catType===k) state.catType=_kindFallback();
+  render(); kindsSheet();
+}
+function kindDelete(k){
+  var T=TYPES[k]; if(!T || !T.custom) return;
+  var n=_kindCount(k); if(n){ toast("ยังมี "+n+" ชิ้นใช้ชนิด “"+T.label+"” — ลบหรือเปลี่ยนชนิดของชิ้นเหล่านั้นก่อน",true); return; }
+  if(!confirm("ลบชนิด “"+T.label+"” ถาวร?")) return;
+  CUSTOM_TYPES=CUSTOM_TYPES.filter(function(c){ return c.key!==k; }); _saveCustomTypes();
+  if(!Array.isArray(DB.ctypes)) DB.ctypes=[];
+  DB.ctypes=DB.ctypes.filter(function(d){ return !(d && d.key===k); });
+  DB.ctypes.push({ id:k, key:k, label:T.label, deleted:true });   // ป้ายลบ — ซิงก์ไปเครื่องอื่น
+  delete TYPES[k]; delete TYPE_EN[k];
+  var i=TYPE_ORDER.indexOf(k); if(i>=0) TYPE_ORDER.splice(i,1);
+  (DB.projects||[]).forEach(function(p){ if(Array.isArray(p.hiddenKinds)) p.hiddenKinds=p.hiddenKinds.filter(function(t){ return t!==k; }); });
+  if(state.hiddenTypes) delete state.hiddenTypes[k];
+  if(state.catType===k) state.catType=_kindFallback();
+  registerCustomTypes(); saveDB(); render(); kindsSheet();
+  toast("ลบชนิด “"+T.label+"” แล้ว");
 }
 
 function normalizePlanShapes(){
