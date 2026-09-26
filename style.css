@@ -1752,3 +1752,26 @@ body:has(.rv.mrv) #toast.show{transform:translateX(-50%) translateY(0)}
 .rv-autobtn.on{background:#dceafc;border-color:#8fb6e8;color:#1b4f9c}
 .rv-num{width:46px;border:1px solid #d5dde8;border-radius:6px;padding:2px 4px;font:inherit;font-size:11.5px;text-align:center;background:#fff}
 .rv-unit{font-size:11px;color:#6b7684}
+
+/* เช็คลิสต์ตรวจเหล็กแบบตารางฟอร์ม QC (patch49 — สไตล์ Excel) */
+.chk-tbl{width:100%;border-collapse:collapse;font-size:.84rem;margin:2px 0 8px}
+.chk-tbl th{background:var(--surface-2);border:1px solid var(--border);padding:5px 7px;font-size:.76rem;font-weight:800;color:var(--text-dim);text-align:left}
+.chk-tbl th.ct-no{width:32px;text-align:center}
+.chk-tbl th.ct-tick{width:38px;text-align:center;font-size:.9rem}
+.chk-tbl th.h-ok{color:var(--pass)} .chk-tbl th.h-bad{color:var(--fail)} .chk-tbl th.h-na{color:var(--text-dim)}
+.chk-tbl td{border:1px solid var(--border);padding:7px 8px;vertical-align:middle;background:var(--surface)}
+.chk-tbl td.ct-no{text-align:center;padding:4px}
+.chk-tbl td.ct-c{text-align:center;padding:4px 3px}
+.chk-tbl tr.chk,.chk-tbl tr.chk3{display:table-row;border:0;border-radius:0;padding:0;margin:0;background:none}
+.chk-tbl tr.st-pass td{background:var(--pass-bg)}
+.chk-tbl tr.st-fail td{background:var(--fail-bg)}
+.chk-tbl tr.st-na td{background:var(--surface-2)}
+.chk-tbl tr.st-na{opacity:1}
+.chk-tbl .c3-dot{width:24px;height:24px;border-radius:50%;font-size:.72rem;margin:0 auto}
+.chk-tbl .c3-t{font-weight:600;line-height:1.4}
+.chk-tbl .chk-hint{margin:3px 0 0;font-size:.74rem}
+.chk-tbl .c3c{width:27px;height:27px;border-radius:6px;margin:0 auto}
+.chk-tbl .c3c.pass:hover{border-color:var(--pass);color:var(--pass)}
+.chk-tbl .c3c.fail:hover{border-color:var(--fail);color:var(--fail)}
+.chk-tbl .c3c.na:hover{border-color:var(--text-dim);color:var(--text-dim)}
+.ct-grp td{background:var(--brand-bg)!important;color:var(--brand-strong);font-weight:800;font-size:.78rem;padding:4px 8px}

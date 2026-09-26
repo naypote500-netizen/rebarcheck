@@ -1773,6 +1773,29 @@ body:has(.rv.mrv) #toast.show{transform:translateX(-50%) translateY(0)}
 .rv-autobtn.on{background:#dceafc;border-color:#8fb6e8;color:#1b4f9c}
 .rv-num{width:46px;border:1px solid #d5dde8;border-radius:6px;padding:2px 4px;font:inherit;font-size:11.5px;text-align:center;background:#fff}
 .rv-unit{font-size:11px;color:#6b7684}
+
+/* เช็คลิสต์ตรวจเหล็กแบบตารางฟอร์ม QC (patch49 — สไตล์ Excel) */
+.chk-tbl{width:100%;border-collapse:collapse;font-size:.84rem;margin:2px 0 8px}
+.chk-tbl th{background:var(--surface-2);border:1px solid var(--border);padding:5px 7px;font-size:.76rem;font-weight:800;color:var(--text-dim);text-align:left}
+.chk-tbl th.ct-no{width:32px;text-align:center}
+.chk-tbl th.ct-tick{width:38px;text-align:center;font-size:.9rem}
+.chk-tbl th.h-ok{color:var(--pass)} .chk-tbl th.h-bad{color:var(--fail)} .chk-tbl th.h-na{color:var(--text-dim)}
+.chk-tbl td{border:1px solid var(--border);padding:7px 8px;vertical-align:middle;background:var(--surface)}
+.chk-tbl td.ct-no{text-align:center;padding:4px}
+.chk-tbl td.ct-c{text-align:center;padding:4px 3px}
+.chk-tbl tr.chk,.chk-tbl tr.chk3{display:table-row;border:0;border-radius:0;padding:0;margin:0;background:none}
+.chk-tbl tr.st-pass td{background:var(--pass-bg)}
+.chk-tbl tr.st-fail td{background:var(--fail-bg)}
+.chk-tbl tr.st-na td{background:var(--surface-2)}
+.chk-tbl tr.st-na{opacity:1}
+.chk-tbl .c3-dot{width:24px;height:24px;border-radius:50%;font-size:.72rem;margin:0 auto}
+.chk-tbl .c3-t{font-weight:600;line-height:1.4}
+.chk-tbl .chk-hint{margin:3px 0 0;font-size:.74rem}
+.chk-tbl .c3c{width:27px;height:27px;border-radius:6px;margin:0 auto}
+.chk-tbl .c3c.pass:hover{border-color:var(--pass);color:var(--pass)}
+.chk-tbl .c3c.fail:hover{border-color:var(--fail);color:var(--fail)}
+.chk-tbl .c3c.na:hover{border-color:var(--text-dim);color:var(--text-dim)}
+.ct-grp td{background:var(--brand-bg)!important;color:var(--brand-strong);font-weight:800;font-size:.78rem;padding:4px 8px}
 </style>
 
 <!-- ===== Firebase (คลาวด์: login + ฐานข้อมูลกลาง) ===== -->
@@ -3896,22 +3919,24 @@ function inspectionBlockHtml(m){
   var CX='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   var DS='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 12h12"/></svg>';
   var n=0;
+  // ตารางแบบฟอร์ม QC (สไตล์ Excel): # | รายการตรวจ | ✓ | ✗ | −
+  h+='<table class="chk-tbl"><tr><th class="ct-no">#</th><th>รายการตรวจ</th><th class="ct-tick h-ok">✓</th><th class="ct-tick h-bad">✗</th><th class="ct-tick h-na">−</th></tr>';
   items.forEach(function(it){
-    if(it.head){ h+='<div class="chk-head">'+esc(it.t)+'</div>'; return; }
+    if(it.head){ h+='<tr class="ct-grp"><td colspan="5">'+esc(it.t)+'</td></tr>'; return; }
     n++;
-    h+='<div class="chk chk3" data-chk="'+esc(it.id)+'" data-n="'+n+'">'
-      +  '<span class="c3-dot"><span class="c3-num">'+n+'</span></span>'
-      +  '<div class="c3-body"><div class="c3-t">'+esc(it.t)
+    h+='<tr class="chk chk3" data-chk="'+esc(it.id)+'" data-n="'+n+'">'
+      +  '<td class="ct-no"><span class="c3-dot"><span class="c3-num">'+n+'</span></span></td>'
+      +  '<td class="ct-q"><div class="c3-t">'+esc(it.t)
       +    (it.crit?' <span class="crit-tag">สำคัญ</span>':'')
       +    (it.custom?' <button class="c3-del" data-act="delCheck" data-id="'+esc(it.id)+'" title="ลบรายการนี้"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>':'')+'</div>'
       +    (it.hint?'<div class="chk-hint"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg> '+esc(it.hint)+'</div>':'')
-      +  '</div>'
-      +  '<div class="c3-chips">'
-      +    '<button class="c3c pass" data-act="chk" data-v="pass" title="ผ่าน">'+CK+'</button>'
-      +    '<button class="c3c fail" data-act="chk" data-v="fail" title="ไม่ผ่าน">'+CX+'</button>'
-      +    '<button class="c3c na"   data-act="chk" data-v="na"   title="N/A">'+DS+'</button>'
-      +  '</div></div>';
+      +  '</td>'
+      +  '<td class="ct-c"><button class="c3c pass" data-act="chk" data-v="pass" title="ผ่าน">'+CK+'</button></td>'
+      +  '<td class="ct-c"><button class="c3c fail" data-act="chk" data-v="fail" title="ไม่ผ่าน">'+CX+'</button></td>'
+      +  '<td class="ct-c"><button class="c3c na" data-act="chk" data-v="na" title="N/A">'+DS+'</button></td>'
+      +  '</tr>';
   });
+  h+='</table>';
   h+='<button class="c3-add" data-act="addCheck">+ เพิ่มรายการตรวจ</button>';
   h+='</div></div>';
   h+='<div class="card"><div class="card-h"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3.2"/></svg> หลักฐานและการยืนยัน</div><div class="card-b">'
