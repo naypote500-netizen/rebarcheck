@@ -5511,6 +5511,12 @@ document.addEventListener("click",function(e){
     /* --- หมายเหตุ: กล่องข้อความ + เส้นบอกขนาด --- */
     case "drawCalloutStart": state.tool="drawCallout"; state.ribbonTab="annot"; state.selAnnotId=null; render(); break;
     case "drawDimStart":     state.tool="drawDim";     state.ribbonTab="annot"; state.selAnnotId=null; render(); break;
+    case "drawTcallStart":   state.tool="drawTcall"; state.selAnnotId=null; state.selMemberId=null; state.selMulti=[]; state.selZoneId=null; state.marquee=false; render(); break;
+    case "tboxArrow": { var _tw=getAnnot(state.selAnnotId); if(!_tw||_tw.kind!=="tbox") break; plPushUndo(); _tw.a1=el.getAttribute("data-v")||"open"; annotRemember(_tw); saveDB(); render(); break; }
+    case "tboxAddTip": { var _tq=getAnnot(state.selAnnotId); if(!_tq||_tq.kind!=="tbox") break; plPushUndo();
+      if(_tq.tip) delete _tq.tip;
+      else { var _bx1=Math.min(_tq.box.x1,_tq.box.x2), _by2=Math.max(_tq.box.y1,_tq.box.y2); _tq.tip={x:Math.max(0,_bx1-0.05), y:Math.min(1,_by2+0.06)}; }
+      saveDB(); render(); break; }
     case "drawTboxStart":    state.tool="drawTbox"; state.selAnnotId=null; state.selMemberId=null; state.selMulti=[]; state.selZoneId=null; state.marquee=false; render(); break;
     /* --- มาตราส่วน + วัดพื้นที่ --- */
     case "setScaleStart":    state.tool="setScale"; state.ribbonTab="annot"; state.selAnnotId=null; state.selMemberId=null; state.selMulti=[]; state.selZoneId=null; state.marquee=false; render(); break;
@@ -6147,7 +6153,7 @@ function annotMarker(id,type,col,z){
   return b+'</marker>';
 }
 var TBOX_DEF={ color:"#1d4ed8", bcol:"#3b5bdb", fill:"#dbe4ff", fillA:1, sw:1.5, radius:0, font:"Sarabun", size:14,
-                bold:0, italic:0, underline:0, strike:0, align:"center", op:1 };
+                bold:0, italic:0, underline:0, strike:0, align:"center", op:1, a1:"open" };
 function tboxStyleOf(a){
   var d=state.tboxStyle||{}, o={};
   Object.keys(TBOX_DEF).forEach(function(k){ o[k]=(a&&a[k]!=null)?a[k]:(d[k]!=null?d[k]:TBOX_DEF[k]); });
@@ -6232,6 +6238,20 @@ function tboxSvg(a, VW, VH, z, sel){
   _tbH[a.id]=bh/VH;
   var sw=(+s.sw||0)*k;
   var out='<g data-aid="'+a.id+'"'+(s.op<1?' opacity="'+s.op+'"':'')+' style="cursor:move">';
+  if(a.tip){   // ป้ายชี้: เส้นจากปลายลูกศร → ข้อศอก → กลางขอบกล่องฝั่งที่ใกล้
+    var tpx=a.tip.x*VW, tpy=a.tip.y*VH, cyb=by+bh/2, lft=(tpx<bx+bw/2);
+    var axp=lft?bx:bx+bw, kx=axp+(lft?-1:1)*Math.min(14*k, Math.max(0, Math.abs(tpx-axp)*0.5));
+    var lw=Math.max(0.8, (+s.sw>0?+s.sw:1.2))*k, lc=_hx(+s.sw>0?s.bcol:s.color);
+    var dpath='M'+tpx+' '+tpy+' L'+kx+' '+cyb+' L'+axp+' '+cyb;
+    out+='<path d="'+dpath+'" fill="none" stroke="transparent" stroke-width="'+(12/z)+'"/>';   // ที่กดง่าย
+    out+='<path d="'+dpath+'" fill="none" stroke="'+lc+'" stroke-width="'+lw+'" stroke-linejoin="round"/>';
+    var ang=Math.atan2(tpy-cyb, tpx-kx), L=Math.max(5*k, lw*4.5);
+    if(Math.abs(tpx-kx)<1e-6 && Math.abs(tpy-cyb)<1e-6) ang=0;
+    var hp=function(d){ return [tpx-L*Math.cos(ang+d), tpy-L*Math.sin(ang+d)]; }, p1=hp(0.45), p2=hp(-0.45);
+    if(s.a1==="solid") out+='<path d="M'+tpx+' '+tpy+' L'+p1[0]+' '+p1[1]+' L'+p2[0]+' '+p2[1]+' Z" fill="'+lc+'"/>';
+    else if(s.a1==="dot") out+='<circle cx="'+tpx+'" cy="'+tpy+'" r="'+(L*0.38)+'" fill="'+lc+'"/>';
+    else if(s.a1!=="none") out+='<path d="M'+p1[0]+' '+p1[1]+' L'+tpx+' '+tpy+' L'+p2[0]+' '+p2[1]+'" fill="none" stroke="'+lc+'" stroke-width="'+lw+'" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
   out+='<rect x="'+bx+'" y="'+by+'" width="'+bw+'" height="'+bh+'" rx="'+((+s.radius||0)*k)+'" fill="'+_hx(s.fill)+'" fill-opacity="'+s.fillA+'"'
      +(sw>0?' stroke="'+_hx(s.bcol)+'" stroke-width="'+sw+'"':' stroke="none"')+'/>';
   var anc=(s.align==="left"?"start":s.align==="right"?"end":"middle");
@@ -6248,6 +6268,7 @@ function tboxSvg(a, VW, VH, z, sel){
       var cur=(p[0]==="n"||p[0]==="s")?"ns-resize":(p[0]==="e"||p[0]==="w")?"ew-resize":(p[0]==="nw"||p[0]==="se")?"nwse-resize":"nesw-resize";
       out+='<circle data-aid="'+a.id+'" data-ahandle="'+p[0]+'" cx="'+p[1]+'" cy="'+p[2]+'" r="'+(4.8/z)+'" fill="#2b6fe0" stroke="#fff" stroke-width="'+(1.6/z)+'" style="cursor:'+cur+'"/>';
     });
+    if(a.tip) out+='<circle data-aid="'+a.id+'" data-ahandle="tip" cx="'+(a.tip.x*VW)+'" cy="'+(a.tip.y*VH)+'" r="'+(5.2/z)+'" fill="#fff" stroke="#2b6fe0" stroke-width="'+(2/z)+'" style="cursor:crosshair"><title>ลากเพื่อย้ายปลายลูกศร</title></circle>';
   }
   return out;
 }
@@ -6593,7 +6614,7 @@ function planStageHtml(){
   var bg = plan
     ? '<img class="plan-img"'+(_psrc?' src="'+_psrc+'"':'')+' alt="แปลนโครงสร้าง" draggable="false">'
     : '<div class="plan-grid"></div>';
-  var drawing = (state.tool==="draw" || state.tool==="drawZone" || state.tool==="drawCallout" || state.tool==="drawTbox" || state.tool==="drawDim" || state.tool==="setScale" || state.tool==="drawArea" || state.tool==="drawHole");
+  var drawing = (state.tool==="draw" || state.tool==="drawZone" || state.tool==="drawCallout" || state.tool==="drawTbox" || state.tool==="drawTcall" || state.tool==="drawDim" || state.tool==="setScale" || state.tool==="drawArea" || state.tool==="drawHole");
 
   var selbar='';   // แถบลอยกลางแปลนเลิกใช้แล้ว — แท็บ "แก้ไข · เบอร์" + คลิกขวา + ดับเบิลคลิก ครอบคลุมคำสั่งเดียวกัน (ไม่บังแปลน)
 
@@ -8400,7 +8421,7 @@ function rvRibbonHtml(type, f, plan, plans, selM){
     var selA=state.selAnnotId?getAnnot(state.selAnnotId):null, selAr=(selA&&selA.kind==="area")?selA:null, sci=planScaleInfo();
     body+=selBtn;
     body+=rvGrp('เพิ่มหมายเหตุ', rvBig(state.tool==="drawTbox","drawTboxStart",'','tbox','ป้ายข้อความ','คลิกหรือลากบนแปลน แล้วพิมพ์ข้อความ  (T)')
-      +rvBig(state.tool==="drawCallout","drawCalloutStart",'','callout','กล่องข้อความ','ลากกรอบกล่อง แล้วพิมพ์ข้อความ  (C)')
+      +rvBig(state.tool==="drawTcall","drawTcallStart",'','callout','ป้ายชี้','ป้ายชี้ลูกศร — คลิกจุดที่จะชี้ แล้วคลิกตรงที่จะวางป้าย  (C)')
       +rvBig(state.tool==="drawDim","drawDimStart",'','dim','เส้นบอกขนาด',sci.us>0?'ลากจากจุดหนึ่งไปอีกจุด — ตัวเลขคำนวณให้จากมาตราส่วน  (D)':'ลากจากจุดหนึ่งไปอีกจุด แล้วใส่ตัวเลข  (D)'));
     body+=rvGrp('มาตราส่วน · วัด', rvBig(state.tool==="setScale","setScaleStart",'','ruler','ตั้งมาตราส่วน', sci.src==="set"?'ตั้งใหม่ — ลาก 2 จุดที่รู้ระยะจริง (ตอนนี้ '+fmtScale(sci.us)+')':'ลาก 2 จุดที่รู้ระยะจริง (เช่น ศูนย์เสาถึงศูนย์เสา) แล้วใส่ตัวเลขเมตร — ตั้งครั้งเดียวต่อแปลน')
       +rvBig(state.tool==="drawArea","drawAreaStart",'','area','วัดพื้นที่','คลิกรอบพื้นที่ (ดับเบิลคลิกปิดรูป) หรือลากสี่เหลี่ยม — ได้ ตร.ม. และ ลบ.ม.  (A)')
@@ -8433,7 +8454,8 @@ function rvRibbonHtml(type, f, plan, plans, selM){
     body+=selBtn;
     body+=rvGrp('วาดชิ้นส่วน', drawBtns+rvCol(typeSel
       +'<div class="rv-seg"><button data-act="setPlanMode" data-mode="unified" aria-pressed="'+(state.unified)+'" title="แสดงทุกชนิดบนแปลน">รวมทุกชนิด</button><button data-act="setPlanMode" data-mode="focus" aria-pressed="'+(!state.unified)+'" title="แสดงเฉพาะชนิดที่เลือก">เฉพาะ '+esc(TYPE_EN[type]||TYPES[type].label)+'</button></div>'));
-    body+=rvGrp('ข้อความ', rvBig(state.tool==="drawTbox","drawTboxStart",'','tbox','ป้ายข้อความ','ป้ายข้อความ — คลิกหรือลากบนแปลน แล้วพิมพ์ข้อความ  (T)'));
+    body+=rvGrp('ข้อความ', rvBig(state.tool==="drawTbox","drawTboxStart",'','tbox','ป้ายข้อความ','ป้ายข้อความ — คลิกหรือลากบนแปลน แล้วพิมพ์ข้อความ  (T)')
+      +rvBig(state.tool==="drawTcall","drawTcallStart",'','callout','ป้ายชี้','ป้ายชี้ลูกศร — คลิกจุดที่จะชี้ แล้วคลิกตรงที่จะวางป้าย  (C)'));
   }
   var tabs='<button class="rv-tab rv-ftab'+(state.fileMenu?" on":"")+'" data-act="fileMenu" title="แปลน · นำออก · ข้อมูล">'+rvIc('folder',13)+'ไฟล์ '+rvIc('chev',11)+'</button>'
     +(state.fileMenu?rvFileMenuHtml(f,plan,plans):'')
@@ -8688,12 +8710,13 @@ function rvStatusHtml(vm, selM){
   var msg = state.tool==="draw" ? 'โหมดวาด — ลากบนแปลน'+(state.autoCode?' · เบอร์ถัดไป '+nextCode(state.catType)+' (อัตโนมัติ)':'')+' · Esc ยกเลิก'
           : state.tool==="drawZone" ? 'วาดโซนเท — ลากคลุมพื้นที่ · Esc ยกเลิก'
           : state.tool==="drawTbox" ? 'ป้ายข้อความ — คลิกหรือลากบนแปลน แล้วพิมพ์ข้อความ · Esc ยกเลิก'
+          : state.tool==="drawTcall" ? 'ป้ายชี้ — คลิกจุดที่จะชี้ แล้วคลิกตรงที่จะวางป้าย · Esc ยกเลิก'
           : state.tool==="drawCallout" ? 'กล่องข้อความ — ลากกรอบบนแปลน · Esc ยกเลิก'
           : state.tool==="drawDim" ? 'เส้นบอกขนาด — ลากจากจุดถึงจุด · Esc ยกเลิก'
           : state.tool==="setScale" ? 'ตั้งมาตราส่วน — ลาก 2 จุดที่รู้ระยะจริง แล้วใส่ตัวเลขเมตร · Esc ยกเลิก'
           : state.tool==="drawArea" ? 'วัดพื้นที่ — '+(state.areaShape==="rect"?'ลากสี่เหลี่ยมคลุมพื้นที่':'คลิกทีละมุม · ดับเบิลคลิกหรือคลิกจุดแรกเพื่อปิดรูป')+' · Esc ยกเลิก'
           : state.tool==="drawHole" ? 'หักช่องเปิด — วาดช่องทับพื้นที่ที่เลือก · Esc ยกเลิก'
-          : _sa ? 'เลือก '+(_sa.kind==="dim"?'เส้นบอกขนาด':_sa.kind==="area"?'พื้นที่ '+(_sa.name||''):_sa.kind==="tbox"?'ป้ายข้อความ':'กล่องข้อความ')
+          : _sa ? 'เลือก '+(_sa.kind==="dim"?'เส้นบอกขนาด':_sa.kind==="area"?'พื้นที่ '+(_sa.name||''):_sa.kind==="tbox"?(_sa.tip?'ป้ายชี้':'ป้ายข้อความ'):'กล่องข้อความ')
           : state.marquee ? 'ลากกรอบเลือก — ลากคลุมชิ้นบนแปลน · Esc ยกเลิก'
           : selIds().length>1 ? 'เลือก '+selIds().length+' ชิ้น — ลากย้ายทั้งชุด · Shift+คลิก เพิ่ม/ลด'
           : selM ? 'เลือก '+selM.code+' ('+TYPES[selM.type].label+')'
@@ -8775,7 +8798,7 @@ function tboxFormatHtml(a){
   var s=tboxStyleOf(a), pv=(String(a.text||"").split("\n")[0]||"ข้อความ").slice(0,22);
   var anc=(s.align==="left"?"start":s.align==="right"?"end":"middle"), ax=(s.align==="left"?16:s.align==="right"?154:85);
   var AL=function(v,d,tip){ return '<button class="fx-tb'+(s.align===v?" on":"")+'" data-act="annotAlign" data-v="'+v+'" title="'+tip+'"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="'+d+'"/></svg></button>'; };
-  var h='<div class="fx" id="annotFormat"><div class="fx-h"><span>รูปแบบ · ป้ายข้อความ</span><button class="fx-x" data-act="annotClose" title="ปิด">'+rvIc('cross',12)+'</button></div><div class="fx-b">';
+  var h='<div class="fx" id="annotFormat"><div class="fx-h"><span>รูปแบบ · '+(a.tip?'ป้ายชี้':'ป้ายข้อความ')+'</span><button class="fx-x" data-act="annotClose" title="ปิด">'+rvIc('cross',12)+'</button></div><div class="fx-b">';
   h+='<div class="fx-s">ตัวอย่าง</div><div class="fx-prev"><svg viewBox="0 0 170 50" style="width:100%;height:50px"><g'+(s.op<1?' opacity="'+s.op+'"':'')+'>'
     +'<rect x="8" y="8" width="154" height="34" rx="'+Math.min(10,+s.radius||0)+'" fill="'+_hx(s.fill)+'" fill-opacity="'+s.fillA+'"'+(+s.sw>0?' stroke="'+_hx(s.bcol)+'" stroke-width="'+Math.min(3,+s.sw)+'"':'')+'/>'
     +'<text x="'+ax+'" y="30" text-anchor="'+anc+'" font-size="'+Math.min(16,s.size)+'" font-weight="'+(s.bold?700:400)+'"'+(s.italic?' font-style="italic"':'')+tbDeco(s)+' fill="'+_hx(s.color)+'" font-family="'+_hx(s.font)+', sans-serif">'+_hx(pv)+'</text></g></svg></div>';
@@ -8806,7 +8829,15 @@ function tboxFormatHtml(a){
     +'<button class="'+(+s.radius>0&&+s.radius<8?"on":"")+'" data-act="annotRadius" data-v="4">มน</button>'
     +'<button class="'+(+s.radius>=8?"on":"")+'" data-act="annotRadius" data-v="10">มนมาก</button></span></div>';
   h+='<div class="fx-r"><span class="fx-lb">ความทึบ</span><input type="range" class="fx-range" min="10" max="100" step="5" data-act="tboxOpacity" value="'+Math.round(s.op*100)+'"><span class="fx-lb" id="tboxOpV" style="min-width:32px;text-align:right">'+Math.round(s.op*100)+'%</span></div>';
-  h+='<div class="fx-note">ดับเบิลคลิกป้ายเพื่อแก้ข้อความ · ลากจุดมุม = ย่อ/ขยายทั้งป้าย · ลากจุดกลางขอบ = ปรับเฉพาะกล่อง</div>';
+  h+='<div class="fx-s">ลูกศรชี้</div>';
+  if(a.tip){
+    var AH=[["open","M3 4 11 8 3 12","none"],["solid","M3 4 11 8 3 12Z","currentColor"],["dot","",""],["none","",""]];
+    h+='<div class="fx-r"><span class="fx-lb">หัวลูกศร</span><span style="display:inline-flex;gap:2px">'+AH.map(function(o){
+      var ic=o[0]==="dot"?'<circle cx="11" cy="8" r="2.6" fill="currentColor"/>':o[0]==="none"?'':'<path d="'+o[1]+'" fill="'+o[2]+'" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>';
+      return '<button class="fx-tb'+(s.a1===o[0]?" on":"")+'" data-act="tboxArrow" data-v="'+o[0]+'" title="'+({open:"ลูกศรเปิด",solid:"ลูกศรทึบ",dot:"จุด",none:"ไม่มีหัว"})[o[0]]+'"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 8h10"/>'+ic+'</svg></button>'; }).join("")+'</span></div>';
+    h+='<div class="fx-r"><button class="btn soft" style="flex:1;justify-content:center" data-act="tboxAddTip">เอาลูกศรออก</button></div>';
+  }else h+='<div class="fx-r"><button class="btn soft" style="flex:1;justify-content:center" data-act="tboxAddTip">+ ใส่ลูกศรชี้</button></div>';
+  h+='<div class="fx-note">ดับเบิลคลิกป้ายเพื่อแก้ข้อความ · ลากจุดมุม = ย่อ/ขยายทั้งป้าย · ลากจุดกลางขอบ = ปรับเฉพาะกล่อง'+(a.tip?' · ลากจุดขาวที่ปลายลูกศรเพื่อย้ายจุดชี้':'')+'</div>';
   h+='<div class="fx-acts"><button class="btn soft" data-act="annotDup">'+rvIc('copy',14)+' ทำซ้ำ</button><button class="btn danger" data-act="annotDel">'+rvIc('trash',14)+' ลบ</button></div>';
   return h+'</div></div>';
 }
@@ -8925,7 +8956,8 @@ function viewPlanEditor(){
   var selM=getMember(state.selMemberId); if(selM && !state.unified && selM.type!==type) selM=null;
 
   var hint='';
-  if(state.tool==="drawTbox") hint='<div class="plan-tip">ป้ายข้อความ: คลิกตรงที่จะวาง (หรือลากกำหนดขนาดกล่อง) แล้วพิมพ์ข้อความ · Esc ยกเลิก</div>';
+  if(state.tool==="drawTcall") hint='<div class="plan-tip">ป้ายชี้: คลิกจุดที่จะชี้ แล้วคลิกตรงที่จะวางป้าย (หรือลากจากจุดชี้ไปวาง) · Esc ยกเลิก</div>';
+  else if(state.tool==="drawTbox") hint='<div class="plan-tip">ป้ายข้อความ: คลิกตรงที่จะวาง (หรือลากกำหนดขนาดกล่อง) แล้วพิมพ์ข้อความ · Esc ยกเลิก</div>';
   else if(state.tool==="drawCallout") hint='<div class="plan-tip">กล่องข้อความ: ลากกรอบขนาดกล่องบนแปลน แล้วพิมพ์ข้อความ · Esc ยกเลิก</div>';
   else if(state.tool==="drawDim") hint='<div class="plan-tip">เส้นบอกขนาด: ลากจากจุดเริ่มไปจุดปลาย'+(planScaleInfo().us>0?' — ตัวเลขคำนวณจากมาตราส่วนให้เอง':' แล้วใส่ตัวเลขระยะ')+' · Esc ยกเลิก</div>';
   else if(state.tool==="setScale") hint='<div class="plan-tip">ตั้งมาตราส่วน: ลากจากจุดหนึ่งไปอีกจุดที่รู้ระยะจริง (เช่น ศูนย์เสา→ศูนย์เสา) แล้วใส่ตัวเลขเมตร · Esc ยกเลิก</div>';
@@ -8987,7 +9019,7 @@ function viewPlanEditorMobile(f,type,p,plan,plans,vm,selM,hint){
   var bar='<div class="m-bar">'
     + mBarBtn(state.tool==="select"&&!state.mSheet,"mTool",'data-tool="select"','mb_tap','เลือก')
     + mBarBtn(state.tool==="draw"||state.mSheet==="draw","mSheet",'data-sheet="draw"','mb_square','วาด')
-    + mBarBtn(state.tool==="drawCallout"||state.tool==="drawDim"||state.tool==="drawTbox"||state.mSheet==="annot","mSheet",'data-sheet="annot"','mb_clip','หมายเหตุ')
+    + mBarBtn(state.tool==="drawCallout"||state.tool==="drawDim"||state.tool==="drawTbox"||state.tool==="drawTcall"||state.mSheet==="annot","mSheet",'data-sheet="annot"','mb_clip','หมายเหตุ')
     + mBarBtn(prog,"mSheet",'data-sheet="zone"','mb_truck','เทคอนกรีต')
     + mBarBtn(state.mSheet==="more","mSheet",'data-sheet="more"','mb_grid','เพิ่มเติม')+'</div>';
   return '<div class="rv mrv" id="editorGrid">'+top
@@ -9020,10 +9052,10 @@ function mPlanSheetHtml(f,type,p,plan,plans,selM,prog){
   }
   if(sh==="annot"){
     var _msc=planScaleInfo();
-    var b2='<div class="m-grid">'+mG("drawTboxStart",'','tbox','ป้ายข้อความ','',0,state.tool==="drawTbox")+mG("drawCalloutStart",'','callout','กล่องข้อความ','',0,state.tool==="drawCallout")+mG("drawDimStart",'','dim','เส้นบอกขนาด','',0,state.tool==="drawDim")+mG("mTool",'data-tool="select"','sel','เลือก/ย้าย','',0,state.tool==="select")
+    var b2='<div class="m-grid">'+mG("drawTboxStart",'','tbox','ป้ายข้อความ','',0,state.tool==="drawTbox")+mG("drawTcallStart",'','callout','ป้ายชี้','',0,state.tool==="drawTcall")+mG("drawDimStart",'','dim','เส้นบอกขนาด','',0,state.tool==="drawDim")+mG("mTool",'data-tool="select"','sel','เลือก/ย้าย','',0,state.tool==="select")
       +mG("setScaleStart",'','ruler','ตั้งมาตราส่วน','',0,state.tool==="setScale")+mG("drawAreaStart",'data-shape="poly"','area','วัดพื้นที่','',0,state.tool==="drawArea")+mG("areaCsv",'','csv','CSV พื้นที่')+'</div>'
       +'<div class="m-row"><span>มาตราส่วน</span><b>'+esc(_msc.src?fmtScale(_msc.us):'ยังไม่ตั้ง')+'</b></div>'
-      +'<div class="m-note">กล่องข้อความ: ลากกรอบแล้วพิมพ์ · เส้นบอกขนาด: ลากจากจุดถึงจุด · ตั้งมาตราส่วน: ลาก 2 จุดที่รู้ระยะจริงแล้วใส่เมตร · วัดพื้นที่: แตะทีละมุม ดับเบิลแตะเพื่อปิดรูป</div>';
+      +'<div class="m-note">ป้ายข้อความ: แตะตรงที่จะวางแล้วพิมพ์ · ป้ายชี้: แตะจุดที่จะชี้ แล้วแตะตรงที่จะวางป้าย · เส้นบอกขนาด: ลากจากจุดถึงจุด · ตั้งมาตราส่วน: ลาก 2 จุดที่รู้ระยะจริงแล้วใส่เมตร · วัดพื้นที่: แตะทีละมุม ดับเบิลแตะเพื่อปิดรูป</div>';
     return mSheetWrap('annot','<b>หมายเหตุ</b>', b2, {dim:true});
   }
   if(sh==="zone"){
@@ -9368,8 +9400,8 @@ function bindPlanEditor(){
   var psq=$("#planSearch");
   if(psq) psq.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); planSearch(psq.value); } });
   // มือถือ: ปุ่มในแผงเครื่องมือที่ "เลือกแล้วไปทำต่อบนแปลน" → ปิดแผงก่อนให้ act ทำงาน (capture มาก่อน dispatcher ที่ document)
-  var MCLOSE={setShape:1,drawTboxStart:1,drawCalloutStart:1,drawDimStart:1,drawZoneStart:1,setScaleStart:1,drawAreaStart:1,drawHoleStart:1,areaCsv:1,switchPlan:1,browserSelect:1,selectZone:1,typeSelect:1,goInspect:1,showDetails:1,editMember:1,addInCat:1,qatData:1,back:1,exportPdf:1,exportProgressPdf:1,addPlan:1,removePlan:1,manageZoneStatus:1,typeAssignSheet:1,assignSheet:1,dupMember:1,delMember:1,typeManage:1,typeOpenDetail:1,deleteZone:1,mExitProgress:1};
-  var MDRAW={setShape:1,drawTboxStart:1,drawCalloutStart:1,drawDimStart:1,drawZoneStart:1,setScaleStart:1,drawAreaStart:1};   // เริ่มเครื่องมือวาด → เลิกเลือกของเดิมด้วย (ไม่งั้นแผงของชิ้นที่เลือกเด้งกลับมาทับแปลน)
+  var MCLOSE={setShape:1,drawTboxStart:1,drawTcallStart:1,drawCalloutStart:1,drawDimStart:1,drawZoneStart:1,setScaleStart:1,drawAreaStart:1,drawHoleStart:1,areaCsv:1,switchPlan:1,browserSelect:1,selectZone:1,typeSelect:1,goInspect:1,showDetails:1,editMember:1,addInCat:1,qatData:1,back:1,exportPdf:1,exportProgressPdf:1,addPlan:1,removePlan:1,manageZoneStatus:1,typeAssignSheet:1,assignSheet:1,dupMember:1,delMember:1,typeManage:1,typeOpenDetail:1,deleteZone:1,mExitProgress:1};
+  var MDRAW={setShape:1,drawTboxStart:1,drawTcallStart:1,drawCalloutStart:1,drawDimStart:1,drawZoneStart:1,setScaleStart:1,drawAreaStart:1};   // เริ่มเครื่องมือวาด → เลิกเลือกของเดิมด้วย (ไม่งั้นแผงของชิ้นที่เลือกเด้งกลับมาทับแปลน)
   $$(".m-sheet").forEach(function(ms){ ms.addEventListener("click",function(e){
     var a=e.target.closest("[data-act]"); if(!a||a.disabled) return; var ac=a.getAttribute("data-act");
     if(!MCLOSE[ac] || !state.mSheet) return;
@@ -9399,7 +9431,7 @@ function bindPlanEditor(){
     }
     if(typing || mod || e.altKey) return;
     var prog=stageMode()==="progress";
-    if(kl==="c"){ state.tool="drawCallout"; state.ribbonTab="annot"; state.selAnnotId=null; render(); }
+    if(kl==="c" && !prog){ state.tool="drawTcall"; state.selAnnotId=null; state.selMemberId=null; state.selMulti=[]; state.marquee=false; render(); }
     else if(kl==="t" && !prog){ state.tool="drawTbox"; state.selAnnotId=null; state.selMemberId=null; state.selMulti=[]; state.marquee=false; render(); }
     else if(kl==="d"){ state.tool="drawDim"; state.ribbonTab="annot"; state.selAnnotId=null; render(); }
     else if(kl==="a" && !prog){ state.tool="drawArea"; state.ribbonTab="annot"; state.selAnnotId=null; state.selMemberId=null; state.selMulti=[]; state.marquee=false; render(); }
@@ -9805,6 +9837,7 @@ function bindPlanEditor(){
             at.off=((cx2*_vw-_ax)*_npx+(cy2*_vh-_ay)*_npy)/_vw;
           }
           else if(hh2==="p1"){ at.p1.x=cx2; at.p1.y=cy2; } else { at.p2.x=cx2; at.p2.y=cy2; }
+        }else if(at.kind==="tbox" && hh2==="tip"){ at.tip={x:cx2,y:cy2};
         }else if(at.kind==="tbox"){
           var tx1=Math.min(g0.box.x1,g0.box.x2), tx2=Math.max(g0.box.x1,g0.box.x2);
           var ty1=Math.min(g0.box.y1,g0.box.y2), ty2=Math.max(g0.box.y1,g0.box.y2), MINT=0.004;
@@ -9951,10 +9984,11 @@ function bindPlanEditor(){
   }
 
   /* ---------- โหมดเพิ่มหมายเหตุ: กล่องข้อความ / เส้นบอกขนาด ---------- */
-  if(state.tool==="drawCallout" || state.tool==="drawDim" || state.tool==="drawTbox"){
-    var isDimTool=(state.tool==="drawDim"), isTbox=(state.tool==="drawTbox");
-    var ACOL=isTbox ? tboxStyleOf(null).bcol : ((state.annotStyle&&state.annotStyle.color)||"#1d4ed8");
-    var aStart=null, aTemp=null;
+  if(state.tool==="drawCallout" || state.tool==="drawDim" || state.tool==="drawTbox" || state.tool==="drawTcall"){
+    var isDimTool=(state.tool==="drawDim"), isTbox=(state.tool==="drawTbox"), isTcall=(state.tool==="drawTcall");
+    var ACOL=(isTbox||isTcall) ? tboxStyleOf(null).bcol : ((state.annotStyle&&state.annotStyle.color)||"#1d4ed8");
+    var aStart=null, aTemp=null, tcTip=null, tcTemp=null;
+    function tcClear(){ if(tcTemp){ tcTemp.remove(); tcTemp=null; } tcTip=null; }
     function aEnd(ev2){
       window.removeEventListener("pointermove",aMove,true);
       window.removeEventListener("pointerup",aEnd,true);
@@ -9966,6 +10000,16 @@ function bindPlanEditor(){
       var rb=overlay.getBoundingClientRect();
       var _short=(Math.abs(p.x-s0.x)*rb.width<6 && Math.abs(p.y-s0.y)*rb.height<6);
       if(isTbox){ finishDrawTbox(s0,p,_short); return; }   // ป้ายข้อความ: คลิกเฉย ๆ ก็วางได้
+      if(isTcall){                                            // ป้ายชี้: คลิกแรก = จุดชี้ · คลิกสอง = ที่วางป้าย
+        if(tcTip){ var _tt=tcTip; tcClear(); finishDrawTcall(_tt,p); return; }
+        if(!_short){ finishDrawTcall(s0,p); return; }        // ลากจากจุดชี้ไปวางป้ายในครั้งเดียว
+        tcTip=s0; var _z0=state.zoom||1;
+        tcTemp=document.createElementNS(NS,"g");
+        tcTemp.innerHTML='<line x1="'+(s0.x*VW)+'" y1="'+(s0.y*VH)+'" x2="'+(s0.x*VW)+'" y2="'+(s0.y*VH)+'" stroke="'+ACOL+'" stroke-width="'+(2/_z0)+'" stroke-dasharray="'+(6/_z0)+' '+(4/_z0)+'"/>'
+          +'<circle cx="'+(s0.x*VW)+'" cy="'+(s0.y*VH)+'" r="'+(4/_z0)+'" fill="'+ACOL+'"/>';
+        tcTemp.style.pointerEvents="none"; overlay.appendChild(tcTemp);
+        return;
+      }
       if(_short) return;   // ลากสั้นเกิน = ยกเลิก
       if(isDimTool) finishDrawDim(s0,p); else finishDrawCallout(s0,p);
     }
@@ -9974,7 +10018,7 @@ function bindPlanEditor(){
       if(ev2.cancelable) ev2.preventDefault();
       edgePan(ev2, aMove);
       var p=snapAt(ev2), z=state.zoom||1;
-      if(isDimTool){
+      if(isDimTool||isTcall){
         aTemp.setAttribute("x1",s0x()*VW); aTemp.setAttribute("y1",s0y()*VH);
         aTemp.setAttribute("x2",p.x*VW);   aTemp.setAttribute("y2",p.y*VH);
       }else{
@@ -9983,7 +10027,11 @@ function bindPlanEditor(){
       }
     }
     function s0x(){ return aStart?aStart.x:0; } function s0y(){ return aStart?aStart.y:0; }
-    overlay.addEventListener("pointermove",function(ev){ if(!aStart) snapAt(ev); });
+    overlay.addEventListener("pointermove",function(ev){
+      if(aStart) return;
+      var _hp=snapAt(ev);
+      if(tcTemp && _hp){ var _ln=tcTemp.querySelector("line"); if(_ln){ _ln.setAttribute("x2",_hp.x*VW); _ln.setAttribute("y2",_hp.y*VH); } }   // เส้นยางตามเมาส์ระหว่างรอคลิกที่สอง
+    });
     overlay.addEventListener("pointerleave",function(){ if(!aStart) showSnap(null); });
     overlay.addEventListener("pointerdown",function(ev){
       if(window.__planPinch) return;
@@ -9991,10 +10039,13 @@ function bindPlanEditor(){
       ev.preventDefault();
       aStart=snapAt(ev);
       var z=state.zoom||1;
-      aTemp=document.createElementNS(NS, isDimTool?"line":"rect");
+      if(isTcall && tcTip){ aTemp=null;   // คลิกที่สองของป้ายชี้ — ไม่ต้องมีกรอบชั่วคราว
+        window.addEventListener("pointermove",aMove,true); window.addEventListener("pointerup",aEnd,true); window.addEventListener("pointercancel",aEnd,true);
+        return; }
+      aTemp=document.createElementNS(NS, (isDimTool||isTcall)?"line":"rect");
       aTemp.setAttribute("stroke",ACOL); aTemp.setAttribute("stroke-width",(2/z));
       aTemp.setAttribute("stroke-dasharray",(6/z)+" "+(4/z));
-      if(isDimTool){ aTemp.setAttribute("x1",aStart.x*VW); aTemp.setAttribute("y1",aStart.y*VH); aTemp.setAttribute("x2",aStart.x*VW); aTemp.setAttribute("y2",aStart.y*VH); }
+      if(isDimTool||isTcall){ aTemp.setAttribute("x1",aStart.x*VW); aTemp.setAttribute("y1",aStart.y*VH); aTemp.setAttribute("x2",aStart.x*VW); aTemp.setAttribute("y2",aStart.y*VH); }
       else{ aTemp.setAttribute("fill",ACOL); aTemp.setAttribute("fill-opacity","0.06"); aTemp.setAttribute("rx",(6/z)); }
       overlay.appendChild(aTemp);
       window.addEventListener("pointermove",aMove,true);
@@ -10416,6 +10467,23 @@ function finishDraw(geom){
 }
 function tbFocusText(){ setTimeout(function(){ var t=document.getElementById("annotText"); if(t){ t.focus(); t.select(); } },60); }
 /** สร้างป้ายข้อความ — คลิก = กล่องมาตรฐานกลางจุดที่คลิก · ลาก = ขนาดตามกรอบ · แล้วพิมพ์ในแผงรูปแบบได้เลย */
+/** ป้ายชี้: tip = จุดที่ชี้ · p = ที่วางป้าย (ขอบกล่องฝั่งใกล้ลูกศรอยู่ตรงจุดที่คลิก) */
+function finishDrawTcall(tip, p){
+  var ov=document.getElementById("planOverlay");
+  var VW=(ov&&+ov.getAttribute("data-vw"))||1000, VH=(ov&&+ov.getAttribute("data-vh"))||1000;
+  var st=tboxStyleOf(null), w=0.16, h=Math.max(0.02, st.size*(VW/1000)*2.3/VH);
+  var x1=(p.x>=tip.x)?p.x:p.x-w; x1=Math.max(0,Math.min(1-w,x1));
+  var y1=Math.max(0,Math.min(1-h,p.y-h/2));
+  var a={ id:uid("an"), projectId:state.projectId, floorId:state.floorId, planId:curPlanId(), kind:"tbox",
+          box:{x1:x1,y1:y1,x2:x1+w,y2:y1+h}, tip:{x:tip.x,y:tip.y}, text:"ข้อความ" };
+  Object.keys(TBOX_DEF).forEach(function(k){ a[k]=st[k]; });
+  if(!DB.annots) DB.annots=[];
+  plPushUndo();
+  DB.annots.push(a);
+  if(!saveDB()){ DB.annots.pop(); render(); return; }
+  state.tool="select"; state.selAnnotId=a.id; state.selMemberId=null; state.selMulti=[]; state.selZoneId=null;
+  render(); tbFocusText();
+}
 function finishDrawTbox(s, p, isClick){
   var ov=document.getElementById("planOverlay");
   var VW=(ov&&+ov.getAttribute("data-vw"))||1000, VH=(ov&&+ov.getAttribute("data-vh"))||1000;
