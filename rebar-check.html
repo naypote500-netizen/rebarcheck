@@ -9224,7 +9224,7 @@ function bindPlanEditor(){
 
   // สี/ความเข้ม/ความหนาเส้น (แท็บสไตล์/ลาย) — ถ้าเลือกคานอยู่ ปรับคานนั้นทันที; ถ้าไม่ ตั้งเป็นค่าเริ่มของคานที่จะวาดใหม่
   var dc=$("#drawColor"), da=$("#drawAlpha"), ds=$("#drawStroke"), dsw=$("#drawSwatch");
-  function applyStyle(colOverride){
+  function applyStyle(colOverride, which){
     var _mp=(function(){ var q=getMember(state.selMemberId); return (q&&isBox(q.plan))?q.plan:null; })();
     var col=colOverride||(dc?dc.value:(_mp?(_mp.fill||state.fillColor):state.fillColor));
     var a=da?(+da.value)/100:(_mp&&_mp.fillA!=null?_mp.fillA:state.fillAlpha);
@@ -9247,33 +9247,39 @@ function bindPlanEditor(){
       }
     }else{                                          // ไม่ได้เลือกกล่อง → ปรับ "ทุกกล่อง" ในแปลนนี้ทันที + ตั้งเป็นค่าเริ่มของกล่องใหม่
       state.fillColor=col; state.fillAlpha=a; state.strokeW=ww;
-      var _f=getFloor(state.floorId), _pid=curPlanId(), _n=0;
-      membersOfFloor(_f.id).forEach(function(mm){ if(mm.plan && isBox(mm.plan) && memberPlanId(mm)===_pid){ mm.plan.fill=col; mm.plan.fillA=a; mm.plan.strokeW=ww; _n++; } });
+      var _doF=(!which||which==="fill"), _doA=(!which||which==="alpha"), _doW=(!which||which==="stroke");
+      var _f=getFloor(state.floorId), _pid=curPlanId(), _n=0, _tSeen={};
+      membersOfFloor(_f.id).forEach(function(mm){ if(mm.plan && isBox(mm.plan) && memberPlanId(mm)===_pid){
+        if(_doF) mm.plan.fill=col; if(_doA) mm.plan.fillA=a; if(_doW) mm.plan.strokeW=ww; _n++;
+        if(mm.typeId) _tSeen[mm.typeId]=1;
+      } });
+      // กล่องที่ผูกประเภท: ตั้งค่าที่ประเภทด้วย (ไม่งั้นเปิดแอปใหม่เด้งกลับ) — ชิ้นประเภทเดียวกันชั้นอื่นตามด้วย
+      if(_doF||_doA) Object.keys(_tSeen).forEach(function(tid){ var _t=getType(tid); if(_t) setTypeFill(_t, _doF?col:null, _doA?a:null); });
       if(_n) repaintPlanShapes();
     }
   }
-  function saveStyle(){ applyStyle(); saveDB(); }
+  function saveStyle(which){ applyStyle(null, which); saveDB(); }
   [dc,da,ds].forEach(function(inp){ if(inp) inp.addEventListener("pointerdown",function(){ plPushUndo(); }); });   // เก็บสภาพก่อนปรับ ครั้งเดียวต่อการลาก
-  if(dc){ dc.addEventListener("input",function(){ applyStyle(); }); dc.addEventListener("change",saveStyle); }
-  if(da){ da.addEventListener("input",function(){ applyStyle(); }); da.addEventListener("change",saveStyle); }
-  if(ds){ ds.addEventListener("input",function(){ applyStyle(); }); ds.addEventListener("change",saveStyle); }
+  if(dc){ dc.addEventListener("input",function(){ applyStyle(null,"fill"); }); dc.addEventListener("change",function(){ saveStyle("fill"); }); }
+  if(da){ da.addEventListener("input",function(){ applyStyle(null,"alpha"); }); da.addEventListener("change",function(){ saveStyle("alpha"); }); }
+  if(ds){ ds.addEventListener("input",function(){ applyStyle(null,"stroke"); }); ds.addEventListener("change",function(){ saveStyle("stroke"); }); }
   // จานสีใช้บ่อย — กดเลือกแล้วใช้ทันที (บันทึกเสมอ ทั้งโหมดชิ้นเดียวและทั้งแปลน)
   $$(".swatch").forEach(function(b){ b.addEventListener("click",function(){
     plPushUndo();
     var _c=b.getAttribute("data-swatch"); if(dc) dc.value=_c;
-    applyStyle(_c); saveDB();
+    applyStyle(_c,"fill"); saveDB();
     $$(".swatch").forEach(function(x){ x.classList.toggle("on", x===b); });
   }); });
   // พรีเซ็ตกดเร็ว: ความเข้ม (จาง/กลาง/เข้ม) · เส้นกรอบ (ไม่มี/บาง/กลาง/หนา) — ใช้ตอนไม่ได้เลือกชิ้น
   $$("[data-qalpha]").forEach(function(b){ b.addEventListener("click",function(){
     plPushUndo(); var v=parseFloat(b.getAttribute("data-qalpha"));
     state.fillAlpha=v; if(da) da.value=Math.round(v*100);
-    applyStyle(); saveDB(); render();
+    applyStyle(null,"alpha"); saveDB(); render();
   }); });
   $$("[data-qstroke]").forEach(function(b){ b.addEventListener("click",function(){
     plPushUndo(); var v=parseInt(b.getAttribute("data-qstroke"),10);
     state.strokeW=v; if(ds) ds.value=v;
-    applyStyle(); saveDB(); render();
+    applyStyle(null,"stroke"); saveDB(); render();
   }); });
   // แท็บ "เส้นกรอบ" ของชิ้นที่เลือก — สีเส้นแยกจากสีพื้น (ว่าง = ตามสีพื้น)
   var dsc=$("#drawStrokeCol");
@@ -9293,12 +9299,12 @@ function bindPlanEditor(){
     dsc.addEventListener("change",function(){ saveDB(); render(); });
   }
   // ช่องตัวเลข ↔ สไลเดอร์ (%, px)
-  function _pairNum(sl,nm){
+  function _pairNum(sl,nm,which){
     if(!sl||!nm) return;
     sl.addEventListener("input",function(){ nm.value=sl.value; });
-    nm.addEventListener("change",function(){ plPushUndo(); sl.value=nm.value; applyStyle(); saveDB(); });
+    nm.addEventListener("change",function(){ plPushUndo(); sl.value=nm.value; applyStyle(null,which); saveDB(); });
   }
-  _pairNum(da,$("#alphaNum")); _pairNum(ds,$("#strokeNum"));
+  _pairNum(da,$("#alphaNum"),"alpha"); _pairNum(ds,$("#strokeNum"),"stroke");
 
   // โหลด pdf.js ไว้ล่วงหน้าแบบเบื้องหลัง เพื่อให้ตอนกดนำเข้า PDF ขึ้นไว (ไม่ต้องรอโหลด CDN)
   if(!window.pdfjsLib && !_pdfjsPromise){ try{ loadPdfJs(); }catch(e){} }
