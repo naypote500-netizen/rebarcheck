@@ -1720,7 +1720,7 @@ function viewHome(){
     +'<span><b>'+esc(user)+'</b><small>ผู้ตรวจ</small></span></div></div>';
   // ---- hero ----
   var hero='<section class="dh-hero has-photo">'
-    +'<img class="dh-hero-bg" src="img/hero-blue.webp" alt="" decoding="async" data-c="has-photo" onerror="this.parentNode.classList.remove(this.dataset.c);this.remove()">'
+    +'<img class="dh-hero-bg" src="img/hero-site.webp" alt="" decoding="async" data-c="has-photo" onerror="this.parentNode.classList.remove(this.dataset.c);this.remove()">'
     +'<div class="dh-hero-fade"></div><div class="dh-hero-l">'
     +'<div class="hi">ยินดีต้อนรับสู่</div><h1>Rebar<b>Check</b></h1>'
     +'<p>ระบบตรวจสอบและประเมินผลเหล็กเสริมในงานคอนกรีตเสริมเหล็ก เพื่อความปลอดภัยและมาตรฐานงานก่อสร้าง</p>'
