@@ -3265,6 +3265,7 @@ var state = {
   selMemberId:null,      // ชิ้นส่วนที่เลือกบนแปลน
   colorMode:"plain",     // ลงสีตาม: status | plain — ค่าเริ่มต้น = สีประจำประเภท
   showLabels:false,      // แสดงเบอร์บนแปลน — เริ่มต้นซ่อนไว้ กดปุ่ม "ป้ายเบอร์" แถบล่างเพื่อเปิด
+  styleFine:false,       // แผงสีกรอบรวม: กาง "ปรับละเอียด" (สไลเดอร์) อยู่ไหม
   zoom:1, panX:0, panY:0,// สถานะซูม/เลื่อนแปลน
   fillColor:"#f59e0b",   // สีกรอบที่จะวาด (คาน/พื้น/PT)
   fillAlpha:0.35,        // ความเข้มสีด้านในกรอบ (0..1)
@@ -3642,6 +3643,7 @@ document.addEventListener("click",function(e){
     case "planRedo": plRedo(); break;
     case "toggleSheet": state.rpSheet=(state.rpSheet==="open"?"peek":"open"); render(); break;
     case "toggleLabels": state.showLabels=!state.showLabels; render(); break;
+    case "toggleStyleFine": state.styleFine=!state.styleFine; render(); break;
     case "labelColorAuto": { state.labelStyle.color=""; try{ localStorage.setItem("rebarcheck.labelStyle",JSON.stringify(state.labelStyle)); }catch(e){} render(); break; }
     case "boxLabelReset": { var _blm=getMember(state.selMemberId); if(_blm&&_blm.plan){ delete _blm.plan.labelColor; delete _blm.plan.labelFont; saveDB(); render(); } break; }
     case "selectPlanMember":
@@ -3758,6 +3760,7 @@ document.addEventListener("click",function(e){
     }
     case "colorMode":   state.colorMode=el.getAttribute("data-mode"); render(); break;
     case "toggleLabels":state.showLabels=!state.showLabels; render(); break;
+    case "toggleStyleFine": state.styleFine=!state.styleFine; render(); break;
     case "zoomIn": case "zoomOut": {
       var st=$("#planStage"); if(st){ var r=st.getBoundingClientRect();
         planZoomBy(act==="zoomIn"?1.35:1/1.35, r.width/2, r.height/2); }
@@ -6414,12 +6417,33 @@ function rvRibbonHtml(type, f, plan, plans, selM){
 /* ---- พาเนลคุณสมบัติ (ซ้ายบน) ---- */
 function rvProw(k,v,mono){ return '<div class="rv-prow"><span>'+esc(k)+'</span><b'+(mono?' class="mono"':'')+'>'+v+'</b></div>'; }
 function rvPh(t){ return '<div class="rv-ph">'+esc(t)+'</div>'; }
+function rvStyleSliderRows(sc,sa,sww){
+  return '<div class="rv-prow"><span>สีกรอบ</span><b><input type="color" id="drawColor" value="'+esc(sc)+'" class="rv-color"><span id="drawSwatch" class="rv-swpv" style="background:'+esc(sc)+';opacity:'+sa+'"></span><span class="mono">'+esc(sc)+'</span></b></div>'
+    +'<div class="rv-prow"><span>ความเข้ม</span><b class="rv-range"><input type="range" id="drawAlpha" min="0" max="100" value="'+Math.round(sa*100)+'"><em data-for="drawAlpha">'+Math.round(sa*100)+'%</em></b></div>'
+    +'<div class="rv-prow"><span>เส้นกรอบ</span><b class="rv-range"><input type="range" id="drawStroke" min="0" max="30" value="'+Math.round(sww)+'"><em data-for="drawStroke">'+Math.round(sww)+' px</em></b></div>';
+}
 function rvStyleRows(sc,sa,sww,note){
   return (note?'<div class="rv-pnote">'+esc(note)+'</div>':'')
-    +'<div class="rv-prow"><span>สีกรอบ</span><b><input type="color" id="drawColor" value="'+esc(sc)+'" class="rv-color"><span id="drawSwatch" class="rv-swpv" style="background:'+esc(sc)+';opacity:'+sa+'"></span><span class="mono">'+esc(sc)+'</span></b></div>'
-    +'<div class="rv-prow"><span>ความเข้ม</span><b class="rv-range"><input type="range" id="drawAlpha" min="0" max="100" value="'+Math.round(sa*100)+'"><em data-for="drawAlpha">'+Math.round(sa*100)+'%</em></b></div>'
-    +'<div class="rv-prow"><span>เส้นกรอบ</span><b class="rv-range"><input type="range" id="drawStroke" min="0" max="30" value="'+Math.round(sww)+'"><em data-for="drawStroke">'+Math.round(sww)+' px</em></b></div>'
+    +rvStyleSliderRows(sc,sa,sww)
     +'<div class="rv-prow"><span>สีใช้บ่อย</span><b><span class="rv-swatches">'+PRESET_COLORS.map(function(c){ return '<button class="swatch'+(sc.toLowerCase()===c?" on":"")+'" data-swatch="'+c+'" title="'+c+'" style="background:'+c+'"></button>'; }).join("")+'</span></b></div>';
+}
+/** แบบกดเร็ว (ใช้ตอนไม่ได้เลือกชิ้น): ชิปสีใหญ่ + พรีเซ็ตความเข้ม/เส้นกรอบ · สไลเดอร์อยู่ใต้ "ปรับละเอียด" */
+function rvStyleQuickRows(sc,sa,sww,note){
+  var A=[[0.15,'จาง'],[0.35,'กลาง'],[0.60,'เข้ม']], S=[[0,'ไม่มี'],[4,'บาง'],[10,'กลาง'],[20,'หนา']];
+  var aOn=A.some(function(p){ return Math.abs(sa-p[0])<0.005; }), sw=Math.round(sww), sOn=S.some(function(p){ return p[0]===sw; });
+  var h=(note?'<div class="rv-pnote">'+esc(note)+'</div>':'');
+  h+='<div class="rv-prow"><span>สี</span><b><span class="rv-swatches lg">'+PRESET_COLORS.map(function(c){ return '<button class="swatch'+(sc.toLowerCase()===c?" on":"")+'" data-swatch="'+c+'" title="'+c+'" style="background:'+c+'"></button>'; }).join("")+'</span></b></div>';
+  h+='<div class="rv-prow"><span>ความเข้ม</span><b><span class="rv-seg">'+A.map(function(p){
+    var on=Math.abs(sa-p[0])<0.005;
+    return '<button data-qalpha="'+p[0]+'"'+(on?' aria-pressed="true"':'')+'>'+p[1]+(on?' '+Math.round(sa*100)+'%':'')+'</button>';
+  }).join("")+'</span>'+(aOn?'':'<span class="mono" style="font-size:10.5px;opacity:.6">'+Math.round(sa*100)+'%</span>')+'</b></div>';
+  h+='<div class="rv-prow"><span>เส้นกรอบ</span><b><span class="rv-seg">'+S.map(function(p){
+    var on=(p[0]===sw);
+    return '<button data-qstroke="'+p[0]+'"'+(on?' aria-pressed="true"':'')+'>'+p[1]+'</button>';
+  }).join("")+'</span>'+(sOn?'':'<span class="mono" style="font-size:10.5px;opacity:.6">'+sw+' px</span>')+'</b></div>';
+  h+='<button class="rv-foldbar" data-act="toggleStyleFine"><span>ปรับละเอียด (สไลเดอร์ · โค้ดสี)</span><i>'+(state.styleFine?'▴':'▾')+'</i></button>';
+  if(state.styleFine) h+=rvStyleSliderRows(sc,sa,sww);
+  return h;
 }
 function rvPaletteHtml(type, m, p, f, plans, plan){
   var prog=stageMode()==="progress";
@@ -6487,7 +6511,7 @@ function rvPaletteHtml(type, m, p, f, plans, plan){
     if(drawKind(type)==="rect"){
       var _nbox=membersOfFloor(fl.id).filter(function(mm){ return mm.plan && isBox(mm.plan) && memberPlanId(mm)===curPlanId(); }).length;
       h+=rvPh(_nbox?'สีกรอบ · กล่องทั้งหมดในแปลนนี้ ('+_nbox+')':'สไตล์กรอบเริ่มต้น');
-      h+=rvStyleRows(state.fillColor,state.fillAlpha,state.strokeW,_nbox?'ลากเพื่อปรับ '+_nbox+' กล่องพร้อมกันทันที · หรือคลิกเลือกกล่องเดียวเพื่อปรับเฉพาะตัว':'ใช้กับ'+TYPES[type].label+'ที่วาดใหม่');
+      h+=rvStyleQuickRows(state.fillColor,state.fillAlpha,state.strokeW,_nbox?'กดเพื่อปรับ '+_nbox+' กล่องในแปลนนี้พร้อมกัน · คลิกเลือกกล่องเดียวเพื่อปรับเฉพาะตัว':'ใช้กับ'+TYPES[type].label+'ที่วาดใหม่');
     }
   }
   return h+'</div></div>';
@@ -7345,12 +7369,23 @@ function bindPlanEditor(){
   if(dc){ dc.addEventListener("input",function(){ applyStyle(); }); dc.addEventListener("change",saveStyle); }
   if(da){ da.addEventListener("input",function(){ applyStyle(); }); da.addEventListener("change",saveStyle); }
   if(ds){ ds.addEventListener("input",function(){ applyStyle(); }); ds.addEventListener("change",saveStyle); }
-  // จานสีใช้บ่อย — กดเลือกแล้วใช้ทันที
+  // จานสีใช้บ่อย — กดเลือกแล้วใช้ทันที (บันทึกเสมอ ทั้งโหมดชิ้นเดียวและทั้งแปลน)
   $$(".swatch").forEach(function(b){ b.addEventListener("click",function(){
-    if(getMember(state.selMemberId)) plPushUndo();
+    plPushUndo();
     var _c=b.getAttribute("data-swatch"); if(dc) dc.value=_c;
-    applyStyle(_c); if(getMember(state.selMemberId)) saveDB();
+    applyStyle(_c); saveDB();
     $$(".swatch").forEach(function(x){ x.classList.toggle("on", x===b); });
+  }); });
+  // พรีเซ็ตกดเร็ว: ความเข้ม (จาง/กลาง/เข้ม) · เส้นกรอบ (ไม่มี/บาง/กลาง/หนา) — ใช้ตอนไม่ได้เลือกชิ้น
+  $$("[data-qalpha]").forEach(function(b){ b.addEventListener("click",function(){
+    plPushUndo(); var v=parseFloat(b.getAttribute("data-qalpha"));
+    state.fillAlpha=v; if(da) da.value=Math.round(v*100);
+    applyStyle(); saveDB(); render();
+  }); });
+  $$("[data-qstroke]").forEach(function(b){ b.addEventListener("click",function(){
+    plPushUndo(); var v=parseInt(b.getAttribute("data-qstroke"),10);
+    state.strokeW=v; if(ds) ds.value=v;
+    applyStyle(); saveDB(); render();
   }); });
 
   // โหลด pdf.js ไว้ล่วงหน้าแบบเบื้องหลัง เพื่อให้ตอนกดนำเข้า PDF ขึ้นไว (ไม่ต้องรอโหลด CDN)
