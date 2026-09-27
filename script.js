@@ -7594,9 +7594,9 @@ function planClampPan(){
 function planMaxZoom(){
   var sz=_sheetWH(); if(!sz||!sz.w) return 8;
   var doc=PLAN_DOCS[planSourceKey()];
-  if(doc && doc.kind==="pdf") return 24;                          // เวกเตอร์ เรนเดอร์ใหม่ตามซูม
+  if(doc && doc.kind==="pdf") return 64;                          // เวกเตอร์ เรนเดอร์ใหม่ตามซูม (ส่วนที่เห็นคมทุกระดับ)
   var natW = doc&&doc.natW ? doc.natW : (currentPlan()?currentPlan().w:0);
-  if(natW) return Math.max(6, Math.min(24, natW/sz.w*3));         // รูปภาพ: ยอมเกินความละเอียดจริง 3 เท่า (เบลอบ้างแต่จับจุดได้)
+  if(natW) return Math.max(8, Math.min(40, natW/sz.w*5));         // รูปภาพ: ยอมเกินความละเอียดจริง 5 เท่า (เบลอบ้างแต่จับจุดได้)
   return 12;
 }
 /** ซูมโดยคงจุดใต้เคอร์เซอร์ (cx,cy = พิกัดเทียบมุมซ้ายบนของกรอบ) */
@@ -10293,7 +10293,7 @@ function renderPdfRegionToCanvas(page, rx1,ry1,rx2,ry2, targetW){
   return queuePdf(function(){ return new Promise(function(resolve,reject){
     var base=page.getViewport({scale:1});
     var regWpts=Math.max(1,(rx2-rx1)*base.width);
-    var scale=Math.max(0.2, Math.min(80, targetW/regWpts));   // เพดานสเกลพอเหมาะ (สูงเกินไปเรนเดอร์ช้า/ค้าง)
+    var scale=Math.max(0.2, Math.min(200, targetW/regWpts));   // ซูมลึก 6400% บนจอความละเอียดสูง ต้องสเกลเกิน 80   // เพดานสเกลพอเหมาะ (สูงเกินไปเรนเดอร์ช้า/ค้าง)
     var vp=page.getViewport({scale:scale});
     var cw=Math.round((rx2-rx1)*vp.width), ch=Math.round((ry2-ry1)*vp.height);
     var MAXD=_lowMemDev()?4096:8600;                 // กันแคนวาสใหญ่เกิน (หน่วยความจำ) — เผื่อ export A3 คมสูง · มือถือเพดาน 4096
