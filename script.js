@@ -7426,7 +7426,8 @@ function updateLabelScale(){
   });
 }
 /** มือถือ + กำลังวาดชิ้นส่วน/โซน → ใช้เป้ากลางจอ (ปิดได้ด้วย state.xhair=false) */
-function _xhWant(){ return isMobile() && state.screen==="planEditor" && (state.tool==="draw"||state.tool==="drawZone") && state.xhair!==false; }
+var XH_TOOLS={draw:1, drawZone:1, drawDim:1, setScale:1, drawArea:1, drawHole:1};
+function _xhWant(){ return isMobile() && state.screen==="planEditor" && !!XH_TOOLS[state.tool] && state.xhair!==false; }
 function planClampPan(){
   var s=_sheetWH(); if(!s) return;
   var z=state.zoom||1, cw=s.w*z, ch=s.h*z;
@@ -7873,14 +7874,27 @@ function bindPlanEditor(){
   function _bindNudgePad(){
     if(!isMobile() || state.tool!=="select") return;
     var body=document.querySelector(".m-body"); if(!body) return;
+    // จุดที่ต้องขยับ (ตัวชี้ไปยัง object + ชื่อคีย์ x/y) · size = จุดที่ขยับตอนโหมด "ยืด"
+    function P(o,kx,ky){ return {o:o,kx:kx,ky:ky}; }
+    function box(g){ return g.kind==="point" ? [P(g,"x","y")] : [P(g,"x1","y1"),P(g,"x2","y2")]; }
     function targets(){
+      var a=state.selAnnotId?getAnnot(state.selAnnotId):null;
+      if(a){
+        if(a.kind==="dim" && a.p1 && a.p2) return {pts:[P(a.p1,"x","y"),P(a.p2,"x","y")], size:"dim", annot:a};
+        if(a.kind==="area" && a.pts){ var L=a.pts.map(function(p){ return P(p,"x","y"); });
+          (a.holes||[]).forEach(function(h){ h.forEach(function(p){ L.push(P(p,"x","y")); }); }); return {pts:L, size:null, annot:a}; }
+        if(a.kind==="tbox" && a.box){ var L2=[P(a.box,"x1","y1"),P(a.box,"x2","y2")]; if(a.tip) L2.push(P(a.tip,"x","y")); return {pts:L2, size:null, annot:a}; }
+        return null;
+      }
       var z=(state.planMode==="progress" && state.selZoneId)?getZone(state.selZoneId):null;
-      if(z && z.plan) return [z.plan];
-      return selIds().map(getMember).filter(function(m){ return m && m.plan; }).map(function(m){ return m.plan; });
+      if(z && z.plan) return {pts:box(z.plan), size:(z.plan.kind==="point"?null:"box"), geo:z.plan};
+      var gs=selIds().map(getMember).filter(function(m){ return m && m.plan; }).map(function(m){ return m.plan; });
+      if(!gs.length) return null;
+      var L3=[]; gs.forEach(function(g){ L3=L3.concat(box(g)); });
+      return {pts:L3, size:(gs.length===1 && gs[0].kind!=="point")?"box":null, geo:gs[0]};
     }
-    var g0=targets(); if(!g0.length) return;
-    var canSize=(g0.length===1 && g0[0].kind!=="point");
-    var mode=(canSize && state.nudgeMode==="size")?"size":"move";
+    var t0=targets(); if(!t0 || !t0.pts.length) return;
+    var canSize=!!t0.size, mode=(canSize && state.nudgeMode==="size")?"size":"move";
     var pad=document.createElement("div"); pad.className="nd-pad"; pad.setAttribute("aria-label","ขยับทีละนิด");
     var A=function(d,ch,t){ return '<button data-nd="'+d+'" title="'+t+'">'+ch+'</button>'; };
     pad.innerHTML='<i></i>'+A("u","▲","ขึ้น")+'<i></i>'+A("l","◀","ซ้าย")
@@ -7889,13 +7903,15 @@ function bindPlanEditor(){
     body.appendChild(pad);
     var _last=0, _saveT=0, _hold=0, _rep=0, _n=0;
     function step(dir){
-      var gs=targets(); if(!gs.length) return;
+      var tg=targets(); if(!tg || !tg.pts.length) return;
       var r=overlay.getBoundingClientRect(); if(!r.width||!r.height) return;
       var px=_n>15?4:(_n>6?2:1);   // กดค้าง = เร็วขึ้น
       var nx=(dir==="l"?-px:dir==="r"?px:0)/r.width, ny=(dir==="u"?-px:dir==="d"?px:0)/r.height;
       var now=Date.now(); if(now-_last>900) plPushUndo(); _last=now;
-      if(mode==="size" && gs.length===1){
-        var g=gs[0], mnx=3/r.width, mny=3/r.height;
+      if(mode==="size" && tg.size==="dim"){   // เส้นวัด: ยืด = ขยับปลายเส้น
+        var e=tg.pts[1]; e.o.x=Math.max(0,Math.min(1,e.o.x+nx)); e.o.y=Math.max(0,Math.min(1,e.o.y+ny));
+      }else if(mode==="size" && tg.size==="box"){
+        var g=tg.geo, mnx=3/r.width, mny=3/r.height;
         if(g.kind==="line"){ g.x2=Math.max(0,Math.min(1,g.x2+nx)); g.y2=Math.max(0,Math.min(1,g.y2+ny)); }
         else{
           var kx=(g.x2>=g.x1)?"x2":"x1", ox=(kx==="x2")?"x1":"x2", ky=(g.y2>=g.y1)?"y2":"y1", oy=(ky==="y2")?"y1":"y2";
@@ -7905,17 +7921,13 @@ function bindPlanEditor(){
         }
       }else{
         var minX=1,maxX=0,minY=1,maxY=0;
-        gs.forEach(function(g){ var xs=g.kind==="point"?[g.x]:[g.x1,g.x2], ys=g.kind==="point"?[g.y]:[g.y1,g.y2];
-          minX=Math.min(minX,Math.min.apply(null,xs)); maxX=Math.max(maxX,Math.max.apply(null,xs));
-          minY=Math.min(minY,Math.min.apply(null,ys)); maxY=Math.max(maxY,Math.max.apply(null,ys)); });
+        tg.pts.forEach(function(q){ var x=q.o[q.kx], y=q.o[q.ky]; minX=Math.min(minX,x); maxX=Math.max(maxX,x); minY=Math.min(minY,y); maxY=Math.max(maxY,y); });
         nx=Math.max(-minX,Math.min(1-maxX,nx)); ny=Math.max(-minY,Math.min(1-maxY,ny));   // ไม่ให้หลุดขอบแปลน
-        gs.forEach(function(g){
-          if(g.kind==="point"){ g.x+=nx; g.y+=ny; }
-          else { g.x1+=nx; g.x2+=nx; g.y1+=ny; g.y2+=ny; }
-        });
+        tg.pts.forEach(function(q){ q.o[q.kx]+=nx; q.o[q.ky]+=ny; });
       }
       repaintPlanShapes();
-      clearTimeout(_saveT); _saveT=setTimeout(function(){ saveDB(); },500);
+      var isA=!!tg.annot;
+      clearTimeout(_saveT); _saveT=setTimeout(function(){ saveDB(); if(isA) render(); },500);   // หมายเหตุ: แผงโชว์ระยะ/พื้นที่ใหม่
     }
     function stop(){ clearTimeout(_hold); clearInterval(_rep); _hold=0; _rep=0; _n=0; }
     pad.addEventListener("pointerdown",function(ev){
@@ -7934,9 +7946,12 @@ function bindPlanEditor(){
   /* ---------- มือถือ: วาดด้วยเป้ากลางจอ — เลื่อนแปลนด้วยนิ้ว ให้เป้าตรงจุด แล้วกด "วางจุด" ---------- */
   function _bindCrosshair(){
     var body=document.querySelector(".m-body"); if(!body) return;
-    var isZone=(state.tool==="drawZone"), kd=drawKind(state.catType);
-    var shape=isZone ? (state.zoneShape||"rect") : (kd==="rect" ? (state.drawShape||"rect") : kd);   // rect|oval|poly|line|point
-    var col=isZone?"#22c55e":state.fillColor;
+    var T=state.tool, isZone=(T==="drawZone"), isMeas=(T==="drawDim"||T==="setScale"||T==="drawArea"||T==="drawHole"), kd=drawKind(state.catType);
+    var shape=isZone ? (state.zoneShape||"rect")
+            : (T==="drawDim"||T==="setScale") ? "line"
+            : (T==="drawArea"||T==="drawHole") ? ((state.areaShape||"poly")==="rect"?"rect":"poly")
+            : (kd==="rect" ? (state.drawShape||"rect") : kd);   // rect|oval|poly|line|point
+    var col=isZone?"#22c55e" : T==="drawDim"?"#1d4ed8" : (T==="setScale"||T==="drawHole")?"#dc2626" : T==="drawArea"?AREA_COL : state.fillColor;
     var key=state.tool+"|"+shape+"|"+state.floorId+"|"+curPlanId()+"|"+state.catType;
     if(state.xhKey!==key || !Array.isArray(state.xhPts)){ state.xhKey=key; state.xhPts=[]; }
     var pts=state.xhPts, cur=null, lastK="", lastSt="";
@@ -7978,8 +7993,14 @@ function bindPlanEditor(){
       else if(shape==="poly") t=n<3 ? 'วางจุดที่ '+(n+1)+' (ต้องมีอย่างน้อย 3 จุด)' : 'วางจุดต่อ หรือกด “เสร็จ” เพื่อปิดรูป ('+n+' จุด)';
       else if(shape==="line") t=n===0 ? 'ให้เป้าตรงต้นแนว แล้วกด “วางจุด”' : 'เลื่อนไปปลายแนว แล้วกด “วางจุด” อีกครั้ง';
       else t=n===0 ? 'ให้เป้าตรงมุมแรก แล้วกด “วางจุด”' : 'เลื่อนไปมุมตรงข้าม แล้วกด “วางจุด” อีกครั้ง';
-      if(cur && !cur.inside) t='เป้าอยู่นอกแปลน — เลื่อนแปลนกลับเข้ามา';
-      else if(cur && cur.snap) t+=' · ดูดติดเส้นแล้ว';
+      if(cur && !cur.inside) return 'เป้าอยู่นอกแปลน — เลื่อนแปลนกลับเข้ามา';
+      var sci=planScaleInfo();
+      if(sci.us>0 && sci.plan && cur && pts.length && shape!=="point"){   // ระยะจริงจากจุดล่าสุดถึงเป้า
+        var q=pts[pts.length-1], pw=sci.plan.w||1000, ph=sci.plan.h||700;
+        if(shape==="rect"||shape==="oval"){ var W=Math.abs(cur.x-q.x)*pw*sci.us, H=Math.abs(cur.y-q.y)*ph*sci.us; t+=' · '+fmtNum(W,2)+' × '+fmtNum(H,2)+' ม.'+(isMeas?' ('+fmtNum(W*H,2)+' ตร.ม.)':''); }
+        else t+=' · ยาว '+fmtNum(Math.hypot((cur.x-q.x)*pw,(cur.y-q.y)*ph)*sci.us,2)+' ม.';
+      }else if(T==="drawDim" && !(sci.us>0) && !pts.length) t+=' · ยังไม่ตั้งมาตราส่วน';
+      if(cur && cur.snap) t+=' · ดูดติดเส้นแล้ว';
       return t;
     }
     function renderBar(){
@@ -8001,6 +8022,15 @@ function bindPlanEditor(){
         var x1=Math.min.apply(null,xs), x2=Math.max.apply(null,xs), y1=Math.min.apply(null,ys), y2=Math.max.apply(null,ys);
         var w=Math.max(1e-4,x2-x1), h=Math.max(1e-4,y2-y1);
         return {x1:x1,y1:y1,x2:x2,y2:y2,pts:P.map(function(p){ return [(p.x-x1)/w,(p.y-y1)/h]; })}; }
+      if(isMeas){
+        if(T==="drawDim"){ finishDrawDim(P[0],P[1]); return; }
+        if(T==="setScale"){ finishSetScale(P[0],P[1]); return; }
+        var ap=P;
+        if(shape==="rect"){ var ax1=Math.min(P[0].x,P[1].x), ax2=Math.max(P[0].x,P[1].x), ay1=Math.min(P[0].y,P[1].y), ay2=Math.max(P[0].y,P[1].y);
+          ap=[{x:ax1,y:ay1},{x:ax2,y:ay1},{x:ax2,y:ay2},{x:ax1,y:ay2}]; }
+        if(T==="drawHole") finishDrawHole(ap); else finishDrawArea(ap);
+        return;
+      }
       if(isZone){
         if(shape==="poly"){ var bz=bbox(); finishDrawZone({kind:"poly", x1:bz.x1, y1:bz.y1, x2:bz.x2, y2:bz.y2, pts:bz.pts}); }
         else finishDrawZone({kind:(shape==="oval"?"oval":"rect"), x1:P[0].x, y1:P[0].y, x2:P[1].x, y2:P[1].y});
@@ -8063,7 +8093,7 @@ function bindPlanEditor(){
     },90);
   }
   if(window.__xhOn){ _bindCrosshair(); return; }
-  if(isMobile() && (state.tool==="draw"||state.tool==="drawZone") && state.xhair===false){   // ใช้นิ้วลากวาดอยู่ → ปุ่มกลับไปใช้เป้า
+  if(isMobile() && XH_TOOLS[state.tool] && state.xhair===false){   // ใช้นิ้วลากวาดอยู่ → ปุ่มกลับไปใช้เป้า
     var _xb=document.querySelector(".m-body");
     if(_xb){ var _bk=document.createElement("button"); _bk.className="xh-back"; _bk.textContent="⊕ ใช้เป้ากลางจอ";
       _bk.addEventListener("click",function(e){ e.stopPropagation(); state.xhair=true; render(); }); _xb.appendChild(_bk); }
