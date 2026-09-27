@@ -1158,7 +1158,8 @@ body.plan-mode main#app{padding:0;max-width:none;margin:0}
     linear-gradient(var(--border) 1px, transparent 1px),
     linear-gradient(90deg, var(--border) 1px, transparent 1px);
   background-size:34px 34px, 34px 34px;opacity:.7}
-.plan-overlay{position:absolute;inset:0;width:100%;height:100%;touch-action:none;transform-origin:0 0;will-change:transform}
+.plan-overlay{position:absolute;inset:0;width:100%;height:100%;touch-action:none;transform-origin:0 0}   /* will-change ใส่เฉพาะตอนซูม (JS) */
+.plan-hud{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:4}
 .plan-overlay [data-mid]{cursor:pointer}
 .plan-overlay [data-handle]{cursor:move}
 .plan-overlay [data-handle="rot"]{cursor:grab}
