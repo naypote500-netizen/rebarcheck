@@ -8580,7 +8580,7 @@ function rvQatHtml(p,f,plan){
 /* ---- ริบบอน: แท็บ + เนื้อหาตามแท็บ ---- */
 /** เปิดแท็บบริบท "แก้ไข" — จำแท็บที่ใช้อยู่ไว้ให้กลับเมื่อเลิกเลือก */
 function _toModifyTab(){ if(state.ribbonTab!=='modify') state.prevRibbonTab=state.ribbonTab; state.ribbonTab='modify'; }
-var RV_TABS=[["structure","โครงสร้าง"],["annot","หมายเหตุ"],["progress","เทคอนกรีต"],["view","มุมมอง"]];
+var RV_TABS=[["structure","โครงสร้าง"],["annot","เครื่องมือคำนวณ"],["progress","เทคอนกรีต"],["view","มุมมอง"]];
 var RV_TAB_TIP={structure:"วาด · เลือก · แก้ไขชิ้นส่วนเหล็ก", annot:"กล่องข้อความ · เส้นบอกขนาด · มาตราส่วน · วัดพื้นที่", progress:"วาดโซนเทและอัพเดทสถานะการเทคอนกรีต", view:"ลงสี · ป้ายเบอร์ · พาเนล"};
 /** เมนู "ไฟล์" (ปุ่มซ้ายสุดของแถบแท็บ) — แปลน / นำออก / ไปที่ */
 function rvFileMenuHtml(f, plan, plans){
@@ -9015,7 +9015,7 @@ function areaFormatHtml(a){
 function qtySummaryHtml(f,pl,list){
   var sci=planScaleInfo(), h=rvPh('สรุปปริมาณ — พื้นที่ที่วัด');
   h+='<div class="rv-prow"><span>มาตราส่วน</span><b>'+(sci.src?esc(fmtScale(sci.us)):'<span class="bad">ยังไม่ตั้ง</span>')+'</b></div>';
-  if(!list.length){ h+='<div class="rv-pnote">ยังไม่มีพื้นที่ — กด “วัดพื้นที่” ในแท็บหมายเหตุ แล้วคลิกรอบพื้นที่บนแปลน</div>'; return h; }
+  if(!list.length){ h+='<div class="rv-pnote">ยังไม่มีพื้นที่ — กด “วัดพื้นที่” ในแท็บเครื่องมือคำนวณ แล้วคลิกรอบพื้นที่บนแปลน</div>'; return h; }
   var ta=0,tv=0,rows='';
   list.forEach(function(a){ var mt=areaMetrics(a,pl); if(mt){ ta+=mt.net; tv+=mt.vol; }
     rows+='<tr data-act="selectAnnot" data-aid="'+esc(a.id)+'" class="'+(a.id===state.selAnnotId?"on":"")+'"><td>'+esc(a.name||"—")+((a.holes||[]).length?' <small>−'+a.holes.length+' ช่อง</small>':'')+'</td><td>'+(mt?fmtNum(mt.net,2):"—")+'</td><td>'+(a.thick!=null?fmtNum(+a.thick,2):"—")+'</td><td>'+(mt?fmtNum(mt.vol,2):"—")+'</td></tr>'; });
@@ -9256,7 +9256,7 @@ function viewPlanEditorMobile(f,type,p,plan,plans,vm,selM,hint){
   var bar='<div class="m-bar">'
     + mBarBtn(state.tool==="select"&&!state.mSheet,"mTool",'data-tool="select"','mb_tap','เลือก')
     + mBarBtn(state.tool==="draw"||state.mSheet==="draw","mSheet",'data-sheet="draw"','mb_square','วาด')
-    + mBarBtn(state.tool==="drawCallout"||state.tool==="drawDim"||state.tool==="drawTbox"||state.tool==="drawTcall"||state.mSheet==="annot","mSheet",'data-sheet="annot"','mb_clip','หมายเหตุ')
+    + mBarBtn(state.tool==="drawCallout"||state.tool==="drawDim"||state.tool==="drawTbox"||state.tool==="drawTcall"||state.mSheet==="annot","mSheet",'data-sheet="annot"','mb_clip','คำนวณ')
     + mBarBtn(prog,"mSheet",'data-sheet="zone"','mb_truck','เทคอนกรีต')
     + mBarBtn(state.mSheet==="more","mSheet",'data-sheet="more"','mb_grid','เพิ่มเติม')+'</div>';
   return '<div class="rv mrv" id="editorGrid">'+top
@@ -9293,7 +9293,7 @@ function mPlanSheetHtml(f,type,p,plan,plans,selM,prog){
       +mG("setScaleStart",'','ruler','ตั้งมาตราส่วน','',0,state.tool==="setScale")+mG("drawAreaStart",'data-shape="poly"','area','วัดพื้นที่','',0,state.tool==="drawArea")+mG("drawAngleStart",'','angle','วัดมุม','',0,state.tool==="drawAngle")+mG("drawLenStart",'','perim','วัดความยาว','',0,state.tool==="drawLen")+mG("areaCsv",'','csv','CSV พื้นที่')+'</div>'
       +'<div class="m-row"><span>มาตราส่วน</span><b>'+esc(_msc.src?fmtScale(_msc.us):'ยังไม่ตั้ง')+'</b></div>'
       +'<div class="m-note">ป้ายข้อความ: แตะตรงที่จะวางแล้วพิมพ์ · ป้ายชี้: แตะจุดที่จะชี้ แล้วแตะตรงที่จะวางป้าย · เส้นบอกขนาด: ลากจากจุดถึงจุด · ตั้งมาตราส่วน: คลิก 2 จุดที่รู้ระยะจริงแล้วใส่เมตร · วัดพื้นที่: แตะทีละมุม ดับเบิลแตะเพื่อปิดรูป</div>';
-    return mSheetWrap('annot','<b>หมายเหตุ</b>', b2, {dim:true});
+    return mSheetWrap('annot','<b>เครื่องมือคำนวณ</b>', b2, {dim:true});
   }
   if(sh==="zone"){
     var zones=zonesOfPlan(f.id,_pid), cnt={}; zones.forEach(function(q){ cnt[q.status]=(cnt[q.status]||0)+1; });
