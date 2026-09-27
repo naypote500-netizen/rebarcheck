@@ -1059,6 +1059,11 @@ body.plan-mode main#app{padding:0;max-width:none;margin:0}
 .fx-pre.on{box-shadow:0 0 0 2px #fff,0 0 0 3.5px #1b4f9c}
 .fx-pre.none{border-style:dashed}
 .fx-range{flex:1;min-width:60px;accent-color:#2b6fe0}
+.fr-file{display:flex;flex-direction:column;gap:2px;padding:10px 12px;margin:6px 0 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2,#f6f8fb);word-break:break-all}
+.fr-file small{color:var(--text-dim)}
+.fr-acts{display:flex;flex-direction:column;gap:8px}
+.fr-acts .btn{width:100%;justify-content:center;text-align:center;text-decoration:none}
+.fr-tip{margin-top:10px}
 .zop-v{min-width:38px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
 .zop-r{flex:1;display:flex;align-items:center;gap:8px;min-width:0}
 .zop-allrow{border-bottom:none}

@@ -4805,9 +4805,7 @@ function planStageHtml(){
        + (!isProgress && state.showLegend ? legendHtml(members) : '')
        + (!plan && !drawing
             ? '<div class="plan-hint">ยังไม่มีแปลนของชั้นนี้ — นำเข้ารูปถ่ายหรือ PDF ของแปลนก่อน แล้วค่อยวาดชิ้นส่วนทับ<br><button class="btn" data-act="addPlan" style="margin-top:8px;pointer-events:auto">'+rvIc('plan',14)+' นำเข้าแปลน (รูป / PDF)</button></div>'
-          : isProgress
-            ? (zonesOfPlan(f.id,_pid2).length===0 && !drawing ? '<div class="plan-hint">'+(isMobile()?'ยังไม่มีโซนเท — แตะ “เทคอนกรีต” ด้านล่าง เลือกรูปทรง แล้วลากคลุมพื้นที่บนแปลน':'ยังไม่มีโซนเท — เลือกรูปทรงในแท็บ “เทคอนกรีต” แล้วลากคลุมพื้นที่บนแปลน')+'</div>' : '')
-            : (members.length===0 && !drawing ? '<div class="plan-hint">'+(isMobile()?'ยังไม่มีชิ้นส่วนในแปลน — แตะ “วาด” ด้านล่าง เลือกชนิดและรูปทรง แล้วลากบนแปลน':(state.unified?'ยังไม่มีชิ้นส่วนในแปลน — เลือกชนิดในแท็บ “โครงสร้าง” แล้วลากวาดบนแปลน':'ยังไม่มี'+esc(TYPES[type].label)+'ในแปลน — เลือกรูปทรงในแท็บ “โครงสร้าง” แล้วลากวาดบนแปลน'))+'</div>' : ''))
+          : '')   // แปลนว่าง (ยังไม่มีชิ้นส่วน/โซน) → ไม่ขึ้นป้ายแนะนำทับแปลน
        + '</div>';
 }
 function _planDbg(){}   // (ปิดตัวบอกสถานะดีบั๊กแล้ว)
@@ -9260,6 +9258,10 @@ function overlayImageForExport(VW,VH,region,outW,outH){
 /** รวมพื้นหลัง+ไฮไลท์ของ region หนึ่ง เป็นแคนวาสเดียว */
 function buildComposite(region, targetW){
   var ratio=planRatio(getFloorPlan(getFloor(state.floorId))), VW=1000, VH=Math.round(VW*ratio);
+  if(_lowMemDev()){   // มือถือ: แคนวาสไม่เกิน ~7 ล้านพิกเซล (ลิมิต iOS 16.7 ล้าน/แคนวาส และมีหลายแคนวาสพร้อมกัน)
+    var _rg=region||{x1:0,y1:0,x2:1,y2:1}, _cr=Math.max(0.15, ratio*((_rg.y2-_rg.y1)/Math.max(1e-6,(_rg.x2-_rg.x1))));
+    targetW=Math.min(targetW||2400, Math.floor(Math.sqrt(7e6/_cr)));
+  }
   return planBgCanvasForExport(region, targetW).then(function(bg){
     return overlayImageForExport(VW,VH,region,bg.width,bg.height).then(function(ov){
       var comp=document.createElement("canvas"); comp.width=bg.width; comp.height=bg.height;
@@ -9298,7 +9300,7 @@ function _legendForExport(vm){
 /** วาดแผ่นรายงาน A4 (หัวกระดาษ + แปลน + Legend + คีย์แปลน) คืนค่า canvas */
 function buildReportSheet(planCv, vm, keyCv, opts){
   opts = opts || {};
-  var landscape = planCv.width >= planCv.height, DPI=300, FF="'Sarabun','Tahoma','Segoe UI',sans-serif";
+  var landscape = planCv.width >= planCv.height, DPI=_lowMemDev()?200:300, FF="'Sarabun','Tahoma','Segoe UI',sans-serif";
   var SW=Math.round((landscape?16.54:11.69)*DPI), SH=Math.round((landscape?11.69:16.54)*DPI);   // A3
   var cv=document.createElement("canvas"); cv.width=SW; cv.height=SH;
   var cx=cv.getContext("2d"); cx.fillStyle="#ffffff"; cx.fillRect(0,0,SW,SH);
@@ -9425,7 +9427,9 @@ function _pdfFromJpeg(jpegU8, iw, ih, pw, ph){
 }
 /** canvas → ไบต์ JPEG (Uint8Array) */
 function _jpegBytes(cv, q){
-  var bin=atob(cv.toDataURL("image/jpeg", q||0.92).split(",")[1]);
+  var du=cv.toDataURL("image/jpeg", q||0.92), b64=du.split(",")[1];
+  if(!b64) throw new Error("หน่วยความจำเครื่องไม่พอ (ภาพใหญ่เกิน "+cv.width+"×"+cv.height+")");
+  var bin=atob(b64);
   var u=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
   return u;
 }
@@ -9459,10 +9463,50 @@ function _pdfFromImages(pw, ph, imgs){
   chunks.forEach(function(c){ outU.set(c,off); off+=c.length; });
   return new Blob([outU],{type:"application/pdf"});
 }
+/** มือถือ/แท็บเล็ต — หน่วยความจำแคนวาสน้อย และดาวน์โหลดด้วย a.download ไม่ได้ทุกที่ */
+function _lowMemDev(){
+  var ua=navigator.userAgent||"";
+  return /iPhone|iPad|iPod|Android|Mobile/i.test(ua) || (navigator.maxTouchPoints>1 && /Macintosh/.test(ua)) || isMobile();
+}
+/** ส่งไฟล์ให้ผู้ใช้ · คอม = ดาวน์โหลดทันที (คืน true) · มือถือ = เปิดแผงให้แตะเลือกวิธีบันทึก (คืน false) */
 function _downloadBlob(blob,name){
+  if(_lowMemDev()){ _fileReadySheet(blob,name); return false; }
   var url=URL.createObjectURL(blob), a=document.createElement("a");
   a.href=url; a.download=name; document.body.appendChild(a); a.click();
   setTimeout(function(){ try{document.body.removeChild(a);}catch(e){} URL.revokeObjectURL(url); },1500);
+  return true;
+}
+/** แผง "PDF พร้อมแล้ว" — การแชร์/เปิดไฟล์ต้องเกิดจากการแตะของผู้ใช้ (หลังสร้างไฟล์เสร็จ เบราว์เซอร์มือถือไม่ยอมให้ดาวน์โหลดเอง) */
+function _fileReadySheet(blob,name){
+  var url=URL.createObjectURL(blob), kb=Math.max(1,Math.round(blob.size/1024));
+  var file=null; try{ file=new File([blob], name, {type:blob.type||"application/pdf"}); }catch(e){}
+  var canShare=!!(file && navigator.share && navigator.canShare && navigator.canShare({files:[file]}));
+  openSheet('<h3>PDF พร้อมแล้ว</h3>'
+    +'<div class="fr-file"><b>'+esc(name)+'</b><small>'+(kb>=1024?(kb/1024).toFixed(1)+' MB':kb+' KB')+'</small></div>'
+    +'<div class="fr-acts">'
+    +(canShare?'<button class="btn" id="frShare">แชร์ / บันทึกลงเครื่อง</button>':'')
+    +'<button class="btn'+(canShare?' soft':'')+'" id="frDl">ดาวน์โหลด</button>'
+    +'<button class="btn soft" id="frOpen">เปิดดู PDF</button>'
+    +'<button class="btn soft" data-act="closeSheet">ปิด</button></div>'
+    +'<div class="small muted fr-tip">'+(canShare
+        ? 'กด “แชร์ / บันทึกลงเครื่อง” แล้วเลือก “บันทึกไปยังไฟล์” หรือส่งเข้า LINE ได้เลย'
+        : 'ถ้ากดดาวน์โหลดแล้วไม่มีอะไรเกิดขึ้น ให้กด “เปิดดู PDF” แล้วบันทึกจากหน้านั้น')+'</div>');
+  var dl=document.getElementById("frDl");
+  if(dl) dl.addEventListener("click",function(){
+    var a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ try{document.body.removeChild(a);}catch(e){} },1500);
+  });
+  var op=document.getElementById("frOpen");
+  if(op) op.addEventListener("click",function(){
+    var w=window.open(url,"_blank");
+    if(!w) toast("เปิดหน้าต่างใหม่ไม่ได้ — ใช้ปุ่มดาวน์โหลดแทน",true);   // ไม่เปลี่ยนหน้านี้เป็น PDF (แอปบนหน้าจอโฮมจะไม่มีปุ่มย้อนกลับ)
+  });
+  var sh=document.getElementById("frShare");
+  if(sh) sh.addEventListener("click",function(){
+    navigator.share({files:[file], title:name}).then(function(){ closeSheet(); })
+      .catch(function(e){ if(e && e.name!=="AbortError") toast("แชร์ไม่สำเร็จ — ลอง “เปิดดู PDF” แทน",true); });
+  });
+  setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 10*60*1000);   // เก็บลิงก์ไว้ 10 นาทีพอให้กดเปิดซ้ำ
 }
 function _safeName(s){ return String(s||"").replace(/[\\\/:*?"<>|]+/g,"").replace(/\s+/g,"-").slice(0,40)||"plan"; }
 /** จุดเริ่ม: นำออกแปลนปัจจุบัน (พร้อมไฮไลท์) เป็น PDF */
@@ -9485,8 +9529,7 @@ function exportPlanPDF(){
     var blob=_pdfFromImages(Wpt, Hpt, imgs);
     var p=getProject(state.projectId);
     var fname="RebarCheck-"+_safeName(p&&p.name)+"-"+_safeName(f.name)+"-"+_safeName(TYPE_EN[type]||type)+".pdf";
-    _downloadBlob(blob, fname);
-    toast("บันทึก PDF แล้ว ✓");
+    if(_downloadBlob(blob, fname)) toast("บันทึก PDF แล้ว ✓");
   }).catch(function(e){ toast("สร้าง PDF ไม่สำเร็จ: "+(e&&e.message||e),true); });
 }
 
@@ -9579,7 +9622,7 @@ function deExportPDF(){
   var doc=memberDoc(m), els=doc.els.slice();
   if(!els.length){ toast('ยังไม่มีเนื้อหาให้นำออก',true); return; }
   toast('กำลังสร้าง PDF…');
-  var S=2.0, pg=dePageOf(doc), nP=dePageCount(doc), titleOn=deTitleOn(doc);
+  var S=_lowMemDev()?1.5:2.0, pg=dePageOf(doc), nP=dePageCount(doc), titleOn=deTitleOn(doc);
   var cv=document.createElement('canvas'); cv.width=Math.round(pg.w*S); cv.height=Math.round(pg.h*nP*S);
   var ctx=cv.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,cv.width,cv.height);
   var proj=getProject(m.projectId);
@@ -9657,8 +9700,8 @@ function deExportPDF(){
       pages.push({u8:_jpegBytes(pc,0.92), iw:pc.width, ih:pc.height});
     }
     var blob=_pdfFromPages(Wpt, Hpt, pages);
-    _downloadBlob(blob, 'RebarCheck-'+_safeName(proj&&proj.name)+'-'+_safeName(m.code)+'.pdf');
-    toast('บันทึก PDF แล้ว ✓ ('+pg.label+(nP>1?' · '+nP+' หน้า':'')+')');
+    if(_downloadBlob(blob, 'RebarCheck-'+_safeName(proj&&proj.name)+'-'+_safeName(m.code)+'.pdf'))
+      toast('บันทึก PDF แล้ว ✓ ('+pg.label+(nP>1?' · '+nP+' หน้า':'')+')');
   }).catch(function(e){ toast('สร้าง PDF ไม่สำเร็จ: '+(e&&e.message||e),true); });
 }
 
@@ -9693,8 +9736,7 @@ function exportProgressPDF(){
     var blob=_pdfFromImages(Wpt, Hpt, imgs);
     var p=getProject(state.projectId);
     var fname="RebarCheck-Progress-"+_safeName(p&&p.name)+"-"+_safeName(f.name)+".pdf";
-    _downloadBlob(blob, fname);
-    toast("บันทึก PDF อัพเดทแล้ว ✓");
+    if(_downloadBlob(blob, fname)) toast("บันทึก PDF อัพเดทแล้ว ✓");
   }).catch(function(e){ state.showProgress=origProgress; toast("สร้าง PDF ไม่สำเร็จ: "+(e&&e.message||e),true); });
 }
 
@@ -9706,7 +9748,7 @@ function renderPdfRegionToCanvas(page, rx1,ry1,rx2,ry2, targetW){
     var scale=Math.max(0.2, Math.min(80, targetW/regWpts));   // เพดานสเกลพอเหมาะ (สูงเกินไปเรนเดอร์ช้า/ค้าง)
     var vp=page.getViewport({scale:scale});
     var cw=Math.round((rx2-rx1)*vp.width), ch=Math.round((ry2-ry1)*vp.height);
-    var MAXD=8600;                                   // กันแคนวาสใหญ่เกิน (หน่วยความจำ) — เผื่อ export A3 คมสูง
+    var MAXD=_lowMemDev()?4096:8600;                 // กันแคนวาสใหญ่เกิน (หน่วยความจำ) — เผื่อ export A3 คมสูง · มือถือเพดาน 4096
     if(cw>MAXD||ch>MAXD){ scale*=MAXD/Math.max(cw,ch); vp=page.getViewport({scale:scale});
       cw=Math.round((rx2-rx1)*vp.width); ch=Math.round((ry2-ry1)*vp.height); }
     var offX=rx1*vp.width, offY=ry1*vp.height;
