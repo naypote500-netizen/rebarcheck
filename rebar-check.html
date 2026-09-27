@@ -9905,7 +9905,7 @@ function bindPlanEditor(){
         out+='<polyline points="'+all.map(S).join(" ")+'" fill="'+col+'" fill-opacity="'+(all.length>=3?0.18:0)+'" stroke="'+col+'" stroke-width="'+sw+'" stroke-dasharray="'+da+'" stroke-linejoin="round" stroke-linecap="round"/>';
       }
       pts.forEach(function(p,i){ out+='<circle cx="'+p.x*VW+'" cy="'+p.y*VH+'" r="'+((i===0&&shape==="poly"&&pts.length>=3?7:5)/z)+'" fill="#fff" stroke="'+col+'" stroke-width="'+(2.2/z)+'"/>'; });
-      g.innerHTML=out;
+      g.innerHTML=out; _dtHaloIn(g);
     }
     function stText(){
       var n=pts.length, t;
@@ -10343,7 +10343,7 @@ function bindPlanEditor(){
         tcTemp=document.createElementNS(NS,"g");
         tcTemp.innerHTML='<line x1="'+(s0.x*VW)+'" y1="'+(s0.y*VH)+'" x2="'+(s0.x*VW)+'" y2="'+(s0.y*VH)+'" stroke="'+ACOL+'" stroke-width="'+(2/_z0)+'" stroke-dasharray="'+(6/_z0)+' '+(4/_z0)+'"/>'
           +'<circle cx="'+(s0.x*VW)+'" cy="'+(s0.y*VH)+'" r="'+(4/_z0)+'" fill="'+ACOL+'"/>';
-        tcTemp.style.pointerEvents="none"; overlay.appendChild(tcTemp);
+        tcTemp.style.pointerEvents="none"; overlay.appendChild(tcTemp); _dtHalo(tcTemp.querySelector("line"));
         return;
       }
       if(_short) return;   // ลากสั้นเกิน = ยกเลิก
@@ -10383,7 +10383,7 @@ function bindPlanEditor(){
       aTemp.setAttribute("stroke-dasharray",(6/z)+" "+(4/z));
       if(isDimTool||isTcall){ aTemp.setAttribute("x1",aStart.x*VW); aTemp.setAttribute("y1",aStart.y*VH); aTemp.setAttribute("x2",aStart.x*VW); aTemp.setAttribute("y2",aStart.y*VH); }
       else{ aTemp.setAttribute("fill",ACOL); aTemp.setAttribute("fill-opacity","0.06"); aTemp.setAttribute("rx",(6/z)); }
-      overlay.appendChild(aTemp);
+      overlay.appendChild(aTemp); _dtHalo(aTemp);
       window.addEventListener("pointermove",aMove,true);
       window.addEventListener("pointerup",aEnd,true);
       window.addEventListener("pointercancel",aEnd,true);
@@ -10414,7 +10414,7 @@ function bindPlanEditor(){
       scTemp=document.createElementNS(NS,"line");
       scTemp.setAttribute("stroke",SCOL); scTemp.setAttribute("stroke-width",(2.5/z)); scTemp.setAttribute("stroke-dasharray",(7/z)+" "+(4/z)); scTemp.setAttribute("stroke-linecap","round");
       scTemp.setAttribute("x1",scStart.x*VW); scTemp.setAttribute("y1",scStart.y*VH); scTemp.setAttribute("x2",scStart.x*VW); scTemp.setAttribute("y2",scStart.y*VH);
-      overlay.appendChild(scTemp);
+      overlay.appendChild(scTemp); _dtHalo(scTemp);
       window.addEventListener("pointermove",scMove,true); window.addEventListener("pointerup",scEnd,true); window.addEventListener("pointercancel",scEnd,true);
     });
     return;
@@ -10438,7 +10438,7 @@ function bindPlanEditor(){
               out+='<text x="'+((cur.x+q.x)/2*VW)+'" y="'+((cur.y+q.y)/2*VH-8/z)+'" font-size="'+(13/z)+'" font-weight="700" fill="'+ARC+'" text-anchor="middle" font-family="Sarabun, sans-serif" style="paint-order:stroke;stroke:#fff;stroke-width:'+(3/z)+'px">'+fmtNum(L,2)+' ม.</text>'; }
           }
         }
-        ag.innerHTML=out;
+        ag.innerHTML=out; _dtHaloIn(ag);
       }
       function afinish(){ var pts=apts.slice(); ag.remove(); showSnap(null); if(pts.length<3){ state.tool="select"; render(); return; } arDone(pts); }
       overlay.addEventListener("pointermove",function(ev){ aredraw(snapAt(ev)); });
@@ -10481,7 +10481,7 @@ function bindPlanEditor(){
       var z=state.zoom||1;
       arTemp.setAttribute("stroke",ARC); arTemp.setAttribute("stroke-width",(2.4/z)); arTemp.setAttribute("stroke-dasharray",(7/z)+" "+(5/z));
       arTemp.setAttribute("fill",ARC); arTemp.setAttribute("fill-opacity","0.1");
-      overlay.appendChild(arTemp);
+      overlay.appendChild(arTemp); _dtHalo(arTemp);
       window.addEventListener("pointermove",arMove,true); window.addEventListener("pointerup",arEnd,true); window.addEventListener("pointercancel",arEnd,true);
     });
     return;
@@ -10500,7 +10500,7 @@ function bindPlanEditor(){
           out+='<polyline points="'+dd+'" fill="'+ZCOL+'" fill-opacity="'+(zpts.length>=2?0.08:0)+'" stroke="'+ZCOL+'" stroke-width="'+(2.4/z)+'" stroke-dasharray="'+(7/z)+' '+(5/z)+'" stroke-linecap="round" stroke-linejoin="round"/>';
           zpts.forEach(function(p){ out+='<circle cx="'+(p.x*VW)+'" cy="'+(p.y*VH)+'" r="'+(5/z)+'" fill="#fff" stroke="'+ZCOL+'" stroke-width="'+(2/z)+'"/>'; });
         }
-        zg.innerHTML=out;
+        zg.innerHTML=out; _dtHaloIn(zg);
       }
       function zfinishPoly(){
         if(zpts.length<3){ zg.remove(); showSnap(null); return; }
@@ -10559,7 +10559,7 @@ function bindPlanEditor(){
       zTemp.setAttribute("stroke",ZCOL); zTemp.setAttribute("stroke-width",(2.4/z));
       zTemp.setAttribute("stroke-dasharray",(7/z)+" "+(5/z));
       zTemp.setAttribute("fill",ZCOL); zTemp.setAttribute("fill-opacity","0.08");
-      overlay.appendChild(zTemp);
+      overlay.appendChild(zTemp); _dtHalo(zTemp);
       window.addEventListener("pointermove",zDrawMove,true);
       window.addEventListener("pointerup",zDrawEnd,true);
       window.addEventListener("pointercancel",zDrawEnd,true);
@@ -10590,7 +10590,7 @@ function bindPlanEditor(){
         out+='<polyline points="'+dd+'" fill="'+state.fillColor+'" fill-opacity="'+(pts.length>=2?state.fillAlpha*0.6:0)+'" stroke="'+state.fillColor+'" stroke-width="'+(2.4/z)+'" stroke-dasharray="'+(7/z)+' '+(5/z)+'" stroke-linecap="round" stroke-linejoin="round"/>';
         pts.forEach(function(p){ out+='<circle cx="'+(p.x*VW)+'" cy="'+(p.y*VH)+'" r="'+(5/z)+'" fill="#fff" stroke="'+state.fillColor+'" stroke-width="'+(2/z)+'"/>'; });
       }
-      g.innerHTML=out;
+      g.innerHTML=out; _dtHaloIn(g);
     }
     function finishPoly(){
       if(pts.length<3){ g.remove(); showSnap(null); return; }
@@ -10662,7 +10662,7 @@ function bindPlanEditor(){
     tempEl.setAttribute("stroke-dasharray", (7/z)+" "+(5/z));
     if(shape==="line"){ tempEl.setAttribute("fill","none"); tempEl.setAttribute("stroke-linecap","round"); }
     else { tempEl.setAttribute("fill",state.fillColor); tempEl.setAttribute("fill-opacity",state.fillAlpha); }
-    overlay.appendChild(tempEl);
+    overlay.appendChild(tempEl); _dtHalo(tempEl);
     window.addEventListener("pointermove",drawMove,true);
     window.addEventListener("pointerup",drawEnd,true);
     window.addEventListener("pointercancel",drawEnd,true);
@@ -10815,6 +10815,40 @@ function typeDetachAct(m){
   plPushUndo();
   typeDetach(m, !own); saveDB(); render();
   toast("แยก "+m.code+" ออกจากประเภทแล้ว");
+}
+/* ---- เส้นร่างระหว่างวาด: ให้เห็นชัดบนแปลนที่ลายเยอะ (สีอ่อนอย่างส้ม/เหลืองเดิมจางมาก) ---- */
+function _dtDark(col){   // สีเส้นเข้มขึ้น ~30% (เฉพาะ #rrggbb)
+  var m=/^#([0-9a-f]{6})$/i.exec(String(col||"")); if(!m) return col;
+  var n=parseInt(m[1],16), f=function(v){ return ("0"+Math.round(v*0.7).toString(16)).slice(-2); };
+  return "#"+f((n>>16)&255)+f((n>>8)&255)+f(n&255);
+}
+/** เส้นร่างชิ้นเดียว (rect/ellipse/line) — ทำเส้นทึบหนา + เพิ่มขอบขาวรองใต้ที่ขยับตามเองทุกครั้งที่เส้นร่างเปลี่ยน */
+function _dtHalo(el){
+  if(!el || !el.parentNode) return;
+  var z=state.zoom||1, h=el.cloneNode(false);
+  h.removeAttribute("id"); h.setAttribute("data-halo","1"); h.setAttribute("fill","none"); h.setAttribute("stroke","#ffffff");
+  h.setAttribute("stroke-opacity","0.92"); h.setAttribute("stroke-width",(6.5/z)); h.removeAttribute("stroke-dasharray");
+  h.setAttribute("stroke-linecap","round"); h.setAttribute("stroke-linejoin","round"); h.style.pointerEvents="none";
+  el.parentNode.insertBefore(h, el);
+  el.setAttribute("stroke", _dtDark(el.getAttribute("stroke"))); el.setAttribute("stroke-width",(3/z)); el.setAttribute("stroke-opacity","1");
+  el.removeAttribute("stroke-dasharray"); el.setAttribute("stroke-linejoin","round");
+  var A=["x","y","width","height","rx","ry","cx","cy","x1","y1","x2","y2","points","d","transform"], par=el.parentNode;
+  var mo=new MutationObserver(function(){ A.forEach(function(k){ var v=el.getAttribute(k); if(v!=null) h.setAttribute(k,v); else h.removeAttribute(k); }); });
+  mo.observe(el,{attributes:true, attributeFilter:A});
+  var mo2=new MutationObserver(function(){ if(!el.isConnected || el.parentNode!==par){ if(h.parentNode) h.parentNode.removeChild(h); mo.disconnect(); mo2.disconnect(); } });
+  mo2.observe(par,{childList:true});
+}
+/** เส้นร่างที่สร้างจาก innerHTML (หลายเหลี่ยม / เป้ากลางจอ) — เติมขอบขาวใต้ทุกเส้น (ยกเว้นจุด) */
+function _dtHaloIn(g){
+  if(!g) return;
+  var z=state.zoom||1;
+  Array.prototype.slice.call(g.children).forEach(function(c){
+    var tg=(c.tagName||"").toLowerCase(); if(tg==="circle" || c.getAttribute("data-halo")) return;
+    var h=c.cloneNode(false); h.setAttribute("data-halo","1"); h.setAttribute("fill","none"); h.setAttribute("stroke","#ffffff");
+    h.setAttribute("stroke-opacity","0.92"); h.setAttribute("stroke-width",(6.5/z)); h.removeAttribute("stroke-dasharray");
+    g.insertBefore(h,c);
+    c.setAttribute("stroke", _dtDark(c.getAttribute("stroke"))); c.setAttribute("stroke-width",(3/z)); c.removeAttribute("stroke-dasharray");
+  });
 }
 /** สร้างชิ้นส่วนใหม่จากรูปที่วาด: ถามเบอร์ → บันทึก → เลือก */
 function finishDraw(geom){
