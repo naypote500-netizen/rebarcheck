@@ -1418,8 +1418,14 @@ body.pj-mode main,body.pj-mode .hd-wrap{max-width:1040px}
 .c3-body{flex:1;min-width:0}
 .c3-t{font-weight:700;font-size:.92rem;line-height:1.35;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .crit-tag{color:var(--fail);font-size:.7rem;font-weight:700}
-.c3-del{border:none;background:none;color:var(--fail);cursor:pointer;padding:2px;display:inline-flex;opacity:.7}
-.c3-del:hover{opacity:1}
+.c3-ops{display:inline-flex;gap:2px;margin-left:auto;opacity:.35;transition:opacity .15s}
+.chk:hover .c3-ops,.c3-ops:focus-within{opacity:1}
+@media (hover:none){ .c3-ops{opacity:.8} }
+.c3-edit,.c3-del{border:none;background:none;cursor:pointer;padding:4px;border-radius:6px;display:inline-flex}
+.c3-edit{color:var(--brand)} .c3-del{color:var(--fail)}
+.c3-edit:hover{background:var(--brand-bg)} .c3-del:hover{background:rgba(220,38,38,.1)}
+.c3-reset{width:100%;margin-top:6px;padding:8px;border:none;background:none;color:var(--text-dim);font-size:.82rem;text-decoration:underline;cursor:pointer}
+.c3-reset:hover{color:var(--brand)}
 /* ข้อที่ตอบแล้ว → ย่อ (ซ่อนคำใบ้) */
 .chk3.st-pass .chk-hint,.chk3.st-fail .chk-hint,.chk3.st-na .chk-hint{display:none}
 .c3-chips{display:flex;gap:6px;flex:none}

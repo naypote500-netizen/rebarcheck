@@ -2064,6 +2064,9 @@ function checklistFor(m){
     {id:"size", t:sizeT},
     {id:"cover",crit:true, t:"ระยะหุ้มคอนกรีต (covering) "+(m.cover||"")+" มม. ครบทุกด้าน มีลูกปูนหนุน"}
   ];
+  var _ed=m.chkEdit||{}, _hd=m.chkHide||[];   // ข้อเริ่มต้นที่ผู้ใช้แก้ข้อความ / ลบออก
+  items=items.filter(function(it){ return _hd.indexOf(it.id)<0; })
+             .map(function(it){ return _ed[it.id] ? Object.assign({}, it, {t:_ed[it.id], edited:true, hint:null}) : it; });
   (m.checks||[]).forEach(function(c){ if(c&&c.t) items.push({id:c.id, t:c.t, custom:true}); });   // รายการที่ผู้ใช้เพิ่มเอง
   return items;
 }
@@ -2085,7 +2088,8 @@ function inspectionBlockHtml(m){
       +  '<td class="ct-no"><span class="c3-dot"><span class="c3-num">'+n+'</span></span></td>'
       +  '<td class="ct-q"><div class="c3-t">'+esc(it.t)
       +    (it.crit?' <span class="crit-tag">สำคัญ</span>':'')
-      +    (it.custom?' <button class="c3-del" data-act="delCheck" data-id="'+esc(it.id)+'" title="ลบรายการนี้"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>':'')+'</div>'
+      +    '<span class="c3-ops"><button class="c3-edit" data-act="editCheck" data-id="'+esc(it.id)+'" title="แก้ไขข้อความ"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>'
+      +    '<button class="c3-del" data-act="delCheck" data-id="'+esc(it.id)+'" title="ลบรายการนี้"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></span></div>'
       +    (it.hint?'<div class="chk-hint"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg> '+esc(it.hint)+'</div>':'')
       +  '</td>'
       +  '<td class="ct-c"><button class="c3c pass" data-act="chk" data-v="pass" title="ผ่าน">'+CK+'</button></td>'
@@ -2095,6 +2099,8 @@ function inspectionBlockHtml(m){
   });
   h+='</table>';
   h+='<button class="c3-add" data-act="addCheck">+ เพิ่มรายการตรวจ</button>';
+  var _chg=(m.chkHide&&m.chkHide.length?m.chkHide.length:0)+Object.keys(m.chkEdit||{}).length;
+  if(_chg) h+='<button class="c3-reset" data-act="resetChecks">คืนค่ารายการเริ่มต้น ('+_chg+' ข้อที่แก้/ลบ)</button>';
   h+='</div></div>';
   h+='<div class="card"><div class="card-h"><svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3.2"/></svg> หลักฐานและการยืนยัน</div><div class="card-b">'
     +'<div class="grid2">'
@@ -4090,10 +4096,38 @@ document.addEventListener("click",function(e){
       cm.checks.push({id:uid("chk"), t:txt}); saveDB(); render();
       break;
     }
+    case "editCheck": {
+      var ce=getMember(activeMemberId()); if(!ce) break;
+      var cit=checklistFor(ce).filter(function(x){ return x.id===id; })[0]; if(!cit) break;
+      var nt=window.prompt("แก้ไขรายการตรวจ:", cit.t); if(nt===null) break;
+      nt=nt.trim(); if(!nt){ toast("ข้อความว่าง — ถ้าไม่ใช้ข้อนี้ให้กด × เพื่อลบ",true); break; }
+      if(cit.custom){ (ce.checks||[]).forEach(function(c){ if(c.id===id) c.t=nt; }); }
+      else{
+        if(!ce.chkEdit) ce.chkEdit={};
+        var _def=Object.assign({}, ce); delete _def.chkEdit;   // ข้อความตั้งต้นของข้อนี้ → ถ้าพิมพ์กลับเป็นแบบเดิม = ไม่ต้องเก็บ
+        var dit=checklistFor(_def).filter(function(x){ return x.id===id; })[0];
+        if(dit && dit.t===nt) delete ce.chkEdit[id]; else ce.chkEdit[id]=nt;
+        if(!Object.keys(ce.chkEdit).length) delete ce.chkEdit;
+      }
+      saveDB(); render();
+      break;
+    }
     case "delCheck": {
-      var cm2=getMember(activeMemberId()); if(!cm2||!cm2.checks) break;
-      cm2.checks=cm2.checks.filter(function(c){ return c.id!==id; });
+      var cm2=getMember(activeMemberId()); if(!cm2) break;
+      var _all=checklistFor(cm2), dit2=_all.filter(function(x){ return x.id===id; })[0]; if(!dit2) break;
+      if(_all.length<=1){ toast("ต้องมีรายการตรวจอย่างน้อย 1 ข้อ",true); break; }
+      if(!confirm("ลบรายการตรวจนี้?\n\n“"+dit2.t+"”")) break;
+      if(dit2.custom) cm2.checks=(cm2.checks||[]).filter(function(c){ return c.id!==id; });
+      else{ if(!Array.isArray(cm2.chkHide)) cm2.chkHide=[]; if(cm2.chkHide.indexOf(id)<0) cm2.chkHide.push(id);
+            if(cm2.chkEdit){ delete cm2.chkEdit[id]; if(!Object.keys(cm2.chkEdit).length) delete cm2.chkEdit; } }
       if(state.answers) delete state.answers[id];
+      saveDB(); render();
+      break;
+    }
+    case "resetChecks": {
+      var cr=getMember(activeMemberId()); if(!cr) break;
+      if(!confirm("คืนค่ารายการตรวจเริ่มต้นของ "+(cr.code||"ชิ้นนี้")+"?\n(ข้อที่แก้ข้อความจะกลับเป็นแบบเดิม ข้อที่ลบจะกลับมา · รายการที่เพิ่มเองยังอยู่)")) break;
+      delete cr.chkEdit; delete cr.chkHide;
       saveDB(); render();
       break;
     }
