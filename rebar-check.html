@@ -1080,6 +1080,11 @@ body.plan-mode main#app{padding:0;max-width:none;margin:0}
 .fx-pre.on{box-shadow:0 0 0 2px #fff,0 0 0 3.5px #1b4f9c}
 .fx-pre.none{border-style:dashed}
 .fx-range{flex:1;min-width:60px;accent-color:#2b6fe0}
+.zop-v{min-width:38px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.zop-r{flex:1;display:flex;align-items:center;gap:8px;min-width:0}
+.zop-allrow{border-bottom:none}
+.zop-allrow .zop-all{padding:4px 10px;font-size:11.5px}
+.m-row.zop-allrow{justify-content:flex-end}
 .m-sheet .fx-pre{width:30px;height:30px}
 .fx-acts .btn{margin:0;padding:7px 4px;font-size:11px;justify-content:center;border-radius:4px;display:inline-flex;align-items:center;gap:4px}
 /* แผงพื้นที่ที่วัด + ตารางสรุปปริมาณ */
@@ -5749,6 +5754,13 @@ document.addEventListener("click",function(e){
     case "setSnap":     { var _sv=el.getAttribute("data-v")==="1"; if(state.snap!==_sv){ state.snap=_sv; render(); } break; }          // มือถือ: ปุ่มคู่ เปิด/ปิด
     case "setProgress": { var _pv=el.getAttribute("data-v")==="1"; if(state.showProgress!==_pv){ state.showProgress=_pv; render(); } break; }
     case "drawZoneStart": { var _zs=el.getAttribute("data-shape"); if(_zs) state.zoneShape=_zs; state.tool="drawZone"; render(); break; }
+    case "zoneOpAll": {
+      var zsel=getZone(state.selZoneId); if(!zsel) break;
+      var zlist=zonesOfPlan(zsel.floorId, zsel.planId||curPlanId()), zv=zoneOpOf(zsel);
+      plPushUndo(); zlist.forEach(function(q){ q.fillA=zv; }); state.zoneFillA=zv;
+      saveDB(); render(); toast("ตั้งความเข้ม "+Math.round(zv*100)+"% ให้ทุกโซน ("+zlist.length+" โซน) แล้ว");
+      break;
+    }
     case "manageZoneStatus": dlgZoneStatus(); break;
     case "zsAddStatus": zsAddStatus(); break;
     case "zsDelStatus": zsDelStatus(el.getAttribute("data-sid")); break;
@@ -6442,16 +6454,17 @@ function planShapesSVG(VW,VH){
       var zx=Math.min(zp.x1,zp.x2)*VW, zy=Math.min(zp.y1,zp.y2)*VH;
       var zw=Math.abs(zp.x2-zp.x1)*VW, zh=Math.abs(zp.y2-zp.y1)*VH;
       var isSel=(z.id===state.selZoneId);
-      var fillOp=isSel?0.55:0.32;   // ไม่มีขอบเลย — ใช้ความเข้มของสีบอกว่าเลือกอยู่
+      var fillOp=zoneOpOf(z);   // ความเข้มตามที่ผู้ใช้ตั้ง
       var cur=isSel?"move":"pointer";
+      var zStk=isSel?' stroke="var(--brand)" stroke-width="2" stroke-dasharray="7 5" vector-effect="non-scaling-stroke"':' stroke="none"';   // เลือกอยู่ = เส้นประรอบโซน
       if(zp.kind==="poly" && zp.pts && zp.pts.length){
         var pstr=zp.pts.map(function(p){ return (zx+p[0]*zw).toFixed(1)+","+(zy+p[1]*zh).toFixed(1); }).join(" ");
-        shapes+='<polygon data-zid="'+z.id+'" points="'+pstr+'" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:'+cur+'"/>';
+        shapes+='<polygon data-zid="'+z.id+'" points="'+pstr+'" fill="'+col+'" fill-opacity="'+fillOp+'"'+zStk+' style="cursor:'+cur+'"/>';
       }else if(zp.kind==="oval"){
-        shapes+='<ellipse data-zid="'+z.id+'" cx="'+(zx+zw/2)+'" cy="'+(zy+zh/2)+'" rx="'+(zw/2)+'" ry="'+(zh/2)+'" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:'+cur+'"/>';
+        shapes+='<ellipse data-zid="'+z.id+'" cx="'+(zx+zw/2)+'" cy="'+(zy+zh/2)+'" rx="'+(zw/2)+'" ry="'+(zh/2)+'" fill="'+col+'" fill-opacity="'+fillOp+'"'+zStk+' style="cursor:'+cur+'"/>';
       }else{
         shapes+='<rect data-zid="'+z.id+'" x="'+zx+'" y="'+zy+'" width="'+zw+'" height="'+zh
-          +'" fill="'+col+'" fill-opacity="'+fillOp+'" stroke="none" style="cursor:'+cur+'"/>';
+          +'" fill="'+col+'" fill-opacity="'+fillOp+'"'+zStk+' style="cursor:'+cur+'"/>';
       }
       // ป้ายชื่อโซนเล็ก ๆ มุมซ้ายบน (มีขอบขาวให้อ่านง่ายบนแปลนที่ลายเยอะ) — ไม่มีป้ายสถานะกลางโซน
       var nm=(z.name||"")+(z.date?"  ·  "+z.date:"");
@@ -8608,6 +8621,7 @@ function rvPaletteHtml(type, m, p, f, plans, plan){
       h+='<div class="rv-prow"><span>ชื่อ</span><b><input type="text" id="zoneNameInput" value="'+esc(z.name)+'" class="rv-in"></b></div>';
       h+='<div class="rv-prow"><span>สถานะ</span><b><select id="zoneStatusSel" class="rv-in">'+stList.map(function(s){ return '<option value="'+esc(s.id)+'"'+(z.status===s.id?" selected":"")+'>'+esc(s.label)+'</option>'; }).join("")+'</select></b></div>';
       h+='<div class="rv-prow"><span>วันที่</span><b><input type="date" id="zoneDateInput" value="'+esc(z.date||"")+'" class="rv-in"></b></div>';
+      h+=zoneOpRowHtml(z,false);
       h+=rvPh('การจัดการ');
       h+='<div class="rv-pacts"><button class="btn danger" data-act="deleteZone" data-zid="'+esc(z.id)+'">'+rvIc('trash',14)+' ลบโซน</button><button class="btn soft" data-act="manageZoneStatus">'+rvIc('gear',14)+' สถานะ + สี</button></div>';
     }else{
@@ -9164,6 +9178,7 @@ function mPlanSheetHtml(f,type,p,plan,plans,selM,prog){
     var bz='<div class="m-row"><span>ชื่อโซน</span><input type="text" id="zoneNameInput" value="'+esc(selZ.name)+'" class="m-in"></div>'
       +'<div class="m-row"><span>สถานะ</span><select id="zoneStatusSel" class="m-in">'+stList.map(function(q){ return '<option value="'+esc(q.id)+'"'+(selZ.status===q.id?" selected":"")+'>'+esc(q.label)+'</option>'; }).join("")+'</select></div>'
       +'<div class="m-row"><span>วันที่</span><input type="date" id="zoneDateInput" value="'+esc(selZ.date||"")+'" class="m-in"></div>'
+      +zoneOpRowHtml(selZ,true)
       +'<div class="m-acts"><button class="btn soft" data-act="manageZoneStatus">'+rvIc('gear',14)+' สถานะ + สี</button><button class="btn danger" data-act="deleteZone" data-zid="'+esc(selZ.id)+'">'+rvIc('trash',14)+' ลบโซน</button></div>';
     return mSheetWrap('zone','<i class="rv-zdot sm" style="background:'+zs.color+'"></i><b>โซนเท · '+esc(selZ.name)+'</b><span class="m-st">'+esc(zs.label)+'</span>', bz, {min:min});
   }
@@ -9446,6 +9461,19 @@ function bindPlanEditor(){
   if(zni){ zni.addEventListener("input",function(){ var z=getZone(state.selZoneId); if(z){ z.name=zni.value; saveDB(); var ov=$("#planOverlay"); if(ov) ov.innerHTML=planShapesSVG(+ov.getAttribute("data-vw"),+ov.getAttribute("data-vh")); } }); }
   if(zsi){ zsi.addEventListener("change",function(){ var z=getZone(state.selZoneId); if(z){ z.status=zsi.value; saveDB(); render(); } }); }
   if(zdi){ zdi.addEventListener("change",function(){ var z=getZone(state.selZoneId); if(z){ z.date=zdi.value||null; saveDB(); render(); } }); }
+  var zoi=$("#zoneOpIn");
+  if(zoi){
+    var _zoPushed=false;
+    zoi.addEventListener("pointerdown",function(){ if(!_zoPushed){ plPushUndo(); _zoPushed=true; } });
+    zoi.addEventListener("keydown",function(){ if(!_zoPushed){ plPushUndo(); _zoPushed=true; } });
+    zoi.addEventListener("input",function(){
+      var z=getZone(state.selZoneId); if(!z) return;
+      var v=Math.max(5,Math.min(100,+zoi.value||32))/100; z.fillA=v; state.zoneFillA=v;
+      var lb=$("#zoneOpV"); if(lb) lb.textContent=Math.round(v*100)+"%";
+      var ov=$("#planOverlay"); if(ov) ov.querySelectorAll('[data-zid="'+z.id+'"]:not([data-zhandle])').forEach(function(el){ el.setAttribute("fill-opacity",v); });
+    });
+    zoi.addEventListener("change",function(){ _zoPushed=false; saveDB(); });
+  }
 
   // ผูกอินพุตของบล็อกตรวจเหล็ก เมื่ออยู่แท็บ inspect
   if(state.rightTab==="inspect" && getMember(state.selMemberId)) bindInspectionInputs();
@@ -10809,6 +10837,15 @@ function exportAreaCsv(){
   }catch(e){ toast("ส่งออกไม่สำเร็จ",true); }
 }
 /** สร้างโซนเทคอนกรีตใหม่จากรูปที่วาด */
+/** ความเข้มของโซน 0.05..1 (โซนเก่าที่ยังไม่ตั้ง = 0.32 แบบเดิม) */
+function zoneOpOf(z){ var v=(z && z.fillA!=null) ? +z.fillA : 0.32; return (v>=0.05 && v<=1) ? v : 0.32; }
+function zoneOpRowHtml(z, mob){
+  var pc=Math.round(zoneOpOf(z)*100);
+  var rng='<input type="range" id="zoneOpIn" class="fx-range" min="5" max="100" step="1" value="'+pc+'"><span id="zoneOpV" class="zop-v">'+pc+'%</span>';
+  var all='<button class="btn soft sm zop-all" data-act="zoneOpAll" title="ใช้ความเข้มนี้กับทุกโซนในแปลนนี้">ใช้กับทุกโซน</button>';
+  return mob ? '<div class="m-row"><span>ความเข้ม</span><span class="zop-r">'+rng+'</span></div><div class="m-row zop-allrow">'+all+'</div>'
+             : '<div class="rv-prow"><span>ความเข้ม</span><b class="rv-range">'+rng+'</b></div><div class="rv-prow zop-allrow"><span></span><b>'+all+'</b></div>';
+}
 function finishDrawZone(geom){
   var existing=zonesOfPlan(state.floorId, curPlanId());
   var suggest="Zone "+"ABCDEFGHIJKLMNOPQRSTUVWXYZ".charAt(existing.length);
@@ -10818,6 +10855,7 @@ function finishDrawZone(geom){
   var _stL=zoneStatuses(state.floorId, curPlanId()), _st0=(_stL[_stL.length-1]||_stL[0]||{id:"pending"}).id;
   var z={ id:uid("z"), projectId:state.projectId, floorId:state.floorId, planId:curPlanId(),
     name:name, status:_st0, date:null, plan:geom };
+  if(state.zoneFillA!=null) z.fillA=state.zoneFillA;   // ใช้ความเข้มที่ตั้งล่าสุด
   if(!DB.zones) DB.zones=[];
   plPushUndo();
   DB.zones.push(z);
@@ -11112,12 +11150,12 @@ function planBgCanvasForExport(region, targetW){
 /** ภาพเลเยอร์ไฮไลท์ (SVG→Image) — ครอปตาม region · ล้างการเลือก/รีเซ็ตซูม ป้ายขนาดปกติ ไม่มีจุดจับ */
 function overlayImageForExport(VW,VH,region,outW,outH){
   var r=region||{x1:0,y1:0,x2:1,y2:1};
-  var savSel=state.selMemberId, savZoom=state.zoom, savCat=state.catType, savLbl=state.showLabels;
-  state.selMemberId=null; state.zoom=1; state.showLabels=false;   // ไม่เอาป้ายเบอร์ในรายงาน (ใช้ตารางสีแทน)
+  var savSel=state.selMemberId, savZoom=state.zoom, savCat=state.catType, savLbl=state.showLabels, savZ=state.selZoneId, savA=state.selAnnotId;
+  state.selMemberId=null; state.selZoneId=null; state.selAnnotId=null; state.zoom=1; state.showLabels=false;   // ไม่เอาป้ายเบอร์ในรายงาน (ใช้ตารางสีแทน)
   if(state.unified) state.catType=null;   // โหมดรวม: ไม่หรี่ชนิดอื่น → ไฮไลท์ทุกชิ้นชัดเท่ากันบนรายงาน
   window.__exportFACap=0.28;              // จำกัดความทึบสูงสุด → สีทึบๆ กลายเป็นโปร่งแสง เห็นแปลนทะลุ
   var shapes;
-  try{ shapes=planShapesSVG(VW,VH); } finally{ state.selMemberId=savSel; state.zoom=savZoom; state.catType=savCat; state.showLabels=savLbl; window.__exportFACap=null; }
+  try{ shapes=planShapesSVG(VW,VH); } finally{ state.selMemberId=savSel; state.selZoneId=savZ; state.selAnnotId=savA; state.zoom=savZoom; state.catType=savCat; state.showLabels=savLbl; window.__exportFACap=null; }
   shapes=_resolveVarsLight(shapes);
   var rx=r.x1*VW, ry=r.y1*VH, rw=Math.max(1,(r.x2-r.x1)*VW), rh=Math.max(1,(r.y2-r.y1)*VH);
   var W=outW||rw, H=outH||rh;   // เรนเดอร์ SVG ที่ความละเอียดเท่าพื้นหลัง → ไฮไลท์คมไม่แตก
