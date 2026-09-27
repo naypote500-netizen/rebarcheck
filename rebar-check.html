@@ -6380,9 +6380,16 @@ function tboxSvg(a, VW, VH, z, sel){
   return out;
 }
 /** วาดหมายเหตุ 1 ชิ้นเป็น SVG (พิกัด 0..1 → viewBox VW×VH) · z = ระดับซูม ใช้คงความหนาเส้น/จุดจับให้คงที่ */
+/** มือถือ: แปลนแสดงแคบกว่า viewBox (1000) มาก → ขยายเส้น/ตัวเลขของหมายเหตุให้เท่าขนาดบนคอม (พิกเซลจอจริง) · ออก PDF = 1 */
+function _annotBoost(VW){
+  if(window.__exportFACap!=null || !isMobile()) return 1;
+  var s=_sheetWH(), w=(s&&s.w)?s.w:(window.innerWidth||375);
+  return Math.max(1, Math.min(4, (VW||1000)/w*1.1));
+}
 function annotSvg(a, VW, VH, z, sel){
-  if(a.kind==="area") return areaSvg(a, VW, VH, z, sel);
   if(a.kind==="tbox") return tboxSvg(a, VW, VH, z, sel);
+  z=z/_annotBoost(VW);   // ทุกค่าที่หารด้วย z (เส้น ตัวเลข ลูกศร จุดจับ) ขยายตามจอมือถือ
+  if(a.kind==="area") return areaSvg(a, VW, VH, z, sel);
   var s=annotStyleOf(a), col=s.color, sw=s.sw/z, out="";
   var mid1="am1_"+a.id, mid2="am2_"+a.id;
   out+='<defs>'+annotMarker(mid1,s.a1,col,z)+annotMarker(mid2,s.a2,col,z)+'</defs>';
@@ -6395,6 +6402,7 @@ function annotSvg(a, VW, VH, z, sel){
     var lbl=dimLabel(a), tw=Math.max(18, lbl.length*fs*0.62), gap=tw/2+6/z;
     var ang=Math.atan2(dy,dx)*180/Math.PI; if(ang>90||ang<-90) ang+=180;   // กันตัวหนังสือกลับหัว
     var mx=(q1x+q2x)/2, my=(q1y+q2y)/2, ext=7/z, hasOff=Math.abs(offPx)>0.5;
+    out+='<line x1="'+q1x+'" y1="'+q1y+'" x2="'+q2x+'" y2="'+q2y+'" stroke="#ffffff" stroke-opacity="0.85" stroke-width="'+(sw+3/z)+'" stroke-linecap="round" style="pointer-events:none"/>';   // ขอบขาวรองใต้ ให้เห็นชัดบนแปลนลายเยอะ
     if(hasOff){
       // เส้นต่อ (extension) จากจุดที่วัดจริง → เลยเส้นบอกขนาดเล็กน้อย + จุดเล็กที่จุดวัด
       var dir=offPx>=0?1:-1, gpx=3/z;
@@ -6416,7 +6424,7 @@ function annotSvg(a, VW, VH, z, sel){
     }
     // เส้นทึบโปร่งใสไว้กดเลือก/ลาก (อยู่บนเส้นบอกขนาดที่เลื่อนแล้ว)
     out+='<line data-aid="'+a.id+'" x1="'+q1x+'" y1="'+q1y+'" x2="'+q2x+'" y2="'+q2y+'" stroke="transparent" stroke-width="'+(14/z)+'" style="cursor:move"/>';
-    if(lbl) out+='<text data-aid="'+a.id+'" x="'+mx+'" y="'+(my+fs*0.36)+'" transform="rotate('+ang.toFixed(2)+' '+mx+' '+my+')" font-size="'+fs+'" font-weight="'+fw+'"'+fi+fu+' font-family="'+_hx(s.font)+', sans-serif" fill="'+col+'" text-anchor="middle" style="cursor:move">'+_hx(lbl)+'</text>';
+    if(lbl) out+='<text data-aid="'+a.id+'" x="'+mx+'" y="'+(my+fs*0.36)+'" transform="rotate('+ang.toFixed(2)+' '+mx+' '+my+')" font-size="'+fs+'" font-weight="'+fw+'"'+fi+fu+' font-family="'+_hx(s.font)+', sans-serif" fill="'+col+'" text-anchor="middle" stroke="#ffffff" stroke-width="'+(3.2/z)+'" stroke-linejoin="round" paint-order="stroke" style="cursor:move">'+_hx(lbl)+'</text>';
     if(sel){
       out+='<line x1="'+q1x+'" y1="'+q1y+'" x2="'+q2x+'" y2="'+q2y+'" stroke="#2b6fe0" stroke-width="'+(1.2/z)+'" stroke-dasharray="'+(5/z)+' '+(4/z)+'" style="pointer-events:none"/>';
       [["p1",x1,y1],["p2",x2,y2]].forEach(function(p){
@@ -6470,7 +6478,8 @@ function planShapesSVG(VW,VH){
   var shapes="";
   // ── พื้นที่ที่วัด (ชั้นล่างสุด — ไม่บังการคลิกชิ้นส่วนที่อยู่ข้างใน) ──
   var _za=state.zoom||1;
-  areasOfPlan(f.id,_pid).forEach(function(a){ shapes+=areaSvg(a, VW, VH, _za, a.id===state.selAnnotId); });
+  var _zab=_za/_annotBoost(VW);
+  areasOfPlan(f.id,_pid).forEach(function(a){ shapes+=areaSvg(a, VW, VH, _zab, a.id===state.selAnnotId); });
   // ── โซนความคืบหน้าเทคอนกรีต (แสดงเฉพาะหน้าอัพเดท) — ไฮไลท์สีสถานะล้วน ไม่มีกรอบ/ป้าย ──
   if(isProgress && state.showProgress){
     var zones=zonesOfPlan(f.id, _pid);
