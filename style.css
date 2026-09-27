@@ -1861,3 +1861,9 @@ body:has(.rv.mrv) #toast.show{transform:translateX(-50%) translateY(0)}
 .rv-prow>b.rv-range{flex-wrap:nowrap}
 .rv-range input.rv-num{width:48px;flex:none;padding:3px 4px;border-radius:6px;font-size:11.5px;text-align:center;line-height:1.2}
 .rv-range input[type=range]{flex:1;min-width:70px}
+
+/* แถบแจ้งเวอร์ชันใหม่ */
+.upd-bar{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:10px;
+  background:#1e3a8a;color:#fff;padding:8px 10px 8px 16px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:14px;width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box}
+.upd-bar .upd-go{background:#fff;color:#1e3a8a;border:0;border-radius:8px;padding:6px 12px;font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
+.upd-bar .upd-x{background:transparent;color:#fff;border:0;font-size:20px;line-height:1;padding:0 4px;cursor:pointer;opacity:.8}

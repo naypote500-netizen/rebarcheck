@@ -4445,11 +4445,11 @@ function tboxSvg(a, VW, VH, z, sel){
   return out;
 }
 /** วาดหมายเหตุ 1 ชิ้นเป็น SVG (พิกัด 0..1 → viewBox VW×VH) · z = ระดับซูม ใช้คงความหนาเส้น/จุดจับให้คงที่ */
-/** มือถือ: แปลนแสดงแคบกว่า viewBox (1000) มาก → ขยายเส้น/ตัวเลขของหมายเหตุให้เท่าขนาดบนคอม (พิกเซลจอจริง) · ออก PDF = 1 */
+/** แปลนแสดงกว้างไม่เท่า viewBox (1000) — คอม ~700px, มือถือ ~375px → คิดเส้น/ตัวเลขของหมายเหตุเป็นพิกเซลจอจริง (×1.2 ให้อ่านง่าย) · ออก PDF = 1 */
 function _annotBoost(VW){
-  if(window.__exportFACap!=null || !isMobile()) return 1;
-  var s=_sheetWH(), w=(s&&s.w)?s.w:(window.innerWidth||375);
-  return Math.max(1, Math.min(4, (VW||1000)/w*1.1));
+  if(window.__exportFACap!=null) return 1;
+  var s=_sheetWH(), w=(s&&s.w)?s.w:0; if(!w) return 1;
+  return Math.max(0.8, Math.min(4, (VW||1000)/w*1.2));
 }
 function annotSvg(a, VW, VH, z, sel){
   if(a.kind==="tbox") return tboxSvg(a, VW, VH, z, sel);
@@ -10907,5 +10907,36 @@ function init(){
 
   if(CLOUD){ cloudBoot(); } else { render(); }
 }
+
+/** เปิดหน้าค้างไว้นาน ๆ แล้วเว็บอัปเดต → ขึ้นแถบ "มีเวอร์ชันใหม่" ให้กดรีเฟรช (เทียบ ETag/Last-Modified ของ script.js) */
+(function _watchUpdate(){
+  if(!/^https?:/.test(location.protocol) || !window.fetch) return;
+  var base=null, shown=false, busy=false;
+  function sig(){ return fetch("script.js",{method:"HEAD",cache:"no-store"}).then(function(r){ return r.ok?(r.headers.get("etag")||r.headers.get("last-modified")||""):""; }); }
+  function check(){
+    if(shown||busy||document.hidden) return; busy=true;
+    sig().then(function(s){
+      busy=false; if(!s) return;
+      if(base==null){ base=s; return; }
+      if(s!==base) show();
+    }).catch(function(){ busy=false; });
+  }
+  function show(){
+    shown=true;
+    var b=document.createElement("div"); b.className="upd-bar";
+    b.innerHTML='<span>มีเวอร์ชันใหม่ของ RebarCheck</span><button type="button" class="upd-go">รีเฟรชเลย</button><button type="button" class="upd-x" aria-label="ปิด">×</button>';
+    document.body.appendChild(b);
+    b.querySelector(".upd-go").onclick=function(){   // ดันงานที่ยังค้างขึ้นคลาวด์ก่อน แล้วค่อยรีเฟรช
+      var wait=300;
+      try{ if(CLOUD && _syncT){ clearTimeout(_syncT); _syncT=null; cloudSyncNow(); wait=1800; } }catch(e){}
+      b.querySelector(".upd-go").disabled=true; b.querySelector("span").textContent="กำลังรีเฟรช…";
+      setTimeout(function(){ location.reload(); }, wait);
+    };
+    b.querySelector(".upd-x").onclick=function(){ b.remove(); };
+  }
+  check();
+  setInterval(check, 180000);
+  document.addEventListener("visibilitychange", function(){ if(!document.hidden) check(); });
+})();
 
 init();
