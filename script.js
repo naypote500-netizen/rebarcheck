@@ -3648,6 +3648,9 @@ document.addEventListener("click",function(e){
     case "drawTboxStart":    state.tool="drawTbox"; state.selAnnotId=null; state.selMemberId=null; state.selMulti=[]; state.selZoneId=null; state.marquee=false; render(); break;
     /* --- มาตราส่วน + วัดพื้นที่ --- */
     case "setScaleStart":    state.tool="setScale"; state.ribbonTab="annot"; state.selAnnotId=null; state.selMemberId=null; state.selMulti=[]; state.selZoneId=null; state.marquee=false; render(); break;
+    case "drawAngleStart":
+    case "drawLenStart":     state.tool=(el.getAttribute("data-act")==="drawAngleStart")?"drawAngle":"drawLen"; state.ribbonTab="annot"; state.selAnnotId=null; state.selMemberId=null; state.selMulti=[]; state.selZoneId=null; state.marquee=false; render(); break;
+    case "measClose": { var _mc=getAnnot(state.selAnnotId); if(!_mc||_mc.kind!=="meas"||_mc.sub!=="len"||(_mc.pts||[]).length<3){ toast("ต้องมีอย่างน้อย 3 จุดจึงปิดรูปได้",true); break; } plPushUndo(); _mc.closed=!_mc.closed; saveDB(); render(); break; }
     case "drawAreaStart":    { var _ash=el.getAttribute("data-shape"); if(_ash) state.areaShape=_ash; state.tool="drawArea"; state.ribbonTab="annot"; state.selAnnotId=null; state.selMemberId=null; state.selMulti=[]; state.selZoneId=null; state.marquee=false; render(); break; }
     case "setAreaShape":     { state.areaShape=el.getAttribute("data-shape")||"poly"; if(state.tool!=="drawArea" && state.tool!=="drawHole"){ state.tool="drawArea"; state.selAnnotId=null; state.selMemberId=null; state.selMulti=[]; state.selZoneId=null; } state.ribbonTab="annot"; render(); break; }
     case "drawHoleStart":    { var _ha=getAnnot(state.selAnnotId); if(!_ha||_ha.kind!=="area"){ toast("เลือกพื้นที่ที่วัดไว้ก่อน แล้วค่อยหักช่องเปิด",true); break; } state.tool="drawHole"; state.ribbonTab="annot"; render(); break; }
@@ -3675,6 +3678,7 @@ document.addEventListener("click",function(e){
       var off=0.02;
       var _sh=function(pt){ return {x:pt.x+off,y:pt.y+off}; };
       if(cp.kind==="dim"){ cp.p1.x+=off; cp.p1.y+=off; cp.p2.x+=off; cp.p2.y+=off; }
+      else if(cp.kind==="meas"){ cp.pts=(cp.pts||[]).map(_sh); }
       else if(cp.kind==="area"){ cp.pts=(cp.pts||[]).map(_sh); cp.holes=(cp.holes||[]).map(function(h){ return h.map(_sh); }); cp.name=(cp.name||"พื้นที่")+" (สำเนา)"; }
       else { cp.box.x1+=off; cp.box.x2+=off; cp.box.y1+=off; cp.box.y2+=off; if(cp.tip){ cp.tip.x+=off; cp.tip.y+=off; } }
       DB.annots.push(cp); state.selAnnotId=cp.id; saveDB(); render(); toast("ทำซ้ำหมายเหตุแล้ว");
@@ -3683,7 +3687,7 @@ document.addEventListener("click",function(e){
     case "annotArrow": { var _aa=getAnnot(state.selAnnotId); if(!_aa) break; plPushUndo();
       _aa[el.getAttribute("data-which")]=el.getAttribute("data-v"); annotRemember(_aa); saveDB(); render(); break; }
     case "annotSwatch": { var _ac=getAnnot(state.selAnnotId); if(!_ac) break; plPushUndo();
-      _ac.color=el.getAttribute("data-c"); if(_ac.kind!=="area") annotRemember(_ac); saveDB(); render(); break; }
+      _ac.color=el.getAttribute("data-c"); if(_ac.kind!=="area" && _ac.kind!=="meas") annotRemember(_ac); saveDB(); render(); break; }
     case "annotBold":  { var _ab=getAnnot(state.selAnnotId); if(!_ab) break; plPushUndo(); _ab.bold=annotStyleOf(_ab).bold?0:1; annotRemember(_ab); saveDB(); render(); break; }
     case "annotItalic":{ var _ai=getAnnot(state.selAnnotId); if(!_ai) break; plPushUndo(); _ai.italic=annotStyleOf(_ai).italic?0:1; annotRemember(_ai); saveDB(); render(); break; }
     case "annotUnder": { var _au=getAnnot(state.selAnnotId); if(!_au) break; plPushUndo(); _au.underline=annotStyleOf(_au).underline?0:1; annotRemember(_au); saveDB(); render(); break; }
@@ -4451,10 +4455,99 @@ function _annotBoost(VW){
   var s=_sheetWH(), w=(s&&s.w)?s.w:0; if(!w) return 1;
   return Math.max(0.8, Math.min(4, (VW||1000)/w*1.2));
 }
+/* ---- หมายเหตุวัด (kind "meas"): sub "angle" = 3 จุด (ปลายแขน · ยอดมุม · ปลายแขน) · "len" = หลายจุด (closed = รอบรูป) ---- */
+var MEAS_COL={angle:"#9333ea", len:"#0e7490"};
+function _measPlanWH(a){
+  var f=getFloor(a.floorId), pl=null;
+  floorPlans(f).forEach(function(p){ if(p.id===a.planId) pl=p; }); if(!pl) pl=getFloorPlan(f);
+  return {pl:pl, w:(pl&&pl.w)||1000, h:(pl&&pl.h)||700};
+}
+function measAngleDeg(p1,v,p2,w,h){
+  var ux=(p1.x-v.x)*w, uy=(p1.y-v.y)*h, wx=(p2.x-v.x)*w, wy=(p2.y-v.y)*h, L=Math.hypot(ux,uy)*Math.hypot(wx,wy);
+  if(!L) return 0; return Math.acos(Math.max(-1,Math.min(1,(ux*wx+uy*wy)/L)))*180/Math.PI;
+}
+function measLenM(pts,closed,w,h,us){
+  var s=0; for(var i=1;i<pts.length;i++) s+=Math.hypot((pts[i].x-pts[i-1].x)*w,(pts[i].y-pts[i-1].y)*h);
+  if(closed && pts.length>2) s+=Math.hypot((pts[0].x-pts[pts.length-1].x)*w,(pts[0].y-pts[pts.length-1].y)*h);
+  return s*us;
+}
+function measLabel(a){
+  var d=_measPlanWH(a), P=a.pts||[];
+  if(a.sub==="angle") return P.length>=3 ? fmtNum(measAngleDeg(P[0],P[1],P[2],d.w,d.h),1)+"°" : "";
+  var us=planUnitScale(a.floorId,a.planId,d.pl);
+  if(!(us>0)) return (a.closed?"รอบรูป":"ยาว")+" — ยังไม่ตั้งสเกล";
+  return (a.closed?"รอบรูป ":"ยาว ")+fmtNum(measLenM(P,a.closed,d.w,d.h,us),2)+" ม.";
+}
+function measSvg(a, VW, VH, z, sel){
+  var s=annotStyleOf(a), col=a.color||MEAS_COL[a.sub]||"#0e7490", sw=(a.sw!=null?a.sw:1.8)/z, fs=s.size/z, out="";
+  var P=(a.pts||[]).map(function(p){ return [p.x*VW, p.y*VH]; }); if(P.length<2) return "";
+  var D=function(arr,close){ return "M"+arr.map(function(q){ return q[0].toFixed(2)+" "+q[1].toFixed(2); }).join(" L")+(close?" Z":""); };
+  var halo=function(d){ return '<path d="'+d+'" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="'+(sw+3/z)+'" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none"/>'; };
+  var lbl=measLabel(a), lines, tx, ty;
+  if(a.sub==="angle" && P.length>=3){
+    var V=P[1], A=P[0], B=P[2];
+    lines=D([A,V,B]);
+    var a1=Math.atan2(A[1]-V[1],A[0]-V[0]), a2=Math.atan2(B[1]-V[1],B[0]-V[0]), da=a2-a1;
+    while(da>Math.PI) da-=2*Math.PI; while(da<-Math.PI) da+=2*Math.PI;
+    var R=Math.max(4/z, Math.min(34/z, 0.45*Math.min(Math.hypot(A[0]-V[0],A[1]-V[1]), Math.hypot(B[0]-V[0],B[1]-V[1]))));
+    var arc='M'+(V[0]+R*Math.cos(a1)).toFixed(2)+' '+(V[1]+R*Math.sin(a1)).toFixed(2)+' A'+R+' '+R+' 0 0 '+(da>0?1:0)+' '+(V[0]+R*Math.cos(a1+da)).toFixed(2)+' '+(V[1]+R*Math.sin(a1+da)).toFixed(2);
+    out+=halo(lines)+halo(arc);
+    out+='<path d="'+lines+'" fill="none" stroke="'+col+'" stroke-width="'+sw+'" stroke-linecap="round" stroke-linejoin="round"/>';
+    out+='<path d="'+arc+'" fill="none" stroke="'+col+'" stroke-width="'+sw+'"/>';
+    var bis=a1+da/2, TR=R+fs*1.05; tx=V[0]+TR*Math.cos(bis); ty=V[1]+TR*Math.sin(bis)+fs*0.36;
+  }else{
+    var cl=!!a.closed && P.length>2;
+    lines=D(P, cl);
+    out+=halo(lines)+'<path d="'+lines+'" fill="none" stroke="'+col+'" stroke-width="'+sw+'" stroke-linecap="round" stroke-linejoin="round"/>';
+    P.forEach(function(q){ out+='<circle cx="'+q[0]+'" cy="'+q[1]+'" r="'+(2.6/z)+'" fill="'+col+'" stroke="#fff" stroke-width="'+(1/z)+'" style="pointer-events:none"/>'; });
+    var bi=0, bl=-1, nSeg=P.length-1+(cl?1:0);   // ป้ายตัวเลข: กลางด้านที่ยาวที่สุด เยื้องขึ้นเล็กน้อย
+    for(var i=0;i<nSeg;i++){ var p=P[i], q=P[(i+1)%P.length], l=Math.hypot(q[0]-p[0],q[1]-p[1]); if(l>bl){ bl=l; bi=i; } }
+    var p0=P[bi], p1=P[(bi+1)%P.length], L=bl||1, nx=-(p1[1]-p0[1])/L, ny=(p1[0]-p0[0])/L; if(ny>0){ nx=-nx; ny=-ny; }
+    tx=(p0[0]+p1[0])/2+nx*fs*0.9; ty=(p0[1]+p1[1])/2+ny*fs*0.9+fs*0.36;
+  }
+  out+='<path data-aid="'+a.id+'" d="'+lines+'" fill="none" stroke="transparent" stroke-width="'+(14/z)+'" style="cursor:move"/>';
+  if(lbl) out+='<text data-aid="'+a.id+'" x="'+tx+'" y="'+ty+'" font-size="'+fs+'" font-weight="700" font-family="'+_hx(s.font)+', sans-serif" fill="'+col+'" text-anchor="middle" stroke="#ffffff" stroke-width="'+(3.2/z)+'" stroke-linejoin="round" paint-order="stroke" style="cursor:move">'+_hx(lbl)+'</text>';
+  if(sel){
+    out+='<path d="'+lines+'" fill="none" stroke="#2b6fe0" stroke-width="'+(1.2/z)+'" stroke-dasharray="'+(5/z)+' '+(4/z)+'" style="pointer-events:none"/>';
+    P.forEach(function(q,i){ out+='<rect data-aid="'+a.id+'" data-ahandle="v'+i+'" x="'+(q[0]-4.5/z)+'" y="'+(q[1]-4.5/z)+'" width="'+(9/z)+'" height="'+(9/z)+'" fill="#fff" stroke="#ef4444" stroke-width="'+(2/z)+'" style="cursor:crosshair"/>'; });
+  }
+  return out;
+}
+/** จบการวัด → เก็บเป็นหมายเหตุ (อยู่ในเครื่องมือเดิม วัดต่อได้เลย) */
+function finishDrawMeas(sub, pts, closed){
+  if(!pts || pts.length<(sub==="angle"?3:2)){ render(); return; }
+  var a={ id:uid("an"), projectId:state.projectId, floorId:state.floorId, planId:curPlanId(), kind:"meas", sub:sub,
+    pts:pts.map(function(p){ return {x:p.x, y:p.y}; }), closed:(sub==="len" && !!closed), color:MEAS_COL[sub] };
+  if(!DB.annots) DB.annots=[];
+  plPushUndo(); DB.annots.push(a);
+  if(!saveDB()){ DB.annots.pop(); render(); return; }
+  render();
+  toast((sub==="angle"?"มุม ":"")+measLabel(a)+" — วัดต่อได้เลย · เลือก/ย้าย เพื่อแก้");
+}
+function measFormatHtml(a){
+  var s=annotStyleOf(a), col=String(a.color||MEAS_COL[a.sub]).toLowerCase(), isA=(a.sub==="angle");
+  var h='<div class="fx" id="annotFormat"><div class="fx-h"><span>'+(isA?'มุมที่วัด':'ความยาวที่วัด')+'</span><button class="fx-x" data-act="annotClose" title="ปิด">'+rvIc('cross',12)+'</button></div><div class="fx-b">';
+  h+='<div class="fx-s">ผลวัด</div>'+fxKv(isA?'มุม':(a.closed?'ความยาวรอบรูป':'ความยาวรวม'), _hx(measLabel(a).replace(/^(รอบรูป|ยาว) /,"")));
+  if(!isA){
+    var d=_measPlanWH(a), us=planUnitScale(a.floorId,a.planId,d.pl), P=a.pts||[];
+    h+=fxKv('จำนวนจุด', String(P.length));
+    if(us>0 && P.length>2){ var segs=[]; for(var i=1;i<P.length;i++) segs.push(fmtNum(measLenM([P[i-1],P[i]],false,d.w,d.h,us),2));
+      if(a.closed) segs.push(fmtNum(measLenM([P[P.length-1],P[0]],false,d.w,d.h,us),2));
+      h+='<div class="fx-note">แต่ละช่วง (ม.): '+segs.join(" + ")+'</div>'; }
+    h+='<div class="fx-r"><button class="btn soft" style="flex:1;justify-content:center" data-act="measClose">'+(a.closed?'ไม่นับด้านปิด (เส้นเปิด)':'ปิดรูป (นับรอบรูป)')+'</button></div>';
+  }
+  var sw=ANNOT_SWATCH.concat([MEAS_COL.angle, MEAS_COL.len]);
+  h+='<div class="fx-s">สี</div><div class="fx-btns">'+sw.map(function(c){ return '<button class="fx-sw'+(col===c?" on":"")+'" data-act="annotSwatch" data-c="'+c+'" style="background:'+c+'" title="'+c+'"></button>'; }).join("")+'</div>';
+  h+='<div class="fx-s">ขนาดตัวเลข</div><div class="fx-r"><select class="fx-in" style="width:64px" data-act="annotSize">'+ANNOT_SIZES.map(function(n){ return '<option value="'+n+'"'+(s.size==n?' selected':'')+'>'+n+'</option>'; }).join("")+'</select></div>';
+  h+='<div class="fx-note">ลากจุดสี่เหลี่ยมเพื่อแก้ตำแหน่ง · ลากเส้นเพื่อย้ายทั้งชิ้น</div>';
+  h+='<div class="fx-acts"><button class="btn soft" data-act="annotDup">'+rvIc('copy',14)+' ทำซ้ำ</button><button class="btn danger" data-act="annotDel">'+rvIc('trash',14)+' ลบ</button></div>';
+  return h+'</div></div>';
+}
 function annotSvg(a, VW, VH, z, sel){
   if(a.kind==="tbox") return tboxSvg(a, VW, VH, z, sel);
   z=z/_annotBoost(VW);   // ทุกค่าที่หารด้วย z (เส้น ตัวเลข ลูกศร จุดจับ) ขยายตามจอมือถือ
   if(a.kind==="area") return areaSvg(a, VW, VH, z, sel);
+  if(a.kind==="meas") return measSvg(a, VW, VH, z, sel);
   var s=annotStyleOf(a), col=s.color, sw=s.sw/z, out="";
   var mid1="am1_"+a.id, mid2="am2_"+a.id;
   out+='<defs>'+annotMarker(mid1,s.a1,col,z)+annotMarker(mid2,s.a2,col,z)+'</defs>';
@@ -4797,7 +4890,7 @@ function planStageHtml(){
   var bg = plan
     ? '<img class="plan-img"'+(_psrc?' src="'+_psrc+'"':'')+' alt="แปลนโครงสร้าง" draggable="false">'
     : '<div class="plan-grid"></div>';
-  var drawing = (state.tool==="draw" || state.tool==="drawZone" || state.tool==="drawCallout" || state.tool==="drawTbox" || state.tool==="drawTcall" || state.tool==="drawDim" || state.tool==="setScale" || state.tool==="drawArea" || state.tool==="drawHole");
+  var drawing = (state.tool==="draw" || state.tool==="drawZone" || state.tool==="drawCallout" || state.tool==="drawTbox" || state.tool==="drawTcall" || state.tool==="drawDim" || state.tool==="setScale" || state.tool==="drawArea" || state.tool==="drawHole" || state.tool==="drawAngle" || state.tool==="drawLen");
 
   var selbar='';   // แถบลอยกลางแปลนเลิกใช้แล้ว — แท็บ "แก้ไข · เบอร์" + คลิกขวา + ดับเบิลคลิก ครอบคลุมคำสั่งเดียวกัน (ไม่บังแปลน)
 
@@ -6468,6 +6561,8 @@ var RV_IC={
   unlink:'<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/><path d="M4 4l16 16"/>',
   ruler:'<rect x="2" y="8" width="20" height="8" rx="1.5"/><path d="M6 8v3M10 8v4M14 8v3M18 8v4"/>',
   area:'<path d="M4 6 14 3l6 6-3 11H5z" stroke-dasharray="3.5 2.5"/><path d="M8.5 19.5 15.5 7.5"/>',
+  angle:'<path d="M20 19H4L15 5"/><path d="M9.5 19a6.5 6.5 0 0 0-1.6-5"/>',
+  perim:'<path d="M4 17 8 7l6 4 6-6"/><circle cx="4" cy="17" r="1.6"/><circle cx="8" cy="7" r="1.6"/><circle cx="14" cy="11" r="1.6"/><circle cx="20" cy="5" r="1.6"/>',
   hole:'<rect x="3" y="3" width="18" height="18" rx="1.5"/><rect x="9" y="9" width="6" height="6" stroke-dasharray="2 1.5"/>',
   calc:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8.5 7h7M8.5 11.5h1.5M12 11.5h.01M15.5 11.5h.01M8.5 15h1.5M12 15h.01M15.5 15h.01M8.5 18h7"/>',
   callout:'<rect x="9" y="3" width="13" height="9" rx="2"/><path d="M11.5 12 2.5 21"/><path d="M2.5 21l5-1.2-1.2-5Z" fill="currentColor"/>',
@@ -6605,6 +6700,8 @@ function rvRibbonHtml(type, f, plan, plans, selM){
       +rvBig(state.tool==="drawTcall","drawTcallStart",'','callout','ป้ายชี้','ป้ายชี้ลูกศร — คลิกจุดที่จะชี้ แล้วคลิกตรงที่จะวางป้าย  (C)')
       +rvBig(state.tool==="drawDim","drawDimStart",'','dim','เส้นบอกขนาด',sci.us>0?'คลิกจุดเริ่ม แล้วคลิกจุดปลาย — ตัวเลขคำนวณให้จากมาตราส่วน  (D)':'คลิกจุดเริ่ม แล้วคลิกจุดปลาย แล้วใส่ตัวเลข  (D)'));
     body+=rvGrp('มาตราส่วน · วัด', rvBig(state.tool==="setScale","setScaleStart",'','ruler','ตั้งมาตราส่วน', sci.src==="set"?'ตั้งใหม่ — ลาก 2 จุดที่รู้ระยะจริง (ตอนนี้ '+fmtScale(sci.us)+')':'ลาก 2 จุดที่รู้ระยะจริง (เช่น ศูนย์เสาถึงศูนย์เสา) แล้วใส่ตัวเลขเมตร — ตั้งครั้งเดียวต่อแปลน')
+      +rvBig(state.tool==="drawAngle","drawAngleStart",'','angle','วัดมุม','คลิกปลายแขน → จุดยอดมุม → ปลายแขนอีกข้าง — ได้มุมเป็นองศา (ดูดติดเส้นแบบได้)')
+      +rvBig(state.tool==="drawLen","drawLenStart",'','perim','วัดความยาว','คลิกทีละจุดตามแนว — ได้ความยาวรวม · คลิกจุดแรกอีกครั้ง = ความยาวรอบรูป')
       +rvBig(state.tool==="drawArea","drawAreaStart",'','area','วัดพื้นที่','คลิกรอบพื้นที่ (ดับเบิลคลิกปิดรูป) หรือลากสี่เหลี่ยม — ได้ ตร.ม. และ ลบ.ม.  (A)')
       +rvCol('<div class="rv-seg"><button data-act="setAreaShape" data-shape="poly" aria-pressed="'+((state.areaShape||"poly")==="poly")+'" title="คลิกทีละมุม ดับเบิลคลิกเพื่อปิดรูป">คลิกเป็นรูปปิด</button><button data-act="setAreaShape" data-shape="rect" aria-pressed="'+(state.areaShape==="rect")+'" title="ลากสี่เหลี่ยมคลุมพื้นที่">ลากสี่เหลี่ยม</button></div>'
         +rvSm(state.tool==="drawHole","drawHoleStart",'','hole','หักช่องเปิด',selAr?'วาดช่องบันได/ช่องลิฟต์ทับ “'+selAr.name+'” เพื่อลบออกจากยอด':'เลือกพื้นที่ที่วัดไว้ก่อน แล้วค่อยวาดช่องที่จะหักออก',!selAr)));
@@ -6896,9 +6993,11 @@ function rvStatusHtml(vm, selM){
           : state.tool==="drawCallout" ? 'กล่องข้อความ — ลากกรอบบนแปลน · Esc ยกเลิก'
           : state.tool==="drawDim" ? 'เส้นบอกขนาด — คลิกจุดเริ่ม แล้วคลิกจุดปลาย · Esc ยกเลิก'
           : state.tool==="setScale" ? 'ตั้งมาตราส่วน — ลาก 2 จุดที่รู้ระยะจริง แล้วใส่ตัวเลขเมตร · Esc ยกเลิก'
+          : state.tool==="drawAngle" ? 'วัดมุม — คลิกปลายแขนที่ 1 → จุดยอดมุม → ปลายแขนที่ 2 · Esc เลิก'
+          : state.tool==="drawLen" ? 'วัดความยาว — คลิกทีละจุด · ดับเบิลคลิกจบ · คลิกจุดแรก = รอบรูป · Esc เลิก'
           : state.tool==="drawArea" ? 'วัดพื้นที่ — '+(state.areaShape==="rect"?'ลากสี่เหลี่ยมคลุมพื้นที่':'คลิกทีละมุม · ดับเบิลคลิกหรือคลิกจุดแรกเพื่อปิดรูป')+' · Esc ยกเลิก'
           : state.tool==="drawHole" ? 'หักช่องเปิด — วาดช่องทับพื้นที่ที่เลือก · Esc ยกเลิก'
-          : _sa ? 'เลือก '+(_sa.kind==="dim"?'เส้นบอกขนาด':_sa.kind==="area"?'พื้นที่ '+(_sa.name||''):_sa.kind==="tbox"?(_sa.tip?'ป้ายชี้':'ป้ายข้อความ'):'กล่องข้อความ')
+          : _sa ? 'เลือก '+(_sa.kind==="meas"?(_sa.sub==="angle"?'มุมที่วัด':'ความยาวที่วัด'):_sa.kind==="dim"?'เส้นบอกขนาด':_sa.kind==="area"?'พื้นที่ '+(_sa.name||''):_sa.kind==="tbox"?(_sa.tip?'ป้ายชี้':'ป้ายข้อความ'):'กล่องข้อความ')
           : state.marquee ? 'ลากกรอบเลือก — ลากคลุมชิ้นบนแปลน · Esc ยกเลิก'
           : selIds().length>1 ? 'เลือก '+selIds().length+' ชิ้น — ลากย้ายทั้งชุด · Shift+คลิก เพิ่ม/ลด'
           : selM ? 'เลือก '+selM.code+' ('+TYPES[selM.type].label+')'
@@ -7026,6 +7125,7 @@ function tboxFormatHtml(a){
 function annotFormatHtml(){
   var a=state.selAnnotId?getAnnot(state.selAnnotId):null; if(!a) return "";
   if(a.kind==="area") return areaFormatHtml(a);
+  if(a.kind==="meas") return measFormatHtml(a);
   if(a.kind==="tbox") return tboxFormatHtml(a);
   var s=annotStyleOf(a), isDim=(a.kind==="dim");
   var prevTxt=isDim?(a.label||"0.00"):(String(a.text||"ตัวอย่าง").split("\n")[0]||"ตัวอย่าง");
@@ -7143,6 +7243,8 @@ function viewPlanEditor(){
   else if(state.tool==="drawCallout") hint='<div class="plan-tip">กล่องข้อความ: ลากกรอบขนาดกล่องบนแปลน แล้วพิมพ์ข้อความ · Esc ยกเลิก</div>';
   else if(state.tool==="drawDim") hint='<div class="plan-tip">เส้นบอกขนาด: คลิกจุดเริ่ม แล้วคลิกจุดปลาย'+(planScaleInfo().us>0?' — ตัวเลขคำนวณจากมาตราส่วนให้เอง':' แล้วใส่ตัวเลขระยะ')+' · Esc ยกเลิก</div>';
   else if(state.tool==="setScale") hint='<div class="plan-tip">ตั้งมาตราส่วน: ลากจากจุดหนึ่งไปอีกจุดที่รู้ระยะจริง (เช่น ศูนย์เสา→ศูนย์เสา) แล้วใส่ตัวเลขเมตร · Esc ยกเลิก</div>';
+  else if(state.tool==="drawAngle") hint='<div class="plan-tip">วัดมุม: คลิกปลายแขนที่ 1 → คลิกจุดยอดมุม → คลิกปลายแขนที่ 2 · Esc ยกเลิก</div>';
+  else if(state.tool==="drawLen") hint='<div class="plan-tip">วัดความยาว: คลิกทีละจุด · ดับเบิลคลิกเพื่อจบ · คลิกจุดแรกอีกครั้ง = ความยาวรอบรูป · Esc ยกเลิก</div>';
   else if(state.tool==="drawArea") hint='<div class="plan-tip">วัดพื้นที่: '+(state.areaShape==="rect"?'ลากสี่เหลี่ยมคลุมพื้นที่':'คลิกทีละมุมรอบพื้นที่ — ดับเบิลคลิกหรือคลิกจุดแรกเพื่อปิดรูป')+' · Esc ยกเลิก</div>';
   else if(state.tool==="drawHole") hint='<div class="plan-tip">หักช่องเปิด: '+(state.areaShape==="rect"?'ลากสี่เหลี่ยม':'คลิกทีละมุม')+'ทับช่องบันได/ช่องลิฟต์ในพื้นที่ที่เลือก · Esc ยกเลิก</div>';
   else if(state.tool==="drawZone") hint='<div class="plan-tip zone">วาดโซนเท: '+(state.zoneShape==="poly"?'คลิกทีละจุด — ดับเบิลคลิกเพื่อปิดรูป':'ลากคลุมพื้นที่บนแปลน')+' แล้วตั้งชื่อโซน · Esc ยกเลิก</div>';
@@ -7235,7 +7337,7 @@ function mPlanSheetHtml(f,type,p,plan,plans,selM,prog){
   if(sh==="annot"){
     var _msc=planScaleInfo();
     var b2='<div class="m-grid">'+mG("drawTboxStart",'','tbox','ป้ายข้อความ','',0,state.tool==="drawTbox")+mG("drawTcallStart",'','callout','ป้ายชี้','',0,state.tool==="drawTcall")+mG("drawDimStart",'','dim','เส้นบอกขนาด','',0,state.tool==="drawDim")+mG("mTool",'data-tool="select"','sel','เลือก/ย้าย','',0,state.tool==="select")
-      +mG("setScaleStart",'','ruler','ตั้งมาตราส่วน','',0,state.tool==="setScale")+mG("drawAreaStart",'data-shape="poly"','area','วัดพื้นที่','',0,state.tool==="drawArea")+mG("areaCsv",'','csv','CSV พื้นที่')+'</div>'
+      +mG("setScaleStart",'','ruler','ตั้งมาตราส่วน','',0,state.tool==="setScale")+mG("drawAreaStart",'data-shape="poly"','area','วัดพื้นที่','',0,state.tool==="drawArea")+mG("drawAngleStart",'','angle','วัดมุม','',0,state.tool==="drawAngle")+mG("drawLenStart",'','perim','วัดความยาว','',0,state.tool==="drawLen")+mG("areaCsv",'','csv','CSV พื้นที่')+'</div>'
       +'<div class="m-row"><span>มาตราส่วน</span><b>'+esc(_msc.src?fmtScale(_msc.us):'ยังไม่ตั้ง')+'</b></div>'
       +'<div class="m-note">ป้ายข้อความ: แตะตรงที่จะวางแล้วพิมพ์ · ป้ายชี้: แตะจุดที่จะชี้ แล้วแตะตรงที่จะวางป้าย · เส้นบอกขนาด: ลากจากจุดถึงจุด · ตั้งมาตราส่วน: ลาก 2 จุดที่รู้ระยะจริงแล้วใส่เมตร · วัดพื้นที่: แตะทีละมุม ดับเบิลแตะเพื่อปิดรูป</div>';
     return mSheetWrap('annot','<b>หมายเหตุ</b>', b2, {dim:true});
@@ -7426,8 +7528,10 @@ function hudDraw(){
   var out=_hud.prev?_hud.prev(P):"";
   if(_hud.snap){
     var q=P(_hud.snap), X=q.x, Y=q.y, m=(isMobile()?12:8), t=_hud.snap.type;   // มือถือ: ใหญ่กว่าช่องกลางของเป้า ไม่โดนแขนเป้าบัง
-    var col=t==="end"?"#e00000":(t==="cross"?"#0a9e0a":"#0a5fe0");
-    var body=(t==="cross")
+    var col=t==="end"?"#e00000":(t==="cross"?"#0a9e0a":(t==="center"?"#ea580c":"#0a5fe0"));
+    var body=(t==="center")
+      ? '<circle cx="'+X+'" cy="'+Y+'" r="'+m+'"/><line x1="'+(X-4)+'" y1="'+Y+'" x2="'+(X+4)+'" y2="'+Y+'"/><line x1="'+X+'" y1="'+(Y-4)+'" x2="'+X+'" y2="'+(Y+4)+'"/>'
+      : (t==="cross")
       ? '<line x1="'+(X-m)+'" y1="'+(Y-m)+'" x2="'+(X+m)+'" y2="'+(Y+m)+'"/><line x1="'+(X-m)+'" y1="'+(Y+m)+'" x2="'+(X+m)+'" y2="'+(Y-m)+'"/>'
       : '<rect x="'+(X-m)+'" y="'+(Y-m)+'" width="'+(2*m)+'" height="'+(2*m)+'"/>';
     out+='<g fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">'+body+'</g>'
@@ -7472,7 +7576,7 @@ function updateLabelScale(){
   });
 }
 /** มือถือ + กำลังวาดชิ้นส่วน/โซน → ใช้เป้ากลางจอ (ปิดได้ด้วย state.xhair=false) */
-var XH_TOOLS={draw:1, drawZone:1, drawDim:1, setScale:1, drawArea:1, drawHole:1};
+var XH_TOOLS={draw:1, drawZone:1, drawDim:1, setScale:1, drawArea:1, drawHole:1, drawAngle:1, drawLen:1};
 function _xhWant(){ return isMobile() && state.screen==="planEditor" && !!XH_TOOLS[state.tool] && state.xhair!==false; }
 function planClampPan(){
   var s=_sheetWH(); if(!s) return;
@@ -7642,8 +7746,8 @@ function bindPlanEditor(){
   var psq=$("#planSearch");
   if(psq) psq.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); planSearch(psq.value); } });
   // มือถือ: ปุ่มในแผงเครื่องมือที่ "เลือกแล้วไปทำต่อบนแปลน" → ปิดแผงก่อนให้ act ทำงาน (capture มาก่อน dispatcher ที่ document)
-  var MCLOSE={setShape:1,drawTboxStart:1,drawTcallStart:1,drawCalloutStart:1,drawDimStart:1,drawZoneStart:1,setScaleStart:1,drawAreaStart:1,drawHoleStart:1,areaCsv:1,switchPlan:1,browserSelect:1,selectZone:1,typeSelect:1,goInspect:1,showDetails:1,editMember:1,addInCat:1,qatData:1,back:1,exportPdf:1,exportProgressPdf:1,addPlan:1,removePlan:1,manageZoneStatus:1,typeAssignSheet:1,assignSheet:1,dupMember:1,delMember:1,typeManage:1,typeOpenDetail:1,deleteZone:1,mExitProgress:1};
-  var MDRAW={setShape:1,drawTboxStart:1,drawTcallStart:1,drawCalloutStart:1,drawDimStart:1,drawZoneStart:1,setScaleStart:1,drawAreaStart:1};   // เริ่มเครื่องมือวาด → เลิกเลือกของเดิมด้วย (ไม่งั้นแผงของชิ้นที่เลือกเด้งกลับมาทับแปลน)
+  var MCLOSE={setShape:1,drawTboxStart:1,drawTcallStart:1,drawCalloutStart:1,drawDimStart:1,drawZoneStart:1,setScaleStart:1,drawAreaStart:1,drawHoleStart:1,drawAngleStart:1,drawLenStart:1,areaCsv:1,switchPlan:1,browserSelect:1,selectZone:1,typeSelect:1,goInspect:1,showDetails:1,editMember:1,addInCat:1,qatData:1,back:1,exportPdf:1,exportProgressPdf:1,addPlan:1,removePlan:1,manageZoneStatus:1,typeAssignSheet:1,assignSheet:1,dupMember:1,delMember:1,typeManage:1,typeOpenDetail:1,deleteZone:1,mExitProgress:1};
+  var MDRAW={setShape:1,drawTboxStart:1,drawTcallStart:1,drawCalloutStart:1,drawDimStart:1,drawZoneStart:1,setScaleStart:1,drawAreaStart:1,drawAngleStart:1,drawLenStart:1};   // เริ่มเครื่องมือวาด → เลิกเลือกของเดิมด้วย (ไม่งั้นแผงของชิ้นที่เลือกเด้งกลับมาทับแปลน)
   $$(".m-sheet").forEach(function(ms){ ms.addEventListener("click",function(e){
     var a=e.target.closest("[data-act]"); if(!a||a.disabled) return; var ac=a.getAttribute("data-act");
     if(!MCLOSE[ac] || !state.mSheet) return;
@@ -7851,7 +7955,7 @@ function bindPlanEditor(){
   }
   function snapAt(ev){
     var p=norm(ev), r=overlay.getBoundingClientRect();
-    var sp=(state.tool==="draw"||state.tool==="drawZone"||state.tool==="drawArea"||state.tool==="drawHole"||state.tool==="setScale"||state.tool==="drawDim") ? snapNorm(p.x,p.y,r.width,r.height) : null;
+    var sp=(state.tool==="draw"||state.tool==="drawZone"||state.tool==="drawArea"||state.tool==="drawHole"||state.tool==="setScale"||state.tool==="drawDim"||state.tool==="drawAngle"||state.tool==="drawLen") ? snapNorm(p.x,p.y,r.width,r.height) : null;
     if(sp){ showSnap(sp,r); return {x:sp.x,y:sp.y}; }
     showSnap(null); return p;
   }
@@ -7921,6 +8025,7 @@ function bindPlanEditor(){
         if(a.kind==="dim" && a.p1 && a.p2) return {pts:[P(a.p1,"x","y"),P(a.p2,"x","y")], size:"dim", annot:a};
         if(a.kind==="area" && a.pts){ var L=a.pts.map(function(p){ return P(p,"x","y"); });
           (a.holes||[]).forEach(function(h){ h.forEach(function(p){ L.push(P(p,"x","y")); }); }); return {pts:L, size:null, annot:a}; }
+        if(a.kind==="meas" && a.pts) return {pts:a.pts.map(function(p){ return P(p,"x","y"); }), size:null, annot:a};
         if(a.kind==="tbox" && a.box){ var L2=[P(a.box,"x1","y1"),P(a.box,"x2","y2")]; if(a.tip) L2.push(P(a.tip,"x","y")); return {pts:L2, size:null, annot:a}; }
         return null;
       }
@@ -7987,12 +8092,13 @@ function bindPlanEditor(){
     var T=state.tool, isZone=(T==="drawZone"), isMeas=(T==="drawDim"||T==="setScale"||T==="drawArea"||T==="drawHole"), kd=drawKind(state.catType);
     var shape=isZone ? (state.zoneShape||"rect")
             : (T==="drawDim"||T==="setScale") ? "line"
+            : (T==="drawAngle") ? "angle" : (T==="drawLen") ? "plen"
             : (T==="drawArea"||T==="drawHole") ? ((state.areaShape||"poly")==="rect"?"rect":"poly")
-            : (kd==="rect" ? (state.drawShape||"rect") : kd);   // rect|oval|poly|line|point
-    var col=isZone?"#22c55e" : T==="drawDim"?"#1d4ed8" : (T==="setScale"||T==="drawHole")?"#dc2626" : T==="drawArea"?AREA_COL : state.fillColor;
+            : (kd==="rect" ? (state.drawShape||"rect") : kd);   // rect|oval|poly|line|point|angle|plen
+    var col=T==="drawAngle"?MEAS_COL.angle : T==="drawLen"?MEAS_COL.len : isZone?"#22c55e" : T==="drawDim"?"#1d4ed8" : (T==="setScale"||T==="drawHole")?"#dc2626" : T==="drawArea"?AREA_COL : state.fillColor;
     var key=state.tool+"|"+shape+"|"+state.floorId+"|"+curPlanId()+"|"+state.catType;
     if(state.xhKey!==key || !Array.isArray(state.xhPts)){ state.xhKey=key; state.xhPts=[]; }
-    var pts=state.xhPts, cur=null, lastK="", lastSt="";
+    var pts=state.xhPts, cur=null, lastK="", lastSt="", _xhClosed=false;
     var cross=document.createElement("div"); cross.className="xh-cross";
     cross.innerHTML='<svg viewBox="0 0 48 48" width="48" height="48"><g fill="none" stroke-linecap="round"><g stroke="#fff" stroke-width="5"><path d="M24 3v13M24 32v13M3 24h13M32 24h13"/><circle cx="24" cy="24" r="3"/></g><g stroke="#e0322d" stroke-width="2.2"><path d="M24 3v13M24 32v13M3 24h13M32 24h13"/><circle cx="24" cy="24" r="3"/></g></g></svg>';
     body.appendChild(cross);
@@ -8014,10 +8120,10 @@ function bindPlanEditor(){
       if(!P0.length){ if(_hud.prev){ _hud.prev=null; hudDraw(); } return; }
       _hud.prev=function(P){
         var geo="", fillOp=0;
-        if(shape==="poly"){
+        if(shape==="poly"||shape==="angle"||shape==="plen"){
           var all=P0.concat(C?[C]:[]).map(P);
           geo='<polyline points="'+all.map(function(q){ return q.x.toFixed(1)+","+q.y.toFixed(1); }).join(" ")+'"/>';
-          fillOp=all.length>=3?0.22:0;
+          fillOp=(shape==="poly" && all.length>=3)?0.22:0;
         }else if(C){
           var a=P(P0[0]), b=P(C);
           if(shape==="line") geo='<line x1="'+a.x+'" y1="'+a.y+'" x2="'+b.x+'" y2="'+b.y+'"/>';
@@ -8030,7 +8136,7 @@ function bindPlanEditor(){
           out+='<g fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" opacity="0.92">'+geo+'</g>';
           out+='<g fill="'+col+'" fill-opacity="'+fillOp+'" stroke="'+dc+'" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">'+geo+'</g>';
         }
-        P0.forEach(function(p,i){ var q=P(p), rr=(i===0&&shape==="poly"&&P0.length>=3)?7:5.5;
+        P0.forEach(function(p,i){ var q=P(p), rr=(i===0&&(shape==="poly"||shape==="plen")&&P0.length>=3)?7:5.5;
           out+='<circle cx="'+q.x+'" cy="'+q.y+'" r="'+rr+'" fill="#fff" stroke="'+dc+'" stroke-width="2.6"/>'; });
         return out;
       };
@@ -8040,10 +8146,15 @@ function bindPlanEditor(){
       var n=pts.length, t;
       if(shape==="point") t='เลื่อนแปลนให้เป้าตรงตำแหน่ง แล้วกด “วางจุด”';
       else if(shape==="poly") t=n<3 ? 'วางจุดที่ '+(n+1)+' (ต้องมีอย่างน้อย 3 จุด)' : 'วางจุดต่อ หรือกด “เสร็จ” เพื่อปิดรูป ('+n+' จุด)';
+      else if(shape==="angle") t=['ให้เป้าตรงปลายแขนที่ 1 แล้วกด “วางจุด”','เลื่อนไปที่จุดยอดมุม แล้วกด “วางจุด”','เลื่อนไปปลายแขนที่ 2 แล้วกด “วางจุด”'][Math.min(n,2)];
+      else if(shape==="plen") t=n<2 ? 'วางจุดที่ '+(n+1)+' ตามแนวที่จะวัด' : 'วางจุดต่อ หรือกด “เสร็จ” ('+n+' จุด) · วางที่จุดแรก = รอบรูป';
       else if(shape==="line") t=n===0 ? 'ให้เป้าตรงต้นแนว แล้วกด “วางจุด”' : 'เลื่อนไปปลายแนว แล้วกด “วางจุด” อีกครั้ง';
       else t=n===0 ? 'ให้เป้าตรงมุมแรก แล้วกด “วางจุด”' : 'เลื่อนไปมุมตรงข้าม แล้วกด “วางจุด” อีกครั้ง';
       if(cur && !cur.inside) return 'เป้าอยู่นอกแปลน — เลื่อนแปลนกลับเข้ามา';
       var sci=planScaleInfo();
+      var _pw=(sci.plan&&sci.plan.w)||1000, _ph=(sci.plan&&sci.plan.h)||700;
+      if(shape==="angle"){ if(n===2 && cur) t+=' · มุม '+fmtNum(measAngleDeg(pts[0],pts[1],cur,_pw,_ph),1)+'°'; if(cur && cur.snap) t+=' · ดูดติดเส้นแล้ว'; return t; }
+      if(shape==="plen"){ if(sci.us>0 && cur && n) t+=' · รวม '+fmtNum(measLenM(pts.concat([cur]),false,_pw,_ph,sci.us),2)+' ม.'; else if(!(sci.us>0)) t+=' · ยังไม่ตั้งมาตราส่วน'; if(cur && cur.snap) t+=' · ดูดติดเส้นแล้ว'; return t; }
       if(sci.us>0 && sci.plan && cur && pts.length && shape!=="point"){   // ระยะจริงจากจุดล่าสุดถึงเป้า
         var q=pts[pts.length-1], pw=sci.plan.w||1000, ph=sci.plan.h||700;
         if(shape==="rect"||shape==="oval"){ var W=Math.abs(cur.x-q.x)*pw*sci.us, H=Math.abs(cur.y-q.y)*ph*sci.us; t+=' · '+fmtNum(W,2)+' × '+fmtNum(H,2)+' ม.'+(isMeas?' ('+fmtNum(W*H,2)+' ตร.ม.)':''); }
@@ -8058,7 +8169,7 @@ function bindPlanEditor(){
         +'<div class="xh-btns">'
         +'<button class="xh-b" data-xh="undo"'+(n?'':' disabled')+' title="ย้อนจุดล่าสุด">↶</button>'
         +'<button class="xh-b pri" data-xh="place">'+(shape==="point"?'วางที่นี่':'วางจุด')+'</button>'
-        +(shape==="poly"?'<button class="xh-b ok" data-xh="done"'+(n>=3?'':' disabled')+'>เสร็จ</button>':'')
+        +((shape==="poly"||shape==="plen")?'<button class="xh-b ok" data-xh="done"'+(n>=(shape==="plen"?2:3)?'':' disabled')+'>เสร็จ</button>':'')
         +'<button class="xh-b" data-xh="cancel" title="'+(n?'ล้างจุดที่วาง':'เลิกวาด')+'">✕</button>'
         +'</div>'
         +'<button class="xh-alt" data-xh="finger">ใช้นิ้วลากวาดแทน</button>';
@@ -8067,6 +8178,7 @@ function bindPlanEditor(){
     function tick(){ cur=center(); preview(); var t=stText(); if(t!==lastSt){ lastSt=t; var el=document.getElementById("xhSt"); if(el) el.textContent=t; } }
     function finish(){
       var P=pts.slice(); pts.length=0; state.xhKey=null; showSnap(null); g.innerHTML=""; _hud.prev=null; hudDraw();
+      if(shape==="angle"||shape==="plen"){ var _cl=_xhClosed; _xhClosed=false; finishDrawMeas(shape==="angle"?"angle":"len", P, _cl); return; }
       function bbox(){ var xs=P.map(function(p){return p.x;}), ys=P.map(function(p){return p.y;});
         var x1=Math.min.apply(null,xs), x2=Math.max.apply(null,xs), y1=Math.min.apply(null,ys), y2=Math.max.apply(null,ys);
         var w=Math.max(1e-4,x2-x1), h=Math.max(1e-4,y2-y1);
@@ -8095,13 +8207,18 @@ function bindPlanEditor(){
       if(a==="finger"){ state.xhair=false; state.xhPts=[]; render(); toast("วาดด้วยการลากนิ้ว — กด “ใช้เป้ากลางจอ” ด้านบนเพื่อกลับ"); return; }
       if(a==="undo"){ pts.pop(); tick(); renderBar(); return; }
       if(a==="cancel"){ if(pts.length){ pts.length=0; tick(); renderBar(); } else { state.tool="select"; state.xhPts=[]; showSnap(null); render(); } return; }
-      if(a==="done"){ if(shape==="poly" && pts.length>=3) finish(); return; }
+      if(a==="done"){ if((shape==="poly" && pts.length>=3) || (shape==="plen" && pts.length>=2)) finish(); return; }
       if(a!=="place") return;
       var c=center(); cur=c;
       if(!c.inside){ toast("เป้าอยู่นอกแปลน — เลื่อนแปลนให้เป้าอยู่บนแบบก่อน",true); return; }
       var r=overlay.getBoundingClientRect(), p={x:c.x, y:c.y};
       try{ if(navigator.vibrate) navigator.vibrate(12); }catch(e){}
       if(shape==="point"){ pts.push(p); finish(); return; }
+      if(shape==="angle"){ pts.push(p); if(pts.length>=3) finish(); else { tick(); renderBar(); } return; }
+      if(shape==="plen"){
+        if(pts.length>=3 && Math.hypot((p.x-pts[0].x)*r.width,(p.y-pts[0].y)*r.height)<14){ _xhClosed=true; finish(); return; }   // วางที่จุดแรก = รอบรูป
+        pts.push(p); tick(); renderBar(); return;
+      }
       if(shape==="poly"){
         if(pts.length>=3 && Math.hypot((p.x-pts[0].x)*r.width,(p.y-pts[0].y)*r.height)<14){ finish(); return; }   // วางที่จุดแรก = ปิดรูป
         pts.push(p); tick(); renderBar(); return;
@@ -8301,8 +8418,8 @@ function bindPlanEditor(){
       if(atf){       // ลากจุดจับหมายเหตุ
         var at=getAnnot(atf.aid); if(!at) return;
         var pa=norm(ev), cx2=Math.max(0,Math.min(1,pa.x)), cy2=Math.max(0,Math.min(1,pa.y)), hh2=atf.handle, g0=atf.geo;
-        if(at.kind==="dim" && hh2!=="off" && state.snap){ var _rs=overlay.getBoundingClientRect(), _sp=snapNorm(cx2,cy2,_rs.width,_rs.height); if(_sp){ cx2=_sp.x; cy2=_sp.y; showSnap(_sp,_rs); } else showSnap(null); }   // ปลายเส้นบอกขนาดดูดเข้าเส้นแบบ
-        if(at.kind==="area"){
+        if((at.kind==="dim"||at.kind==="meas") && hh2!=="off" && state.snap){ var _rs=overlay.getBoundingClientRect(), _sp=snapNorm(cx2,cy2,_rs.width,_rs.height); if(_sp){ cx2=_sp.x; cy2=_sp.y; showSnap(_sp,_rs); } else showSnap(null); }   // ปลายเส้นบอกขนาดดูดเข้าเส้นแบบ
+        if(at.kind==="area"||at.kind==="meas"){
           var hm=hh2.match(/^v(\d+)$/), hm2=hh2.match(/^h(\d+)_(\d+)$/);
           if(hm && at.pts[+hm[1]]) at.pts[+hm[1]]={x:cx2,y:cy2};
           else if(hm2 && at.holes && at.holes[+hm2[1]] && at.holes[+hm2[1]][+hm2[2]]) at.holes[+hm2[1]][+hm2[2]]={x:cx2,y:cy2};
@@ -8352,6 +8469,7 @@ function bindPlanEditor(){
           var g1=amv.geo;
           var _mv=function(pt){ return {x:pt.x+ddx,y:pt.y+ddy}; };
           if(am.kind==="area"){ am.pts=(g1.pts||[]).map(_mv); am.holes=(g1.holes||[]).map(function(hh){ return hh.map(_mv); }); }
+          else if(am.kind==="meas"){ am.pts=(g1.pts||[]).map(_mv); }
           else if(am.kind==="dim"){ am.p1={x:g1.p1.x+ddx,y:g1.p1.y+ddy}; am.p2={x:g1.p2.x+ddx,y:g1.p2.y+ddy}; }
           else{ am.box={x1:g1.box.x1+ddx,y1:g1.box.y1+ddy,x2:g1.box.x2+ddx,y2:g1.box.y2+ddy};
                 if(g1.tip) am.tip={x:g1.tip.x+ddx,y:g1.tip.y+ddy}; }
@@ -8412,7 +8530,7 @@ function bindPlanEditor(){
       window.removeEventListener("pointermove",selMove,true);
       window.removeEventListener("pointerup",selUp,true);
       window.removeEventListener("pointercancel",selUp,true);
-      if(atf){ var _atA=getAnnot(atf.aid); atf=null; showSnap(null); plCommitPend(); saveDB(); if(_atA && (_atA.kind==="area" || _atA.kind==="tbox" || (_atA.kind==="dim"&&_atA.auto))) render(); return; }   // ตัวเลขในแผงต้องตามรูปที่ลาก
+      if(atf){ var _atA=getAnnot(atf.aid); atf=null; showSnap(null); plCommitPend(); saveDB(); if(_atA && (_atA.kind==="area" || _atA.kind==="meas" || _atA.kind==="tbox" || (_atA.kind==="dim"&&_atA.auto))) render(); return; }   // ตัวเลขในแผงต้องตามรูปที่ลาก
       if(amv){
         var wasA=amv.moved, aid=amv.aid; amv=null;
         if(wasA){ plCommitPend(); saveDB(); return; }
@@ -8575,6 +8693,44 @@ function bindPlanEditor(){
       overlay.appendChild(scTemp); _dtHalo(scTemp);
       window.addEventListener("pointermove",scMove,true); window.addEventListener("pointerup",scEnd,true); window.addEventListener("pointercancel",scEnd,true);
     });
+    return;
+  }
+
+  /* ---------- วัดมุม (3 คลิก) / วัดความยาว (คลิกทีละจุด · ดับเบิลคลิกจบ · คลิกจุดแรก = รอบรูป) ---------- */
+  if(state.tool==="drawAngle" || state.tool==="drawLen"){
+    var isAng=(state.tool==="drawAngle"), MC=isAng?MEAS_COL.angle:MEAS_COL.len;
+    var mpts=[], mg=document.createElementNS(NS,"g"); mg.setAttribute("style","pointer-events:none"); overlay.appendChild(mg);
+    var _mdist=function(p,q){ var r=overlay.getBoundingClientRect(); return Math.hypot((p.x-q.x)*r.width,(p.y-q.y)*r.height); };
+    function mredraw(cur){
+      var z=state.zoom||1, arr=mpts.slice(); if(cur) arr.push(cur);
+      var out="";
+      if(arr.length>=2){
+        var dd=arr.map(function(p){ return (p.x*VW).toFixed(1)+","+(p.y*VH).toFixed(1); }).join(" ");
+        out+='<polyline points="'+dd+'" fill="none" stroke="'+MC+'" stroke-width="'+(2.4/z)+'" stroke-linecap="round" stroke-linejoin="round"/>';
+      }
+      mpts.forEach(function(p,i){ out+='<circle cx="'+(p.x*VW)+'" cy="'+(p.y*VH)+'" r="'+((!isAng&&i===0&&mpts.length>=3?7:5)/z)+'" fill="#fff" stroke="'+MC+'" stroke-width="'+(2/z)+'"/>'; });
+      if(cur && mpts.length){   // ตัวเลขสด
+        var t="", sci=planScaleInfo(), pw=(sci.plan&&sci.plan.w)||1000, ph=(sci.plan&&sci.plan.h)||700;
+        if(isAng && mpts.length===2) t=fmtNum(measAngleDeg(mpts[0],mpts[1],cur,pw,ph),1)+"°";
+        else if(!isAng && sci.us>0) t=fmtNum(measLenM(arr,false,pw,ph,sci.us),2)+" ม.";
+        if(t) out+='<text x="'+(cur.x*VW+10/z)+'" y="'+(cur.y*VH-10/z)+'" font-size="'+(13/z)+'" font-weight="700" fill="'+MC+'" font-family="Sarabun, sans-serif" style="paint-order:stroke;stroke:#fff;stroke-width:'+(3/z)+'px">'+t+'</text>';
+      }
+      mg.innerHTML=out; _dtHaloIn(mg);
+    }
+    function mfinish(closed){ var P=mpts.slice(); mpts=[]; mg.innerHTML=""; showSnap(null); finishDrawMeas(isAng?"angle":"len", P, closed); }
+    window.__annotPendingCancel=function(){ if(mg.isConnected && mpts.length){ mpts=[]; mg.innerHTML=""; showSnap(null); return true; } return false; };
+    overlay.addEventListener("pointermove",function(ev){ mredraw(snapAt(ev)); });
+    overlay.addEventListener("pointerleave",function(){ showSnap(null); });
+    overlay.addEventListener("click",function(ev){
+      if(window.__planPinch) return;
+      var p=snapAt(ev);
+      if(!isAng && mpts.length>=3 && _mdist(p,mpts[0])<12){ mfinish(true); return; }   // คลิกจุดแรก = ปิดรูป
+      if(mpts.length && _mdist(p,mpts[mpts.length-1])<3) return;                     // คลิกซ้ำจุดเดิม (จากดับเบิลคลิก)
+      mpts.push(p);
+      if(isAng && mpts.length===3){ mfinish(false); return; }
+      mredraw(p);
+    });
+    overlay.addEventListener("dblclick",function(ev){ ev.preventDefault(); if(!isAng && mpts.length>=2) mfinish(false); });
     return;
   }
 
@@ -9377,7 +9533,28 @@ function extractPdfSegments(page){
     return page.getOperatorList().then(function(ol){
       var OPS=window.pdfjsLib.OPS, base=page.getViewport({scale:1});
       var bt=base.transform, W=base.width||1, H=base.height||1;
-      var ctm=[1,0,0,1,0,0], stack=[], segs=[];
+      var ctm=[1,0,0,1,0,0], stack=[], segs=[], cid=0, centers=[], cSeen={};
+      // ส่วนโค้ง → ช่วงสั้น ๆ (fl: 1 = ต้นช่วงอยู่กลางโค้ง, 2 = ปลายช่วงอยู่กลางโค้ง → ไม่นับเป็น "ปลายเส้น") · id = โค้งเดียวกัน
+      function pushC(x1,y1,x2,y2,fl,id){ var a=dev(x1,y1),b=dev(x2,y2);
+        var dx=(b[0]-a[0])*W, dy=(b[1]-a[1])*H; if(dx*dx+dy*dy<0.04) return;
+        segs.push([a[0],a[1],b[0],b[1],fl,id]); }
+      function curve(x0,y0,x1,y1,x2,y2,x3,y3){
+        var A=dev(x0,y0), B=dev(x1,y1), C=dev(x2,y2), D=dev(x3,y3);
+        var L=Math.hypot((B[0]-A[0])*W,(B[1]-A[1])*H)+Math.hypot((C[0]-B[0])*W,(C[1]-B[1])*H)+Math.hypot((D[0]-C[0])*W,(D[1]-C[1])*H);
+        if(L<1.5) return;
+        function bz(t){ var u=1-t; return [u*u*u*x0+3*u*u*t*x1+3*u*t*t*x2+t*t*t*x3, u*u*u*y0+3*u*u*t*y1+3*u*t*t*y2+t*t*t*y3]; }
+        var n=Math.max(4,Math.min(24,Math.ceil(L/4))), id=++cid, px=x0, py=y0;
+        for(var i=1;i<=n;i++){ var q=bz(i/n); pushC(px,py,q[0],q[1],(i>1?1:0)|(i<n?2:0),id); px=q[0]; py=q[1]; }
+        if(L>=5){   // จุดศูนย์กลาง (ถ้าโค้งนี้เป็นส่วนของวงกลม)
+          var m=bz(0.5), k4=bz(0.25), k7=bz(0.75), P1=dev(x0,y0), P2=dev(m[0],m[1]), P3=dev(x3,y3), P4=dev(k4[0],k4[1]), P5=dev(k7[0],k7[1]);
+          var cc=_circ3(P1[0]*W,P1[1]*H, P2[0]*W,P2[1]*H, P3[0]*W,P3[1]*H);
+          var _tol=cc?Math.max(0.25,cc.r*0.015):0;   // ต้องอยู่บนวงกลมทั้งที่ 1/4 และ 3/4 ของโค้ง (กันโค้งทั่วไปที่ไม่ใช่วงกลม)
+          if(cc && cc.r>1.2 && cc.r<600 && Math.abs(Math.hypot(P4[0]*W-cc.x,P4[1]*H-cc.y)-cc.r)<_tol && Math.abs(Math.hypot(P5[0]*W-cc.x,P5[1]*H-cc.y)-cc.r)<_tol){
+            var ck=Math.round(cc.x*2)+","+Math.round(cc.y*2);
+            if(!cSeen[ck]){ cSeen[ck]=1; centers.push([cc.x/W, cc.y/H]); }
+          }
+        }
+      }
       function dev(x,y){ var p=_applyT(x,y,ctm); p=_applyT(p[0],p[1],bt); return [p[0]/W, p[1]/H]; }
       function push(x1,y1,x2,y2){ var a=dev(x1,y1),b=dev(x2,y2);
         var dx=(b[0]-a[0])*W, dy=(b[1]-a[1])*H; if(dx*dx+dy*dy<9) return;   // ตัดเส้นสั้น <3pt (ตัวอักษร/hatch)
@@ -9393,23 +9570,35 @@ function extractPdfSegments(page){
           for(var j=0;j<ops.length;j++){ var op=ops[j];
             if(op===OPS.moveTo){ cx=co[k++];cy=co[k++]; sx=cx;sy=cy; }
             else if(op===OPS.lineTo){ var nx=co[k++],ny=co[k++]; push(cx,cy,nx,ny); cx=nx;cy=ny; }
-            else if(op===OPS.curveTo){ k+=4; var ex=co[k++],ey=co[k++]; push(cx,cy,ex,ey); cx=ex;cy=ey; }
+            else if(op===OPS.curveTo){ curve(cx,cy,co[k],co[k+1],co[k+2],co[k+3],co[k+4],co[k+5]); cx=co[k+4]; cy=co[k+5]; k+=6; }
+            else if(op===OPS.curveTo2){ curve(cx,cy,cx,cy,co[k],co[k+1],co[k+2],co[k+3]); cx=co[k+2]; cy=co[k+3]; k+=4; }   // v: จุดควบคุมแรก = จุดปัจจุบัน
+            else if(op===OPS.curveTo3){ curve(cx,cy,co[k],co[k+1],co[k+2],co[k+3],co[k+2],co[k+3]); cx=co[k+2]; cy=co[k+3]; k+=4; }   // y: จุดควบคุมสอง = จุดปลาย
             else if(op===OPS.rectangle){ var rx=co[k++],ry=co[k++],rw=co[k++],rh=co[k++];
               push(rx,ry,rx+rw,ry); push(rx+rw,ry,rx+rw,ry+rh); push(rx+rw,ry+rh,rx,ry+rh); push(rx,ry+rh,rx,ry); cx=rx;cy=ry; }
             else if(op===OPS.closePath){ push(cx,cy,sx,sy); cx=sx;cy=sy; }
           }
         }
       }
-      if(segs.length>60000) segs.length=60000;   // กันหนักผิดปกติ
+      if(segs.length>120000) segs.length=120000;   // กันหนักผิดปกติ
+      segs.centers=centers;
       return segs;
     }).catch(function(){ return null; });
   }catch(e){ return Promise.resolve(null); }
 }
 /** ผูกเส้นเข้ากับ doc + สร้างดัชนีเชิงพื้นที่ (bucket) เพื่อค้นเร็วตอนสแนบ */
+function _circ3(ax,ay,bx,by,cx,cy){   // วงกลมผ่าน 3 จุด
+  var d=2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by)); if(Math.abs(d)<1e-9) return null;
+  var a2=ax*ax+ay*ay, b2=bx*bx+by*by, c2=cx*cx+cy*cy;
+  var ux=(a2*(by-cy)+b2*(cy-ay)+c2*(ay-by))/d, uy=(a2*(cx-bx)+b2*(ax-cx)+c2*(bx-ax))/d;
+  return {x:ux, y:uy, r:Math.hypot(ax-ux,ay-uy)};
+}
 function attachSnap(doc, segs){
-  if(!doc || !segs || !segs.length){ if(doc){ doc.segs=null; doc.snapIdx=null; } return; }
+  if(!doc || !segs || !segs.length){ if(doc){ doc.segs=null; doc.snapIdx=null; doc.cIdx=null; } return; }
   doc.segs=segs;
   var CELL=0.012, idx={};
+  var cen=segs.centers||[], cidx={};   // ดัชนีจุดศูนย์กลาง
+  cen.forEach(function(c,i){ var k=Math.floor(c[0]/CELL)+","+Math.floor(c[1]/CELL); (cidx[k]||(cidx[k]=[])).push(c); });
+  doc.cIdx={cell:CELL, idx:cidx};
   function add(cx,cy,i){ var k=cx+","+cy; (idx[k]||(idx[k]=[])).push(i); }
   for(var i=0;i<segs.length;i++){
     var s=segs[i], len=Math.hypot(s[2]-s[0],s[3]-s[1]);
@@ -9439,10 +9628,15 @@ function snapNorm(nx, ny, pxW, pxH){
   var best=null;
   function consider(x,y,type,pri){ var d=dpx(x,y); if(d>TOLPX) return;
     if(!best || pri<best.pri || (pri===best.pri && d<best.d)) best={x:x,y:y,type:type,pri:pri,d:d}; }
-  // ปลายเส้น (สำคัญสุด)
-  for(var i=0;i<cand.length;i++){ var s=cand[i]; consider(s[0],s[1],"end",0); consider(s[2],s[3],"end",0); }
-  // จุดตัดของเส้นใกล้เคอร์เซอร์
+  // ปลายเส้น (สำคัญสุด) — ช่วงย่อยกลางส่วนโค้งไม่นับเป็นปลายเส้น
+  for(var i=0;i<cand.length;i++){ var s=cand[i], fl=s[4]||0; if(!(fl&1)) consider(s[0],s[1],"end",0); if(!(fl&2)) consider(s[2],s[3],"end",0); }
+  // จุดศูนย์กลางวงกลม/ส่วนโค้ง
+  var ci=doc.cIdx;
+  if(ci){ var C=ci.cell, rr=Math.ceil(tolN/C)+1, gx=Math.floor(nx/C), gy=Math.floor(ny/C);
+    for(var ddx=-rr;ddx<=rr;ddx++)for(var ddy=-rr;ddy<=rr;ddy++){ var ca=ci.idx[(gx+ddx)+","+(gy+ddy)]; if(ca) ca.forEach(function(c){ consider(c[0],c[1],"center",0); }); } }
+  // จุดตัดของเส้นใกล้เคอร์เซอร์ (ช่วงย่อยของโค้งเดียวกันไม่นับ)
   for(var a=0;a<cand.length;a++)for(var b=a+1;b<cand.length;b++){
+    if(cand[a][5]!=null && cand[a][5]===cand[b][5]) continue;
     var p=_segInt(cand[a],cand[b]); if(p) consider(p[0],p[1],"cross",1);
   }
   // จุดบนเส้น (ตั้งฉาก)
