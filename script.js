@@ -8485,7 +8485,7 @@ function bindPlanEditor(){
     overlay.addEventListener("pointermove",function(ev){
       if(aStart) return;
       var _hp=snapAt(ev);
-      if(tcTemp && _hp){ var _ln=tcTemp.querySelector("line"); if(_ln){ _ln.setAttribute("x2",_hp.x*VW); _ln.setAttribute("y2",_hp.y*VH); } }   // เส้นยางตามเมาส์ระหว่างรอคลิกที่สอง
+      if(tcTemp && _hp){ var _ln=tcTemp.querySelector("line:not([data-halo])"); if(_ln){ _ln.setAttribute("x2",_hp.x*VW); _ln.setAttribute("y2",_hp.y*VH); } }   // เส้นยางตามเมาส์ระหว่างรอคลิกที่สอง
     });
     overlay.addEventListener("pointerleave",function(){ if(!aStart) showSnap(null); });
     overlay.addEventListener("pointerdown",function(ev){
