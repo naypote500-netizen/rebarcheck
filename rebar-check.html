@@ -6301,12 +6301,13 @@ function areaSvg(a, VW, VH, z, sel){
   var P=function(arr){ return arr.map(function(p){ return (p.x*VW).toFixed(1)+","+(p.y*VH).toFixed(1); }).join(" "); };
   var d="M"+P(pts).split(" ").join(" L")+" Z";
   (a.holes||[]).forEach(function(h){ if(h.length>=3) d+=" M"+P(h).split(" ").join(" L")+" Z"; });
-  var out='<path data-aid="'+a.id+'" d="'+d+'" fill="'+col+'" fill-opacity="'+(sel?0.22:0.13)+'" fill-rule="evenodd" stroke="'+col+'" stroke-width="'+((sel?2.8:2)/z)+'"'+(sel?'':' stroke-dasharray="'+(8/z)+' '+(5/z)+'"')+' stroke-linejoin="round" style="cursor:move"/>';
+  var fa=(a.fillA!=null?+a.fillA:0.13), ls=(a.lblScale!=null?+a.lblScale:1);
+  var out='<path data-aid="'+a.id+'" d="'+d+'" fill="'+col+'" fill-opacity="'+(sel?Math.min(1,fa+0.09):fa)+'" fill-rule="evenodd" stroke="'+col+'" stroke-width="'+((sel?2.8:2)/z)+'"'+(sel?'':' stroke-dasharray="'+(8/z)+' '+(5/z)+'"')+' stroke-linejoin="round" style="cursor:move"/>';
   (a.holes||[]).forEach(function(h){ if(h.length>=3) out+='<polygon points="'+P(h)+'" fill="none" stroke="#dc2626" stroke-width="'+(1.4/z)+'" stroke-dasharray="'+(5/z)+' '+(3/z)+'" style="pointer-events:none"/>'; });
   var mt=areaMetrics(a), c=polyCenter(pts), cx=c.x*VW, cy=c.y*VH;
   var l1=a.name||"พื้นที่", l2=mt?fmtNum(mt.net,2)+" ตร.ม.":"ยังไม่ตั้งสเกล";
-  var fs=14/z, w=Math.max(l1.length,l2.length)*fs*0.6+18/z, h=fs*2.9;
-  out+='<g data-aid="'+a.id+'" style="cursor:move"><rect x="'+(cx-w/2)+'" y="'+(cy-h/2)+'" width="'+w+'" height="'+h+'" rx="'+(5/z)+'" fill="#fff" fill-opacity="0.93" stroke="'+col+'" stroke-width="'+(1.2/z)+'"/>'
+  var fs=14*ls/z, w=Math.max(l1.length,l2.length)*fs*0.6+18*ls/z, h=fs*2.9;
+  if(ls>0) out+='<g data-aid="'+a.id+'" style="cursor:move"><rect x="'+(cx-w/2)+'" y="'+(cy-h/2)+'" width="'+w+'" height="'+h+'" rx="'+(5*ls/z)+'" fill="#fff" fill-opacity="0.93" stroke="'+col+'" stroke-width="'+(1.2*Math.max(0.6,ls)/z)+'"/>'
     +'<text x="'+cx+'" y="'+(cy-fs*0.22)+'" font-size="'+fs+'" font-weight="700" fill="'+col+'" text-anchor="middle" font-family="Sarabun, sans-serif">'+_hx(l1)+'</text>'
     +'<text x="'+cx+'" y="'+(cy+fs*0.98)+'" font-size="'+fs+'" font-weight="'+(mt?800:400)+'" fill="'+(mt?"#1d2229":"#b45309")+'" text-anchor="middle" font-family="Sarabun, sans-serif">'+_hx(l2)+'</text></g>';
   if(sel){
@@ -8997,6 +8998,9 @@ function areaFormatHtml(a){
   h+='<div class="fx-s">ช่องเปิด (บันได / ลิฟต์)</div><div class="fx-r" style="flex-wrap:wrap"><button class="btn soft" data-act="drawHoleStart">'+rvIc('hole',13)+' หักช่องเปิด</button>'
     +((a.holes||[]).length?'<button class="btn soft" data-act="areaClearHoles">ล้างช่อง ('+a.holes.length+')</button>':'')+'</div>';
   h+='<div class="fx-s">สี</div><div class="fx-btns">'+ANNOT_SWATCH.map(function(c){ return '<button class="fx-sw'+(col===c?" on":"")+'" data-act="annotSwatch" data-c="'+c+'" style="background:'+c+'" title="'+c+'"></button>'; }).join("")+'</div>';
+  var _fa=Math.round((a.fillA!=null?+a.fillA:0.13)*100), _ls=Math.round((a.lblScale!=null?+a.lblScale:1)*100);
+  h+='<div class="fx-s">ความเข้มสีพื้น</div><div class="fx-r"><input type="range" id="areaFillIn" class="fx-range" min="0" max="80" step="1" value="'+_fa+'" style="flex:1"><span id="areaFillV" class="zop-v">'+_fa+'%</span></div>';
+  h+='<div class="fx-s">ขนาดป้าย</div><div class="fx-r"><input type="range" id="areaLblIn" class="fx-range" min="0" max="250" step="5" value="'+_ls+'" style="flex:1"><span id="areaLblV" class="zop-v">'+(_ls?_ls+'%':'ซ่อน')+'</span></div>';
   h+='<div class="fx-acts"><button class="btn soft" data-act="areaToZone">'+rvIc('zone',14)+' เป็นโซนเท</button><button class="btn soft" data-act="annotDup">'+rvIc('copy',14)+' ทำซ้ำ</button><button class="btn danger" data-act="annotDel" style="grid-column:1/-1">'+rvIc('trash',14)+' ลบพื้นที่</button></div>';
   return h+'</div></div>';
 }
@@ -9595,6 +9599,12 @@ function bindPlanEditor(){
     function fxA(){ return state.selAnnotId?getAnnot(state.selAnnotId):null; }
     function fxPush(){ if(!_fxPushed){ plPushUndo(); _fxPushed=true; } }
     fxp.addEventListener("pointerdown",function(){ _fxPushed=false; });
+    // พื้นที่ที่วัด: ความเข้มสี / ขนาดป้าย — ลากแล้วเห็นผลทันที
+    [["areaFillIn","areaFillV","fillA",function(v){ return v+"%"; }],["areaLblIn","areaLblV","lblScale",function(v){ return v>0?v+"%":"ซ่อน"; }]].forEach(function(cf){
+      var el=$("#"+cf[0]); if(!el) return;
+      el.addEventListener("input",function(){ var a=fxA(); if(!a) return; fxPush(); var v=+el.value; a[cf[2]]=v/100; var o=$("#"+cf[1]); if(o) o.textContent=cf[3](v); repaintPlanShapes(); });
+      el.addEventListener("change",function(){ saveDB(); _fxPushed=false; });
+    });
     var ta=$("#annotText");
     if(ta){
       ta.addEventListener("focus",function(){ _fxPushed=false; fxPush(); });
@@ -10360,7 +10370,7 @@ function bindPlanEditor(){
       if(atf){       // ลากจุดจับหมายเหตุ
         var at=getAnnot(atf.aid); if(!at) return;
         var pa=norm(ev), cx2=Math.max(0,Math.min(1,pa.x)), cy2=Math.max(0,Math.min(1,pa.y)), hh2=atf.handle, g0=atf.geo;
-        if((at.kind==="dim"||at.kind==="meas") && hh2!=="off" && state.snap){ var _rs=overlay.getBoundingClientRect(), _sp=snapNorm(cx2,cy2,_rs.width,_rs.height); if(_sp){ cx2=_sp.x; cy2=_sp.y; showSnap(_sp,_rs); } else showSnap(null); }   // ปลายเส้นบอกขนาดดูดเข้าเส้นแบบ
+        if((at.kind==="dim"||at.kind==="meas"||at.kind==="area") && hh2!=="off" && state.snap){ var _rs=overlay.getBoundingClientRect(), _sp=snapNorm(cx2,cy2,_rs.width,_rs.height); if(_sp){ cx2=_sp.x; cy2=_sp.y; showSnap(_sp,_rs); } else showSnap(null); }   // ปลายเส้นบอกขนาดดูดเข้าเส้นแบบ
         if(at.kind==="area"||at.kind==="meas"){
           var hm=hh2.match(/^v(\d+)$/), hm2=hh2.match(/^h(\d+)_(\d+)$/);
           if(hm && at.pts[+hm[1]]) at.pts[+hm[1]]={x:cx2,y:cy2};
