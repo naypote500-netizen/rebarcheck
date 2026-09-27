@@ -4852,6 +4852,21 @@ function memberStatus(m){ var ins=lastInspection(m.id); return !ins ? "todo" : (
 function repaintPlanShapes(){
   var ov=document.getElementById("planOverlay"); if(!ov) return;
   ov.innerHTML=planShapesSVG(+ov.getAttribute("data-vw"), +ov.getAttribute("data-vh"));
+  _ovMark(ov);
+  updateLabelScale();
+}
+/** จำว่าชั้นเวกเตอร์วาดที่ซูมเท่าไร + มีกี่ชิ้น (ชิ้นที่ต่อท้ายหลังจากนี้ = ของชั่วคราวระหว่างวาด) */
+function _ovMark(ov){ ov._nShapes=ov.childNodes.length; ov.setAttribute("data-z", state.zoom||1); }
+/** หยุดซูมแล้ว → วาดใหม่ให้เส้น/ตัวเลขหมายเหตุเท่าขนาดจอจริง (ไม่ถูกยืดตามแปลน · คมบนมือถือ) */
+function _ovZoomRepaint(){
+  var ov=document.getElementById("planOverlay"); if(!ov || window.__planPinch) return;
+  var z=state.zoom||1, z0=+ov.getAttribute("data-z")||0;
+  if(z0 && Math.abs(z-z0)/z<0.001) return;
+  var n=ov._nShapes, keep=[];
+  if(n!=null) while(ov.childNodes.length>n) keep.unshift(ov.removeChild(ov.lastChild));   // ของชั่วคราว (เส้นร่างที่กำลังวาด)
+  ov.innerHTML=planShapesSVG(+ov.getAttribute("data-vw"), +ov.getAttribute("data-vh"));
+  _ovMark(ov);
+  keep.forEach(function(k){ ov.appendChild(k); });
   updateLabelScale();
 }
 function planZoomToMember(id){
@@ -7624,6 +7639,7 @@ function planFit(){ state.zoom=1; state.panX=0; state.panY=0; planClampPan(); pl
 
 function bindPlanEditor(){
   _hud.snap=null; _hud.prev=null;
+  var _ovb=document.getElementById("planOverlay"); if(_ovb) _ovMark(_ovb);   // ก่อนเครื่องมือวาดต่อชิ้นชั่วคราวเข้ามา
   bindMCard();   // การ์ดลอยของชิ้นที่เลือก
   // นำเข้าแปลน (รูป / PDF)
   var pf=$("#planFile");
@@ -8024,7 +8040,7 @@ function bindPlanEditor(){
   function _pinchEnd(ev){
     if(ev.pointerType!=="touch") return;
     delete _pts[ev.pointerId];
-    if(Object.keys(_pts).length<2){ window.__planPinch=false; }   // เหลือ <2 นิ้ว → เลิก pinch
+    if(Object.keys(_pts).length<2){ if(window.__planPinch) scheduleEnsure(); window.__planPinch=false; }   // เหลือ <2 นิ้ว → เลิก pinch (แล้ววาดชั้นเวกเตอร์ใหม่ที่ซูมใหม่)
   }
   stage.addEventListener("pointerup",_pinchEnd,true);
   stage.addEventListener("pointercancel",_pinchEnd,true);
@@ -8289,7 +8305,7 @@ function bindPlanEditor(){
     var ps=null, moved=false, mid=null, tf=null, mv=null, ml=null, lsz=null, ztf=null, zmv=null, atf=null, amv=null, mq=null;
     function mqBox(){ var d=document.getElementById("planMarquee"); if(!d){ d=document.createElement("div"); d.id="planMarquee"; d.className="plan-marquee"; document.body.appendChild(d); } return d; }
     function mqRemove(){ var d=document.getElementById("planMarquee"); if(d&&d.parentNode) d.parentNode.removeChild(d); }
-    function repaintShapes(){ overlay.innerHTML=planShapesSVG(VW,VH); updateLabelScale(); }
+    function repaintShapes(){ overlay.innerHTML=planShapesSVG(VW,VH); _ovMark(overlay); updateLabelScale(); }
     function clampGeo(pl){   // กันชิ้นส่วนหลุดออกนอกแปลน
       ["x1","x2","y1","y2","x","y"].forEach(function(k){ if(pl[k]!=null) pl[k]=Math.max(0,Math.min(1,pl[k])); });
     }
@@ -10518,7 +10534,7 @@ function loadPlanSource(key){
 }
 var _ensureT=null;
 /** เรียก applyBestImage แบบหน่วงเวลา (หลังหยุดซูม) เพื่อไม่เรนเดอร์ถี่เกินไป */
-function scheduleEnsure(){ clearTimeout(_ensureT); _ensureT=setTimeout(applyBestImage, 190); }
+function scheduleEnsure(){ clearTimeout(_ensureT); _ensureT=setTimeout(function(){ _ovZoomRepaint(); applyBestImage(); }, 190); }
 
 /** เก็บภาพตัวอย่าง (base raster) — upsert ลง "แปลนที่กำลังเลือก" ใน planList (รองรับหลายแปลน) */
 function storePlan(src, w, hh, kind){
