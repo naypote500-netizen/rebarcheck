@@ -9656,11 +9656,55 @@ function _segNear(doc,nx,ny,tolN){
   return out;
 }
 /** สแนบจุด (nx,ny normalized) → คืน {x,y,type} หรือ null. pxW/pxH = ขนาดกรอบจริงบนจอ */
+/** เส้นของชิ้นส่วน/โซนที่วาดในแอป (แปลนที่เปิดอยู่) ใกล้จุด (nx,ny) → รูปแบบเดียวกับเส้น PDF [x1,y1,x2,y2,fl,id] */
+function _appSnapSegs(nx, ny, tolN){
+  var f=getFloor(state.floorId); if(!f) return [];
+  var pid=curPlanId(), ov=$("#planOverlay");
+  var VW=+(ov&&ov.getAttribute("data-vw"))||1000, VH=+(ov&&ov.getAttribute("data-vh"))||700;
+  var geos=[];
+  if(state.planMode==="progress") zonesOfPlan(f.id,pid).forEach(function(z){ if(z.plan) geos.push(z.plan); });
+  else membersOfFloor(f.id).forEach(function(m){
+    if(!m.plan || memberPlanId(m)!==pid) return;
+    if(state.unified ? state.hiddenTypes[m.type] : (m.type!==state.catType)) return;
+    geos.push(m.plan);
+  });
+  var out=[], cid=900000000;
+  function N(p){ return [p[0]/VW, p[1]/VH]; }
+  geos.forEach(function(g){
+    if(g.kind==="point"){ if(Math.abs(g.x-nx)<tolN*2 && Math.abs(g.y-ny)<tolN*2) out.push([g.x,g.y,g.x,g.y]); return; }
+    if(g.kind==="line"){ out.push([g.x1,g.y1,g.x2,g.y2]); return; }
+    var x=Math.min(g.x1,g.x2)*VW, y=Math.min(g.y1,g.y2)*VH, w=Math.abs(g.x2-g.x1)*VW, h=Math.abs(g.y2-g.y1)*VH;
+    var cx=x+w/2, cy=y+h/2, rot=g.rot||0, R=Math.hypot(w,h)/2;
+    if(Math.abs(cx/VW-nx)>R/VW+tolN*2 || Math.abs(cy/VH-ny)>R/VH+tolN*2) return;   // อยู่ไกล → ข้าม
+    var P=function(px,py){ return N(rot?rotPt(px,py,cx,cy,rot):[px,py]); }, pts;
+    if(g.kind==="poly" && g.pts && g.pts.length>=3) pts=g.pts.map(function(p){ return P(x+p[0]*w, y+p[1]*h); });
+    else if(g.kind==="oval"){   // วงรี → ช่วงสั้น ๆ (ไม่มีปลายเส้นกลางโค้ง) + จุดศูนย์กลาง
+      var n=32, id=++cid, prev=P(cx+w/2,cy);
+      for(var i=1;i<=n;i++){ var t=i/n*Math.PI*2, q=P(cx+Math.cos(t)*w/2, cy+Math.sin(t)*h/2); out.push([prev[0],prev[1],q[0],q[1],3,id]); prev=q; }
+      var c=N([cx,cy]); out.push([c[0],c[1],c[0],c[1]]);
+      return;
+    }
+    else pts=[P(x,y),P(x+w,y),P(x+w,y+h),P(x,y+h)];
+    for(var k=0;k<pts.length;k++){ var a=pts[k], b=pts[(k+1)%pts.length]; out.push([a[0],a[1],b[0],b[1]]); }
+  });
+  return out;
+}
 function snapNorm(nx, ny, pxW, pxH){
   if(!state.snap) return null;
-  var doc=PLAN_DOCS[planSourceKey()]; if(!doc||!doc.snapIdx) return null;
+  var doc=PLAN_DOCS[planSourceKey()];
   var TOLPX=13, tolN=TOLPX/Math.max(1,Math.min(pxW,pxH));
-  var cand=_segNear(doc,nx,ny,tolN); if(cand.length>240) cand.length=240;
+  var raw=(doc && doc.snapIdx) ? _segNear(doc,nx,ny,tolN) : [];
+  raw=raw.concat(_appSnapSegs(nx,ny,tolN));
+  // เก็บเฉพาะเส้นที่อยู่ในระยะสแนปจริง (เรียงใกล้ → ไกล) — ตอนซูมลึกกล่องค้นกว้างกว่าจอ มีเส้นลายแฮตช์ปนเป็นร้อย
+  var near=[];
+  for(var ri=0;ri<raw.length;ri++){
+    var sg=raw[ri], ax=(sg[0]-nx)*pxW, ay=(sg[1]-ny)*pxH, vx=(sg[2]-sg[0])*pxW, vy=(sg[3]-sg[1])*pxH, L2=vx*vx+vy*vy;
+    var tt=L2>1e-9 ? Math.max(0,Math.min(1,-(ax*vx+ay*vy)/L2)) : 0, ddx=ax+tt*vx, ddy=ay+tt*vy, dd=ddx*ddx+ddy*ddy;
+    if(dd<=TOLPX*TOLPX) near.push([dd,sg]);
+  }
+  near.sort(function(p,q){ return p[0]-q[0]; });
+  if(near.length>160) near.length=160;
+  var cand=near.map(function(p){ return p[1]; });
   function dpx(x,y){ return Math.hypot((x-nx)*pxW,(y-ny)*pxH); }
   var best=null;
   function consider(x,y,type,pri){ var d=dpx(x,y); if(d>TOLPX) return;
@@ -9668,7 +9712,7 @@ function snapNorm(nx, ny, pxW, pxH){
   // ปลายเส้น (สำคัญสุด) — ช่วงย่อยกลางส่วนโค้งไม่นับเป็นปลายเส้น
   for(var i=0;i<cand.length;i++){ var s=cand[i], fl=s[4]||0; if(!(fl&1)) consider(s[0],s[1],"end",0); if(!(fl&2)) consider(s[2],s[3],"end",0); }
   // จุดศูนย์กลางวงกลม/ส่วนโค้ง
-  var ci=doc.cIdx;
+  var ci=doc && doc.cIdx;
   if(ci){ var C=ci.cell, rr=Math.ceil(tolN/C)+1, gx=Math.floor(nx/C), gy=Math.floor(ny/C);
     for(var ddx=-rr;ddx<=rr;ddx++)for(var ddy=-rr;ddy<=rr;ddy++){ var ca=ci.idx[(gx+ddx)+","+(gy+ddy)]; if(ca) ca.forEach(function(c){ consider(c[0],c[1],"center",0); }); } }
   // จุดตัดของเส้นใกล้เคอร์เซอร์ (ช่วงย่อยของโค้งเดียวกันไม่นับ)
