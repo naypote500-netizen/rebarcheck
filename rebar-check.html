@@ -1231,6 +1231,9 @@ html[data-theme="dark"] .dh-hero.has-photo{background:linear-gradient(90deg,#1a2
 .dh-hero-fade{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(238,244,254,.97) 0%,rgba(238,244,254,.9) 34%,rgba(238,244,254,.2) 60%,rgba(238,244,254,0) 78%)}
 html[data-theme="dark"] .dh-hero-fade{background:linear-gradient(90deg,rgba(17,26,43,.96) 0%,rgba(17,26,43,.88) 34%,rgba(17,26,43,.25) 60%,rgba(17,26,43,0) 80%)}
 .dh-hero:not(.has-photo) .dh-hero-fade{display:none}
+/* แก้ข้อความบนป้ายโดยตรง (โปร่งใส ให้เห็นกล่องจริงของป้ายข้างใต้) */
+.tb-inline{position:fixed;z-index:2000;margin:0;border:0;border-radius:0;background:transparent;resize:none;overflow:hidden;
+  box-sizing:border-box;outline:2px solid #2b6fe0;outline-offset:1px;white-space:pre-wrap;word-break:break-word;min-height:0;min-width:0}
 html:not([data-theme="dark"]) .dh-hero-fade{display:none}   /* โหมดสว่าง: รูปจางเข้าพื้นเองด้วย mask */
 .dh-hero-l{position:relative;z-index:2}
 .dh-hero.has-photo .dh-hero-r svg{visibility:hidden}
@@ -9729,7 +9732,7 @@ function bindPlanEditor(){
     overlay.addEventListener("dblclick",function(ev){
       if(isMobile() || state.tool!=="select" || ev.target.closest("[data-lbl]")) return;
       var _te=ev.target.closest("[data-aid]"), _tA=_te?getAnnot(_te.getAttribute("data-aid")):null;
-      if(_tA){ if(_tA.kind==="tbox"){ ev.preventDefault(); state.selAnnotId=_tA.id; state.selMemberId=null; state.selMulti=[]; state.selZoneId=null; render(); tbFocusText(); } return; }
+      if(_tA){ if(_tA.kind==="tbox") ev.preventDefault(); return; }   // ป้ายข้อความ: ดับเบิลคลิกจับที่ pointerup แล้ว (tbInlineEdit)
       var me=ev.target.closest("[data-mid]"); if(!me) return;
       var dm=getMember(me.getAttribute("data-mid")); if(!dm) return;
       ev.preventDefault(); closeCtxMenu();
@@ -9970,7 +9973,10 @@ function bindPlanEditor(){
       if(amv){
         var wasA=amv.moved, aid=amv.aid; amv=null;
         if(wasA){ plCommitPend(); saveDB(); return; }
+        var _tNow=Date.now(), _tDbl=!!(_tbLastTap && _tbLastTap.aid===aid && _tNow-_tbLastTap.t<500);
+        _tbLastTap=_tDbl?null:{aid:aid, t:_tNow};
         state.selAnnotId=aid; state.selMemberId=null; state.selZoneId=null; var _ka=getAnnot(aid); if(!_ka||_ka.kind!=="tbox") state.ribbonTab="annot"; state.mSheet=null; state.mSheetMin=false; render();   // แค่แตะ → เลือก + เปิดแผงรูปแบบ
+        if(_tDbl && _ka && _ka.kind==="tbox") tbInlineEdit(aid, false);   // ดับเบิลคลิกป้าย → พิมพ์บนป้ายได้เลย
         return;
       }
       if(lsz){ lsz=null; plCommitPend(); saveDB(); return; }
@@ -10555,7 +10561,62 @@ function finishDraw(geom){
   render();
   toast("เพิ่ม "+code+" แล้ว — "+(isMobile()?"แตะ “แก้สเปก” ในแผงด้านล่างเพื่อกรอกข้อมูลเหล็ก":"กรอกข้อมูลเหล็กที่ “แก้สเปก” ในแท็บ “แก้ไข · "+code+"” หรือคลิกขวาที่ชิ้น"));
 }
-function tbFocusText(){ setTimeout(function(){ var t=document.getElementById("annotText"); if(t){ t.focus(); t.select(); } },60); }
+function tbFocusText(){ var id=state.selAnnotId; setTimeout(function(){ tbInlineEdit(id, true); },60); }
+/** แก้ข้อความบนป้ายโดยตรง: textarea โปร่งใสวางทับกล่องบนแปลน (ฟอนต์/สี/จัดวางเหมือนป้าย)
+    Enter = ขึ้นบรรทัดใหม่ · Esc = ยกเลิก · Ctrl+Enter หรือคลิกที่อื่น = เสร็จ */
+var _tbEdit=null, _tbLastTap=null;
+function tbInlineEdit(aid, selAll){
+  var a=getAnnot(aid); if(!a || a.kind!=="tbox" || state.screen!=="planEditor") return;
+  if(_tbEdit){ if(_tbEdit.aid===aid){ _tbEdit.ta.focus(); return; } _tbEdit.ta.blur(); }
+  var orig=a.text||"", snap=plSnap(), cancel=false;
+  var css=document.createElement("style"); css.id="tbInlineCss";
+  css.textContent='#planOverlay g[data-aid="'+aid+'"] text{visibility:hidden}';
+  document.head.appendChild(css);
+  var ta=document.createElement("textarea"); ta.className="tb-inline"; ta.value=orig; ta.spellcheck=false;
+  ta.setAttribute("aria-label","ข้อความบนป้าย");
+  document.body.appendChild(ta);
+  function place(){
+    var aa=getAnnot(aid), ov=document.getElementById("planOverlay");
+    var r=ov && ov.querySelector('g[data-aid="'+aid+'"] > rect');
+    if(!aa || !r){ ta.blur(); return; }
+    var VW=+ov.getAttribute("data-vw")||1000, k=VW/1000, s=tboxStyleOf(aa);
+    var bb=r.getBoundingClientRect(), bw=Math.abs(aa.box.x2-aa.box.x1)*VW||1, sc=bb.width/bw;
+    var fsz=s.size*k, pad=Math.max(0.6*k, fsz*0.42), fpx=fsz*sc, lh=fpx*1.3, ppx=pad*sc;
+    var n=tbWrap(ta.value, Math.max(fsz, bw-pad*2), (s.italic?"italic ":"")+(s.bold?700:400)+" "+fsz+"px "+s.font+", sans-serif").length;
+    var st=ta.style;
+    st.left=bb.left+"px"; st.top=bb.top+"px"; st.width=bb.width+"px"; st.height=bb.height+"px";
+    st.padding=Math.max(ppx,(bb.height-n*lh)/2)+"px "+ppx+"px 0";
+    st.fontFamily=s.font+", sans-serif"; st.fontSize=fpx+"px"; st.lineHeight=lh+"px";
+    st.fontWeight=s.bold?"700":"400"; st.fontStyle=s.italic?"italic":"normal";
+    st.textDecoration=((s.underline?"underline ":"")+(s.strike?"line-through":"")).trim()||"none";
+    st.textAlign=s.align||"center"; st.color=s.color; st.caretColor=s.color; st.opacity=(s.op<1?s.op:1);
+  }
+  function sync(){ var aa=getAnnot(aid); if(!aa) return; aa.text=ta.value; repaintPlanShapes();
+    var pt=document.getElementById("annotText"); if(pt && pt!==document.activeElement) pt.value=ta.value; place(); }
+  function outside(e){ if(e.target!==ta) ta.blur(); }
+  ta.addEventListener("input", sync);
+  ta.addEventListener("keydown",function(e){
+    e.stopPropagation();   // ไม่ให้คีย์ลัดของแปลน (Delete / Ctrl+Z / T / C …) ทำงานระหว่างพิมพ์
+    if(e.key==="Escape"){ e.preventDefault(); cancel=true; ta.blur(); }
+    else if(e.key==="Enter" && (e.ctrlKey||e.metaKey)){ e.preventDefault(); ta.blur(); }
+  });
+  ta.addEventListener("blur",function(){
+    clearInterval(tm); window.removeEventListener("pointerdown",outside,true);
+    if(ta.parentNode) ta.parentNode.removeChild(ta); if(css.parentNode) css.parentNode.removeChild(css);
+    _tbEdit=null;
+    var aa=getAnnot(aid);
+    if(aa){
+      if(cancel) aa.text=orig;
+      if((aa.text||"")!==orig){ if(snap) plPushJson(snap); saveDB(); }
+    }
+    if(state.screen==="planEditor") render();
+  });
+  var tm=setInterval(function(){ if(!document.body.contains(ta)){ clearInterval(tm); return; } place(); },200);   // ตามการเลื่อน/ซูม/วาดใหม่
+  window.addEventListener("pointerdown",outside,true);
+  _tbEdit={aid:aid, ta:ta};
+  place(); ta.focus();
+  if(selAll) ta.select(); else { var L=ta.value.length; ta.setSelectionRange(L,L); }
+}
 /** สร้างป้ายข้อความ — คลิก = กล่องมาตรฐานกลางจุดที่คลิก · ลาก = ขนาดตามกรอบ · แล้วพิมพ์ในแผงรูปแบบได้เลย */
 /** ป้ายชี้: tip = จุดที่ชี้ · p = ที่วางป้าย (ขอบกล่องฝั่งใกล้ลูกศรอยู่ตรงจุดที่คลิก) */
 function finishDrawTcall(tip, p){

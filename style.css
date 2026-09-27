@@ -1210,6 +1210,9 @@ html[data-theme="dark"] .dh-hero.has-photo{background:linear-gradient(90deg,#1a2
 .dh-hero-fade{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(238,244,254,.97) 0%,rgba(238,244,254,.9) 34%,rgba(238,244,254,.2) 60%,rgba(238,244,254,0) 78%)}
 html[data-theme="dark"] .dh-hero-fade{background:linear-gradient(90deg,rgba(17,26,43,.96) 0%,rgba(17,26,43,.88) 34%,rgba(17,26,43,.25) 60%,rgba(17,26,43,0) 80%)}
 .dh-hero:not(.has-photo) .dh-hero-fade{display:none}
+/* แก้ข้อความบนป้ายโดยตรง (โปร่งใส ให้เห็นกล่องจริงของป้ายข้างใต้) */
+.tb-inline{position:fixed;z-index:2000;margin:0;border:0;border-radius:0;background:transparent;resize:none;overflow:hidden;
+  box-sizing:border-box;outline:2px solid #2b6fe0;outline-offset:1px;white-space:pre-wrap;word-break:break-word;min-height:0;min-width:0}
 html:not([data-theme="dark"]) .dh-hero-fade{display:none}   /* โหมดสว่าง: รูปจางเข้าพื้นเองด้วย mask */
 .dh-hero-l{position:relative;z-index:2}
 .dh-hero.has-photo .dh-hero-r svg{visibility:hidden}
