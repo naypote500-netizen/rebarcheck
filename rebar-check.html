@@ -8544,7 +8544,7 @@ function rvRibbonHtml(type, f, plan, plans, selM){
     body+=selBtn;
     body+=rvGrp('เพิ่มหมายเหตุ', rvBig(state.tool==="drawTbox","drawTboxStart",'','tbox','ป้ายข้อความ','คลิกหรือลากบนแปลน แล้วพิมพ์ข้อความ  (T)')
       +rvBig(state.tool==="drawTcall","drawTcallStart",'','callout','ป้ายชี้','ป้ายชี้ลูกศร — คลิกจุดที่จะชี้ แล้วคลิกตรงที่จะวางป้าย  (C)')
-      +rvBig(state.tool==="drawDim","drawDimStart",'','dim','เส้นบอกขนาด',sci.us>0?'ลากจากจุดหนึ่งไปอีกจุด — ตัวเลขคำนวณให้จากมาตราส่วน  (D)':'ลากจากจุดหนึ่งไปอีกจุด แล้วใส่ตัวเลข  (D)'));
+      +rvBig(state.tool==="drawDim","drawDimStart",'','dim','เส้นบอกขนาด',sci.us>0?'คลิกจุดเริ่ม แล้วคลิกจุดปลาย — ตัวเลขคำนวณให้จากมาตราส่วน  (D)':'คลิกจุดเริ่ม แล้วคลิกจุดปลาย แล้วใส่ตัวเลข  (D)'));
     body+=rvGrp('มาตราส่วน · วัด', rvBig(state.tool==="setScale","setScaleStart",'','ruler','ตั้งมาตราส่วน', sci.src==="set"?'ตั้งใหม่ — ลาก 2 จุดที่รู้ระยะจริง (ตอนนี้ '+fmtScale(sci.us)+')':'ลาก 2 จุดที่รู้ระยะจริง (เช่น ศูนย์เสาถึงศูนย์เสา) แล้วใส่ตัวเลขเมตร — ตั้งครั้งเดียวต่อแปลน')
       +rvBig(state.tool==="drawArea","drawAreaStart",'','area','วัดพื้นที่','คลิกรอบพื้นที่ (ดับเบิลคลิกปิดรูป) หรือลากสี่เหลี่ยม — ได้ ตร.ม. และ ลบ.ม.  (A)')
       +rvCol('<div class="rv-seg"><button data-act="setAreaShape" data-shape="poly" aria-pressed="'+((state.areaShape||"poly")==="poly")+'" title="คลิกทีละมุม ดับเบิลคลิกเพื่อปิดรูป">คลิกเป็นรูปปิด</button><button data-act="setAreaShape" data-shape="rect" aria-pressed="'+(state.areaShape==="rect")+'" title="ลากสี่เหลี่ยมคลุมพื้นที่">ลากสี่เหลี่ยม</button></div>'
@@ -8835,7 +8835,7 @@ function rvStatusHtml(vm, selM){
           : state.tool==="drawTbox" ? 'ป้ายข้อความ — คลิกหรือลากบนแปลน แล้วพิมพ์ข้อความ · Esc ยกเลิก'
           : state.tool==="drawTcall" ? 'ป้ายชี้ — คลิกจุดที่จะชี้ แล้วคลิกตรงที่จะวางป้าย · Esc ยกเลิก'
           : state.tool==="drawCallout" ? 'กล่องข้อความ — ลากกรอบบนแปลน · Esc ยกเลิก'
-          : state.tool==="drawDim" ? 'เส้นบอกขนาด — ลากจากจุดถึงจุด · Esc ยกเลิก'
+          : state.tool==="drawDim" ? 'เส้นบอกขนาด — คลิกจุดเริ่ม แล้วคลิกจุดปลาย · Esc ยกเลิก'
           : state.tool==="setScale" ? 'ตั้งมาตราส่วน — ลาก 2 จุดที่รู้ระยะจริง แล้วใส่ตัวเลขเมตร · Esc ยกเลิก'
           : state.tool==="drawArea" ? 'วัดพื้นที่ — '+(state.areaShape==="rect"?'ลากสี่เหลี่ยมคลุมพื้นที่':'คลิกทีละมุม · ดับเบิลคลิกหรือคลิกจุดแรกเพื่อปิดรูป')+' · Esc ยกเลิก'
           : state.tool==="drawHole" ? 'หักช่องเปิด — วาดช่องทับพื้นที่ที่เลือก · Esc ยกเลิก'
@@ -9082,7 +9082,7 @@ function viewPlanEditor(){
   if(state.tool==="drawTcall") hint='<div class="plan-tip">ป้ายชี้: คลิกจุดที่จะชี้ แล้วคลิกตรงที่จะวางป้าย (หรือลากจากจุดชี้ไปวาง) · Esc ยกเลิก</div>';
   else if(state.tool==="drawTbox") hint='<div class="plan-tip">ป้ายข้อความ: คลิกตรงที่จะวาง (หรือลากกำหนดขนาดกล่อง) แล้วพิมพ์ข้อความ · Esc ยกเลิก</div>';
   else if(state.tool==="drawCallout") hint='<div class="plan-tip">กล่องข้อความ: ลากกรอบขนาดกล่องบนแปลน แล้วพิมพ์ข้อความ · Esc ยกเลิก</div>';
-  else if(state.tool==="drawDim") hint='<div class="plan-tip">เส้นบอกขนาด: ลากจากจุดเริ่มไปจุดปลาย'+(planScaleInfo().us>0?' — ตัวเลขคำนวณจากมาตราส่วนให้เอง':' แล้วใส่ตัวเลขระยะ')+' · Esc ยกเลิก</div>';
+  else if(state.tool==="drawDim") hint='<div class="plan-tip">เส้นบอกขนาด: คลิกจุดเริ่ม แล้วคลิกจุดปลาย'+(planScaleInfo().us>0?' — ตัวเลขคำนวณจากมาตราส่วนให้เอง':' แล้วใส่ตัวเลขระยะ')+' · Esc ยกเลิก</div>';
   else if(state.tool==="setScale") hint='<div class="plan-tip">ตั้งมาตราส่วน: ลากจากจุดหนึ่งไปอีกจุดที่รู้ระยะจริง (เช่น ศูนย์เสา→ศูนย์เสา) แล้วใส่ตัวเลขเมตร · Esc ยกเลิก</div>';
   else if(state.tool==="drawArea") hint='<div class="plan-tip">วัดพื้นที่: '+(state.areaShape==="rect"?'ลากสี่เหลี่ยมคลุมพื้นที่':'คลิกทีละมุมรอบพื้นที่ — ดับเบิลคลิกหรือคลิกจุดแรกเพื่อปิดรูป')+' · Esc ยกเลิก</div>';
   else if(state.tool==="drawHole") hint='<div class="plan-tip">หักช่องเปิด: '+(state.areaShape==="rect"?'ลากสี่เหลี่ยม':'คลิกทีละมุม')+'ทับช่องบันได/ช่องลิฟต์ในพื้นที่ที่เลือก · Esc ยกเลิก</div>';
@@ -9569,6 +9569,7 @@ function bindPlanEditor(){
     if(mod && kl==="f"){ var q=$("#planSearch"); if(q){ e.preventDefault(); q.focus(); q.select(); } return; }
     if(k==="Escape"){
       if(typing){ t.blur(); return; }
+      if(window.__annotPendingCancel && window.__annotPendingCancel()) return;   // มีจุดแรกค้างอยู่ → ยกเลิกแค่จุดนั้น
       if(state.tool!=="select"){ state.tool="select"; render(); return; }
       if(state.marquee){ state.marquee=false; render(); return; }
       if(state.selMemberId||state.selZoneId||state.selAnnotId){ state.selMemberId=null; state.selMulti=[]; state.selZoneId=null; state.selAnnotId=null; render(); }
@@ -10370,6 +10371,7 @@ function bindPlanEditor(){
     var ACOL=(isTbox||isTcall) ? tboxStyleOf(null).bcol : ((state.annotStyle&&state.annotStyle.color)||"#1d4ed8");
     var aStart=null, aTemp=null, tcTip=null, tcTemp=null;
     function tcClear(){ if(tcTemp){ tcTemp.remove(); tcTemp=null; } tcTip=null; }
+    window.__annotPendingCancel=function(){ if(tcTemp && tcTemp.isConnected){ tcClear(); showSnap(null); return true; } return false; };
     function aEnd(ev2){
       window.removeEventListener("pointermove",aMove,true);
       window.removeEventListener("pointerup",aEnd,true);
@@ -10391,8 +10393,21 @@ function bindPlanEditor(){
         tcTemp.style.pointerEvents="none"; overlay.appendChild(tcTemp); _dtHalo(tcTemp.querySelector("line"));
         return;
       }
+      if(isDimTool){                                          // เส้นบอกขนาด: คลิกจุดแรก · คลิกจุดที่สอง (หรือลากในครั้งเดียวก็ได้)
+        if(tcTip){
+          if(Math.abs(p.x-tcTip.x)*rb.width<6 && Math.abs(p.y-tcTip.y)*rb.height<6) return;   // คลิกซ้ำจุดเดิม → รอคลิกจุดที่สองต่อ
+          var _d0=tcTip; tcClear(); finishDrawDim(_d0,p); return;
+        }
+        if(!_short){ finishDrawDim(s0,p); return; }
+        tcTip=s0; var _zd=state.zoom||1;
+        tcTemp=document.createElementNS(NS,"g");
+        tcTemp.innerHTML='<line x1="'+(s0.x*VW)+'" y1="'+(s0.y*VH)+'" x2="'+(s0.x*VW)+'" y2="'+(s0.y*VH)+'" stroke="'+ACOL+'" stroke-width="'+(2/_zd)+'" stroke-dasharray="'+(6/_zd)+' '+(4/_zd)+'"/>'
+          +'<circle cx="'+(s0.x*VW)+'" cy="'+(s0.y*VH)+'" r="'+(3.5/_zd)+'" fill="'+ACOL+'"/>';
+        tcTemp.style.pointerEvents="none"; overlay.appendChild(tcTemp); _dtHalo(tcTemp.querySelector("line"));
+        return;
+      }
       if(_short) return;   // ลากสั้นเกิน = ยกเลิก
-      if(isDimTool) finishDrawDim(s0,p); else finishDrawCallout(s0,p);
+      finishDrawCallout(s0,p);
     }
     function aMove(ev2){
       if(!aStart||!aTemp) return;
@@ -10420,7 +10435,7 @@ function bindPlanEditor(){
       ev.preventDefault();
       aStart=snapAt(ev);
       var z=state.zoom||1;
-      if(isTcall && tcTip){ aTemp=null;   // คลิกที่สองของป้ายชี้ — ไม่ต้องมีกรอบชั่วคราว
+      if((isTcall||isDimTool) && tcTip){ aTemp=null;   // คลิกที่สองของป้ายชี้/เส้นบอกขนาด — ไม่ต้องมีกรอบชั่วคราว
         window.addEventListener("pointermove",aMove,true); window.addEventListener("pointerup",aEnd,true); window.addEventListener("pointercancel",aEnd,true);
         return; }
       aTemp=document.createElementNS(NS, (isDimTool||isTcall)?"line":"rect");
