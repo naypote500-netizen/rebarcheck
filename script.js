@@ -6699,7 +6699,7 @@ function rvRibbonHtml(type, f, plan, plans, selM){
     body+=rvGrp('เพิ่มหมายเหตุ', rvBig(state.tool==="drawTbox","drawTboxStart",'','tbox','ป้ายข้อความ','คลิกหรือลากบนแปลน แล้วพิมพ์ข้อความ  (T)')
       +rvBig(state.tool==="drawTcall","drawTcallStart",'','callout','ป้ายชี้','ป้ายชี้ลูกศร — คลิกจุดที่จะชี้ แล้วคลิกตรงที่จะวางป้าย  (C)')
       +rvBig(state.tool==="drawDim","drawDimStart",'','dim','เส้นบอกขนาด',sci.us>0?'คลิกจุดเริ่ม แล้วคลิกจุดปลาย — ตัวเลขคำนวณให้จากมาตราส่วน  (D)':'คลิกจุดเริ่ม แล้วคลิกจุดปลาย แล้วใส่ตัวเลข  (D)'));
-    body+=rvGrp('มาตราส่วน · วัด', rvBig(state.tool==="setScale","setScaleStart",'','ruler','ตั้งมาตราส่วน', sci.src==="set"?'ตั้งใหม่ — ลาก 2 จุดที่รู้ระยะจริง (ตอนนี้ '+fmtScale(sci.us)+')':'ลาก 2 จุดที่รู้ระยะจริง (เช่น ศูนย์เสาถึงศูนย์เสา) แล้วใส่ตัวเลขเมตร — ตั้งครั้งเดียวต่อแปลน')
+    body+=rvGrp('มาตราส่วน · วัด', rvBig(state.tool==="setScale","setScaleStart",'','ruler','ตั้งมาตราส่วน', sci.src==="set"?'ตั้งใหม่ — คลิก 2 จุดที่รู้ระยะจริง (ตอนนี้ '+fmtScale(sci.us)+')':'คลิก 2 จุดที่รู้ระยะจริง (เช่น ศูนย์เสาถึงศูนย์เสา) แล้วใส่ตัวเลขเมตร — ตั้งครั้งเดียวต่อแปลน')
       +rvBig(state.tool==="drawAngle","drawAngleStart",'','angle','วัดมุม','คลิกปลายแขน → จุดยอดมุม → ปลายแขนอีกข้าง — ได้มุมเป็นองศา (ดูดติดเส้นแบบได้)')
       +rvBig(state.tool==="drawLen","drawLenStart",'','perim','วัดความยาว','คลิกทีละจุดตามแนว — ได้ความยาวรวม · คลิกจุดแรกอีกครั้ง = ความยาวรอบรูป')
       +rvBig(state.tool==="drawArea","drawAreaStart",'','area','วัดพื้นที่','คลิกรอบพื้นที่ (ดับเบิลคลิกปิดรูป) หรือลากสี่เหลี่ยม — ได้ ตร.ม. และ ลบ.ม.  (A)')
@@ -6709,7 +6709,7 @@ function rvRibbonHtml(type, f, plan, plans, selM){
       +rvCol(rvSm(false,"areaToZone",'','zone','เก็บเป็นโซนเท',selAr?'สร้างโซนเทคอนกรีตรูปเดียวกับ “'+selAr.name+'”':'เลือกพื้นที่ที่วัดไว้ก่อน',!selAr)
         +rvSm(false,"areaCsv",'','csv','ส่งออก CSV','ตารางพื้นที่ทั้งหมดของแปลนนี้เป็นไฟล์ CSV (เปิดใน Excel)')));
     if(selA) body+=rvGrp('หมายเหตุที่เลือก', rvCol(rvSm(false,"annotDup",'','copy','ทำซ้ำ','ทำซ้ำหมายเหตุที่เลือก')+rvSm(false,"annotDel",'','trash','ลบ','ลบหมายเหตุที่เลือก  (Delete)')));
-    else if(!sci.src) body+=rvGrp('', '<div class="rv-hintbox">ยังไม่ตั้งมาตราส่วน — กด “ตั้งมาตราส่วน” แล้วลาก 2 จุดที่รู้ระยะ ตัวเลขพื้นที่/ระยะจึงจะคำนวณได้</div>');
+    else if(!sci.src) body+=rvGrp('', '<div class="rv-hintbox">ยังไม่ตั้งมาตราส่วน — กด “ตั้งมาตราส่วน” แล้วคลิก 2 จุดที่รู้ระยะ ตัวเลขพื้นที่/ระยะจึงจะคำนวณได้</div>');
     else body+=rvGrp('', '<div class="rv-hintbox">คลิกหมายเหตุ/พื้นที่บนแปลนเพื่อแก้ในแผงด้านขวา</div>');
   }else if(rt==="progress"){
     body+=selBtn;
@@ -6992,7 +6992,7 @@ function rvStatusHtml(vm, selM){
           : state.tool==="drawTcall" ? 'ป้ายชี้ — คลิกจุดที่จะชี้ แล้วคลิกตรงที่จะวางป้าย · Esc ยกเลิก'
           : state.tool==="drawCallout" ? 'กล่องข้อความ — ลากกรอบบนแปลน · Esc ยกเลิก'
           : state.tool==="drawDim" ? 'เส้นบอกขนาด — คลิกจุดเริ่ม แล้วคลิกจุดปลาย · Esc ยกเลิก'
-          : state.tool==="setScale" ? 'ตั้งมาตราส่วน — ลาก 2 จุดที่รู้ระยะจริง แล้วใส่ตัวเลขเมตร · Esc ยกเลิก'
+          : state.tool==="setScale" ? 'ตั้งมาตราส่วน — คลิก 2 จุดที่รู้ระยะจริง แล้วใส่ตัวเลขเมตร · Esc ยกเลิก'
           : state.tool==="drawAngle" ? 'วัดมุม — คลิกปลายแขนที่ 1 → จุดยอดมุม → ปลายแขนที่ 2 · Esc เลิก'
           : state.tool==="drawLen" ? 'วัดความยาว — คลิกทีละจุด · ดับเบิลคลิกจบ · คลิกจุดแรก = รอบรูป · Esc เลิก'
           : state.tool==="drawArea" ? 'วัดพื้นที่ — '+(state.areaShape==="rect"?'ลากสี่เหลี่ยมคลุมพื้นที่':'คลิกทีละมุม · ดับเบิลคลิกหรือคลิกจุดแรกเพื่อปิดรูป')+' · Esc ยกเลิก'
@@ -7005,7 +7005,7 @@ function rvStatusHtml(vm, selM){
           : 'พร้อม — คลิกชิ้นเพื่อเลือก · ล้อเมาส์ซูม · ลากที่ว่างเพื่อเลื่อน';
   var _sci=planScaleInfo();
   var h='<div class="rv-status"><span class="rv-smsg">'+esc(msg)+'</span><span class="sp"></span>'
-    +(_sci.plan ? '<button class="rv-sc'+(_sci.src?'':' warn')+'" data-act="setScaleStart" title="'+(_sci.src?'มาตราส่วนของแปลนนี้'+(_sci.src==="dim"?' (เดาจากเส้นบอกขนาดเส้นแรก)':' (ตั้งเอง)')+' — กดเพื่อตั้งใหม่':'ยังไม่ตั้งมาตราส่วน — กดเพื่อลาก 2 จุดที่รู้ระยะ')+'"><b>'+(_sci.src?'สเกล':'!')+'</b> '+esc(_sci.src?fmtScale(_sci.us):'ยังไม่ตั้งสเกล')+'</button>' : '');
+    +(_sci.plan ? '<button class="rv-sc'+(_sci.src?'':' warn')+'" data-act="setScaleStart" title="'+(_sci.src?'มาตราส่วนของแปลนนี้'+(_sci.src==="dim"?' (เดาจากเส้นบอกขนาดเส้นแรก)':' (ตั้งเอง)')+' — กดเพื่อตั้งใหม่':'ยังไม่ตั้งมาตราส่วน — กดเพื่อคลิก 2 จุดที่รู้ระยะ')+'"><b>'+(_sci.src?'สเกล':'!')+'</b> '+esc(_sci.src?fmtScale(_sci.us):'ยังไม่ตั้งสเกล')+'</button>' : '');
   if(!prog){
     var sm=summarize(vm), sf=state.statusFilter||null;
     var chip=function(id,lbl,n,cls){ return '<button class="rv-sc '+cls+((sf===id)||(id==="all"&&!sf)?" on":"")+'" data-act="statusFilter" data-st="'+id+'" title="กดเพื่อกรอง"><b>'+n+'</b> '+lbl+'</button>'; };
@@ -7051,7 +7051,7 @@ function areaFormatHtml(a){
       +fxKv('เส้นรอบรูป',fmtNum(mt.perim,2)+' ม.')
       +fxKv('กว้าง × ยาว',fmtNum(mt.w,2)+' × '+fmtNum(mt.h,2)+' ม.')
       +fxKv('ปริมาตร','<b>'+fmtNum(mt.vol,2)+' ลบ.ม.</b>');
-  }else h+='<div class="fx-note warn">ยังไม่ตั้งมาตราส่วนของแปลนนี้ — กด “ตั้งมาตราส่วน” ในริบบอน แล้วลาก 2 จุดที่รู้ระยะจริง</div>';
+  }else h+='<div class="fx-note warn">ยังไม่ตั้งมาตราส่วนของแปลนนี้ — กด “ตั้งมาตราส่วน” ในริบบอน แล้วคลิก 2 จุดที่รู้ระยะจริง</div>';
   h+='<div class="fx-s">ช่องเปิด (บันได / ลิฟต์)</div><div class="fx-r" style="flex-wrap:wrap"><button class="btn soft" data-act="drawHoleStart">'+rvIc('hole',13)+' หักช่องเปิด</button>'
     +((a.holes||[]).length?'<button class="btn soft" data-act="areaClearHoles">ล้างช่อง ('+a.holes.length+')</button>':'')+'</div>';
   h+='<div class="fx-s">สี</div><div class="fx-btns">'+ANNOT_SWATCH.map(function(c){ return '<button class="fx-sw'+(col===c?" on":"")+'" data-act="annotSwatch" data-c="'+c+'" style="background:'+c+'" title="'+c+'"></button>'; }).join("")+'</div>';
@@ -7242,7 +7242,7 @@ function viewPlanEditor(){
   else if(state.tool==="drawTbox") hint='<div class="plan-tip">ป้ายข้อความ: คลิกตรงที่จะวาง (หรือลากกำหนดขนาดกล่อง) แล้วพิมพ์ข้อความ · Esc ยกเลิก</div>';
   else if(state.tool==="drawCallout") hint='<div class="plan-tip">กล่องข้อความ: ลากกรอบขนาดกล่องบนแปลน แล้วพิมพ์ข้อความ · Esc ยกเลิก</div>';
   else if(state.tool==="drawDim") hint='<div class="plan-tip">เส้นบอกขนาด: คลิกจุดเริ่ม แล้วคลิกจุดปลาย'+(planScaleInfo().us>0?' — ตัวเลขคำนวณจากมาตราส่วนให้เอง':' แล้วใส่ตัวเลขระยะ')+' · Esc ยกเลิก</div>';
-  else if(state.tool==="setScale") hint='<div class="plan-tip">ตั้งมาตราส่วน: ลากจากจุดหนึ่งไปอีกจุดที่รู้ระยะจริง (เช่น ศูนย์เสา→ศูนย์เสา) แล้วใส่ตัวเลขเมตร · Esc ยกเลิก</div>';
+  else if(state.tool==="setScale") hint='<div class="plan-tip">ตั้งมาตราส่วน: คลิกจุดหนึ่ง แล้วคลิกอีกจุดที่รู้ระยะจริง (เช่น ศูนย์เสา→ศูนย์เสา) แล้วใส่ตัวเลขเมตร · Esc ยกเลิก</div>';
   else if(state.tool==="drawAngle") hint='<div class="plan-tip">วัดมุม: คลิกปลายแขนที่ 1 → คลิกจุดยอดมุม → คลิกปลายแขนที่ 2 · Esc ยกเลิก</div>';
   else if(state.tool==="drawLen") hint='<div class="plan-tip">วัดความยาว: คลิกทีละจุด · ดับเบิลคลิกเพื่อจบ · คลิกจุดแรกอีกครั้ง = ความยาวรอบรูป · Esc ยกเลิก</div>';
   else if(state.tool==="drawArea") hint='<div class="plan-tip">วัดพื้นที่: '+(state.areaShape==="rect"?'ลากสี่เหลี่ยมคลุมพื้นที่':'คลิกทีละมุมรอบพื้นที่ — ดับเบิลคลิกหรือคลิกจุดแรกเพื่อปิดรูป')+' · Esc ยกเลิก</div>';
@@ -7339,7 +7339,7 @@ function mPlanSheetHtml(f,type,p,plan,plans,selM,prog){
     var b2='<div class="m-grid">'+mG("drawTboxStart",'','tbox','ป้ายข้อความ','',0,state.tool==="drawTbox")+mG("drawTcallStart",'','callout','ป้ายชี้','',0,state.tool==="drawTcall")+mG("drawDimStart",'','dim','เส้นบอกขนาด','',0,state.tool==="drawDim")+mG("mTool",'data-tool="select"','sel','เลือก/ย้าย','',0,state.tool==="select")
       +mG("setScaleStart",'','ruler','ตั้งมาตราส่วน','',0,state.tool==="setScale")+mG("drawAreaStart",'data-shape="poly"','area','วัดพื้นที่','',0,state.tool==="drawArea")+mG("drawAngleStart",'','angle','วัดมุม','',0,state.tool==="drawAngle")+mG("drawLenStart",'','perim','วัดความยาว','',0,state.tool==="drawLen")+mG("areaCsv",'','csv','CSV พื้นที่')+'</div>'
       +'<div class="m-row"><span>มาตราส่วน</span><b>'+esc(_msc.src?fmtScale(_msc.us):'ยังไม่ตั้ง')+'</b></div>'
-      +'<div class="m-note">ป้ายข้อความ: แตะตรงที่จะวางแล้วพิมพ์ · ป้ายชี้: แตะจุดที่จะชี้ แล้วแตะตรงที่จะวางป้าย · เส้นบอกขนาด: ลากจากจุดถึงจุด · ตั้งมาตราส่วน: ลาก 2 จุดที่รู้ระยะจริงแล้วใส่เมตร · วัดพื้นที่: แตะทีละมุม ดับเบิลแตะเพื่อปิดรูป</div>';
+      +'<div class="m-note">ป้ายข้อความ: แตะตรงที่จะวางแล้วพิมพ์ · ป้ายชี้: แตะจุดที่จะชี้ แล้วแตะตรงที่จะวางป้าย · เส้นบอกขนาด: ลากจากจุดถึงจุด · ตั้งมาตราส่วน: คลิก 2 จุดที่รู้ระยะจริงแล้วใส่เมตร · วัดพื้นที่: แตะทีละมุม ดับเบิลแตะเพื่อปิดรูป</div>';
     return mSheetWrap('annot','<b>หมายเหตุ</b>', b2, {dim:true});
   }
   if(sh==="zone"){
@@ -8667,30 +8667,41 @@ function bindPlanEditor(){
     return;
   }
 
-  /* ---------- ตั้งมาตราส่วน: ลาก 2 จุดที่รู้ระยะจริง แล้วใส่ตัวเลขเมตร ---------- */
+  /* ---------- ตั้งมาตราส่วน: คลิก 2 จุด (หรือลาก) ที่รู้ระยะจริง แล้วใส่ตัวเลขเมตร ---------- */
   if(state.tool==="setScale"){
-    var scStart=null, scTemp=null, SCOL="#dc2626";
+    var scStart=null, scTemp=null, scTip=null, SCOL="#dc2626";
+    function scClear(){ if(scTemp){ scTemp.remove(); scTemp=null; } scTip=null; }
+    window.__annotPendingCancel=function(){ if(scTip && scTemp && scTemp.isConnected){ scClear(); showSnap(null); return true; } return false; };
     function scEnd(ev2){
       window.removeEventListener("pointermove",scMove,true); window.removeEventListener("pointerup",scEnd,true); window.removeEventListener("pointercancel",scEnd,true); edgePanStop();
       if(!scStart) return;
       var p=snapAt(ev2), s0=scStart; scStart=null; showSnap(null);
-      if(scTemp){ scTemp.remove(); scTemp=null; }
-      var rb=overlay.getBoundingClientRect();
-      if(Math.hypot((p.x-s0.x)*rb.width,(p.y-s0.y)*rb.height)<8) return;
-      finishSetScale(s0,p);
+      var rb=overlay.getBoundingClientRect(), dd=function(a,b){ return Math.hypot((a.x-b.x)*rb.width,(a.y-b.y)*rb.height); };
+      if(scTip){                                   // คลิกที่สอง
+        if(dd(p,scTip)<8) return;                  // คลิกซ้ำจุดเดิม → รอต่อ
+        var t0=scTip; scClear(); finishSetScale(t0,p); return;
+      }
+      if(dd(p,s0)>=8){ scClear(); finishSetScale(s0,p); return; }   // ลากในครั้งเดียว (แบบเดิม)
+      scTip=s0;                                    // คลิกเดียว → จุดแรก · เส้นยางตามเมาส์รอคลิกจุดที่สอง
     }
     function scMove(ev2){ if(!scStart||!scTemp) return; if(ev2.cancelable) ev2.preventDefault(); edgePan(ev2, scMove); var p=snapAt(ev2); scTemp.setAttribute("x2",p.x*VW); scTemp.setAttribute("y2",p.y*VH); }
-    overlay.addEventListener("pointermove",function(ev){ if(!scStart) snapAt(ev); });
+    overlay.addEventListener("pointermove",function(ev){
+      if(scStart) return;
+      var p=snapAt(ev);
+      if(scTip && scTemp){ scTemp.setAttribute("x2",p.x*VW); scTemp.setAttribute("y2",p.y*VH); }
+    });
     overlay.addEventListener("pointerleave",function(){ if(!scStart) showSnap(null); });
     overlay.addEventListener("pointerdown",function(ev){
       if(window.__planPinch) return;
       if(ev.button!=null && ev.button!==0) return;
       ev.preventDefault();
       scStart=snapAt(ev); var z=state.zoom||1;
-      scTemp=document.createElementNS(NS,"line");
-      scTemp.setAttribute("stroke",SCOL); scTemp.setAttribute("stroke-width",(2.5/z)); scTemp.setAttribute("stroke-dasharray",(7/z)+" "+(4/z)); scTemp.setAttribute("stroke-linecap","round");
-      scTemp.setAttribute("x1",scStart.x*VW); scTemp.setAttribute("y1",scStart.y*VH); scTemp.setAttribute("x2",scStart.x*VW); scTemp.setAttribute("y2",scStart.y*VH);
-      overlay.appendChild(scTemp); _dtHalo(scTemp);
+      if(!scTip){
+        scTemp=document.createElementNS(NS,"line");
+        scTemp.setAttribute("stroke",SCOL); scTemp.setAttribute("stroke-width",(2.5/z)); scTemp.setAttribute("stroke-dasharray",(7/z)+" "+(4/z)); scTemp.setAttribute("stroke-linecap","round");
+        scTemp.setAttribute("x1",scStart.x*VW); scTemp.setAttribute("y1",scStart.y*VH); scTemp.setAttribute("x2",scStart.x*VW); scTemp.setAttribute("y2",scStart.y*VH);
+        overlay.appendChild(scTemp); _dtHalo(scTemp);
+      }
       window.addEventListener("pointermove",scMove,true); window.addEventListener("pointerup",scEnd,true); window.addEventListener("pointercancel",scEnd,true);
     });
     return;
