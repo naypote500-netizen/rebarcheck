@@ -7144,7 +7144,7 @@ function viewPlanEditor(){
       : 'ลากบนแปลนเพื่อวาด'+(state.drawShape==="oval"?'วงรี':'สี่เหลี่ยม'))
     + (state.autoCode ? ' — ใส่เบอร์ '+esc(nextCode(type))+' ให้อัตโนมัติ · Esc ยกเลิก' : ' แล้วใส่เบอร์ · Esc ยกเลิก')+'</div>';
 
-  if(isMobile()) return viewPlanEditorMobile(f,type,p,plan,plans,_vm,selM,hint);
+  if(isMobile()) return viewPlanEditorMobile(f,type,p,plan,plans,_vm,selM,_xhWant()?'':hint);
   var side='<div class="rv-side rp-'+(state.rpSheet||"peek")+'"><button class="rp-handle" data-act="toggleSheet" title="เปิด/ย่อพาเนล"><span></span></button>'
     + rvPaletteHtml(type, selM, p, f, plans, plan) + '</div>';
   var main='<div class="rv-main">'+rvViewTabsHtml(f, plans)
@@ -7425,9 +7425,16 @@ function updateLabelScale(){
     g.setAttribute("transform","translate("+ax+" "+ay+") scale("+sc+") translate("+(-ax)+" "+(-ay)+")");
   });
 }
+/** มือถือ + กำลังวาดชิ้นส่วน/โซน → ใช้เป้ากลางจอ (ปิดได้ด้วย state.xhair=false) */
+function _xhWant(){ return isMobile() && state.screen==="planEditor" && (state.tool==="draw"||state.tool==="drawZone") && state.xhair!==false; }
 function planClampPan(){
   var s=_sheetWH(); if(!s) return;
   var z=state.zoom||1, cw=s.w*z, ch=s.h*z;
+  if(window.__xhOn){   // โหมดเป้า: เลื่อนได้จนทุกจุดของแปลน (รวมมุม) มาอยู่กลางจอ
+    state.panX=Math.min(s.W/2, Math.max(s.W/2-cw, state.panX));
+    state.panY=Math.min(s.H/2, Math.max(s.H/2-ch, state.panY));
+    return;
+  }
   // แผ่นเล็กกว่ากรอบ → วางกลาง · ใหญ่กว่า → เลื่อนได้แต่ไม่หลุดขอบ
   state.panX = cw<=s.W ? (s.W-cw)/2 : Math.min(0, Math.max(s.W-cw, state.panX));
   state.panY = ch<=s.H ? (s.H-ch)/2 : Math.min(0, Math.max(s.H-ch, state.panY));
@@ -7772,6 +7779,7 @@ function bindPlanEditor(){
 
   var overlay=$("#planOverlay"), stage=$("#planStage");
   if(!overlay) return;
+  window.__xhOn=_xhWant();
   _szCache=null; planClampPan(); planApplyTransform();   // คงระดับซูม/ตำแหน่งเดิมหลังเรนเดอร์ใหม่ (จัดแผ่นให้อยู่กลาง/ในกรอบ)
   applyBestImage();       // แสดงภาพคมที่สุด (โหลดต้นฉบับจาก IDB ถ้าจำเป็น)
 
@@ -7860,6 +7868,206 @@ function bindPlanEditor(){
   }
   stage.addEventListener("pointerup",_pinchEnd,true);
   stage.addEventListener("pointercancel",_pinchEnd,true);
+
+  /* ---------- มือถือ: ปุ่มลูกศรขยับ/ยืดทีละนิด (ชิ้นส่วนหรือโซนที่เลือก) ---------- */
+  function _bindNudgePad(){
+    if(!isMobile() || state.tool!=="select") return;
+    var body=document.querySelector(".m-body"); if(!body) return;
+    function targets(){
+      var z=(state.planMode==="progress" && state.selZoneId)?getZone(state.selZoneId):null;
+      if(z && z.plan) return [z.plan];
+      return selIds().map(getMember).filter(function(m){ return m && m.plan; }).map(function(m){ return m.plan; });
+    }
+    var g0=targets(); if(!g0.length) return;
+    var canSize=(g0.length===1 && g0[0].kind!=="point");
+    var mode=(canSize && state.nudgeMode==="size")?"size":"move";
+    var pad=document.createElement("div"); pad.className="nd-pad"; pad.setAttribute("aria-label","ขยับทีละนิด");
+    var A=function(d,ch,t){ return '<button data-nd="'+d+'" title="'+t+'">'+ch+'</button>'; };
+    pad.innerHTML='<i></i>'+A("u","▲","ขึ้น")+'<i></i>'+A("l","◀","ซ้าย")
+      +(canSize?'<button class="nd-mode'+(mode==="size"?" size":"")+'" data-nd="mode" title="สลับ ย้าย / ยืด">'+(mode==="size"?"ยืด":"ย้าย")+'</button>':'<button class="nd-mode" disabled>ย้าย</button>')
+      +A("r","▶","ขวา")+'<i></i>'+A("d","▼","ลง")+'<i></i>';
+    body.appendChild(pad);
+    var _last=0, _saveT=0, _hold=0, _rep=0, _n=0;
+    function step(dir){
+      var gs=targets(); if(!gs.length) return;
+      var r=overlay.getBoundingClientRect(); if(!r.width||!r.height) return;
+      var px=_n>15?4:(_n>6?2:1);   // กดค้าง = เร็วขึ้น
+      var nx=(dir==="l"?-px:dir==="r"?px:0)/r.width, ny=(dir==="u"?-px:dir==="d"?px:0)/r.height;
+      var now=Date.now(); if(now-_last>900) plPushUndo(); _last=now;
+      if(mode==="size" && gs.length===1){
+        var g=gs[0], mnx=3/r.width, mny=3/r.height;
+        if(g.kind==="line"){ g.x2=Math.max(0,Math.min(1,g.x2+nx)); g.y2=Math.max(0,Math.min(1,g.y2+ny)); }
+        else{
+          var kx=(g.x2>=g.x1)?"x2":"x1", ox=(kx==="x2")?"x1":"x2", ky=(g.y2>=g.y1)?"y2":"y1", oy=(ky==="y2")?"y1":"y2";
+          var vx=Math.max(0,Math.min(1,g[kx]+nx)), vy=Math.max(0,Math.min(1,g[ky]+ny));
+          if(vx-g[ox]>=mnx) g[kx]=vx;
+          if(vy-g[oy]>=mny) g[ky]=vy;
+        }
+      }else{
+        var minX=1,maxX=0,minY=1,maxY=0;
+        gs.forEach(function(g){ var xs=g.kind==="point"?[g.x]:[g.x1,g.x2], ys=g.kind==="point"?[g.y]:[g.y1,g.y2];
+          minX=Math.min(minX,Math.min.apply(null,xs)); maxX=Math.max(maxX,Math.max.apply(null,xs));
+          minY=Math.min(minY,Math.min.apply(null,ys)); maxY=Math.max(maxY,Math.max.apply(null,ys)); });
+        nx=Math.max(-minX,Math.min(1-maxX,nx)); ny=Math.max(-minY,Math.min(1-maxY,ny));   // ไม่ให้หลุดขอบแปลน
+        gs.forEach(function(g){
+          if(g.kind==="point"){ g.x+=nx; g.y+=ny; }
+          else { g.x1+=nx; g.x2+=nx; g.y1+=ny; g.y2+=ny; }
+        });
+      }
+      repaintPlanShapes();
+      clearTimeout(_saveT); _saveT=setTimeout(function(){ saveDB(); },500);
+    }
+    function stop(){ clearTimeout(_hold); clearInterval(_rep); _hold=0; _rep=0; _n=0; }
+    pad.addEventListener("pointerdown",function(ev){
+      var b=ev.target.closest("[data-nd]"); if(!b || b.disabled) return;
+      ev.preventDefault(); ev.stopPropagation();
+      var d=b.getAttribute("data-nd");
+      if(d==="mode"){ state.nudgeMode=(mode==="size")?"move":"size"; render(); return; }
+      stop(); step(d);
+      _hold=setTimeout(function(){ _rep=setInterval(function(){ _n++; step(d); },55); },350);
+    });
+    ["pointerup","pointercancel","pointerleave"].forEach(function(t){ pad.addEventListener(t,stop); });
+    pad.addEventListener("click",function(ev){ ev.stopPropagation(); });
+  }
+  _bindNudgePad();
+
+  /* ---------- มือถือ: วาดด้วยเป้ากลางจอ — เลื่อนแปลนด้วยนิ้ว ให้เป้าตรงจุด แล้วกด "วางจุด" ---------- */
+  function _bindCrosshair(){
+    var body=document.querySelector(".m-body"); if(!body) return;
+    var isZone=(state.tool==="drawZone"), kd=drawKind(state.catType);
+    var shape=isZone ? (state.zoneShape||"rect") : (kd==="rect" ? (state.drawShape||"rect") : kd);   // rect|oval|poly|line|point
+    var col=isZone?"#22c55e":state.fillColor;
+    var key=state.tool+"|"+shape+"|"+state.floorId+"|"+curPlanId()+"|"+state.catType;
+    if(state.xhKey!==key || !Array.isArray(state.xhPts)){ state.xhKey=key; state.xhPts=[]; }
+    var pts=state.xhPts, cur=null, lastK="", lastSt="";
+    var cross=document.createElement("div"); cross.className="xh-cross";
+    cross.innerHTML='<svg viewBox="0 0 48 48" width="48" height="48"><g fill="none" stroke-linecap="round"><g stroke="#fff" stroke-width="5"><path d="M24 3v13M24 32v13M3 24h13M32 24h13"/><circle cx="24" cy="24" r="3"/></g><g stroke="#e0322d" stroke-width="2.2"><path d="M24 3v13M24 32v13M3 24h13M32 24h13"/><circle cx="24" cy="24" r="3"/></g></g></svg>';
+    body.appendChild(cross);
+    var g=document.createElementNS(NS,"g"); g.setAttribute("id","xhTemp"); g.setAttribute("style","pointer-events:none"); overlay.appendChild(g);
+    var bar=document.createElement("div"); bar.className="xh-bar"; body.appendChild(bar);
+    function center(){
+      var sr=stage.getBoundingClientRect(), br=body.getBoundingClientRect(), r=overlay.getBoundingClientRect();
+      var cx=sr.left+sr.width/2, cy=sr.top+sr.height/2;
+      cross.style.left=(cx-br.left)+"px"; cross.style.top=(cy-br.top)+"px";
+      var nx=(cx-r.left)/(r.width||1), ny=(cy-r.top)/(r.height||1);
+      var inside=(nx>=-0.001 && nx<=1.001 && ny>=-0.001 && ny<=1.001);
+      nx=Math.max(0,Math.min(1,nx)); ny=Math.max(0,Math.min(1,ny));
+      var sp=inside ? snapNorm(nx,ny,r.width,r.height) : null;
+      if(sp){ showSnap(sp,r); return {x:sp.x, y:sp.y, snap:true, inside:true}; }
+      showSnap(null); return {x:nx, y:ny, inside:inside};
+    }
+    function preview(){
+      var z=state.zoom||1, sw=(2.4/z), da=(7/z)+" "+(5/z), out="";
+      var S=function(p){ return (p.x*VW).toFixed(1)+","+(p.y*VH).toFixed(1); };
+      if(pts.length===1 && cur && shape!=="poly"){
+        var a=pts[0], b=cur;
+        if(shape==="line") out+='<line x1="'+a.x*VW+'" y1="'+a.y*VH+'" x2="'+b.x*VW+'" y2="'+b.y*VH+'" stroke="'+col+'" stroke-width="'+sw+'" stroke-dasharray="'+da+'" stroke-linecap="round"/>';
+        else if(shape==="oval") out+='<ellipse cx="'+(a.x+b.x)/2*VW+'" cy="'+(a.y+b.y)/2*VH+'" rx="'+Math.abs(b.x-a.x)/2*VW+'" ry="'+Math.abs(b.y-a.y)/2*VH+'" fill="'+col+'" fill-opacity="0.25" stroke="'+col+'" stroke-width="'+sw+'" stroke-dasharray="'+da+'"/>';
+        else out+='<rect x="'+Math.min(a.x,b.x)*VW+'" y="'+Math.min(a.y,b.y)*VH+'" width="'+Math.abs(b.x-a.x)*VW+'" height="'+Math.abs(b.y-a.y)*VH+'" fill="'+col+'" fill-opacity="0.25" stroke="'+col+'" stroke-width="'+sw+'" stroke-dasharray="'+da+'"/>';
+      }
+      if(shape==="poly" && pts.length){
+        var all=pts.concat(cur?[cur]:[]);
+        out+='<polyline points="'+all.map(S).join(" ")+'" fill="'+col+'" fill-opacity="'+(all.length>=3?0.18:0)+'" stroke="'+col+'" stroke-width="'+sw+'" stroke-dasharray="'+da+'" stroke-linejoin="round" stroke-linecap="round"/>';
+      }
+      pts.forEach(function(p,i){ out+='<circle cx="'+p.x*VW+'" cy="'+p.y*VH+'" r="'+((i===0&&shape==="poly"&&pts.length>=3?7:5)/z)+'" fill="#fff" stroke="'+col+'" stroke-width="'+(2.2/z)+'"/>'; });
+      g.innerHTML=out;
+    }
+    function stText(){
+      var n=pts.length, t;
+      if(shape==="point") t='เลื่อนแปลนให้เป้าตรงตำแหน่ง แล้วกด “วางจุด”';
+      else if(shape==="poly") t=n<3 ? 'วางจุดที่ '+(n+1)+' (ต้องมีอย่างน้อย 3 จุด)' : 'วางจุดต่อ หรือกด “เสร็จ” เพื่อปิดรูป ('+n+' จุด)';
+      else if(shape==="line") t=n===0 ? 'ให้เป้าตรงต้นแนว แล้วกด “วางจุด”' : 'เลื่อนไปปลายแนว แล้วกด “วางจุด” อีกครั้ง';
+      else t=n===0 ? 'ให้เป้าตรงมุมแรก แล้วกด “วางจุด”' : 'เลื่อนไปมุมตรงข้าม แล้วกด “วางจุด” อีกครั้ง';
+      if(cur && !cur.inside) t='เป้าอยู่นอกแปลน — เลื่อนแปลนกลับเข้ามา';
+      else if(cur && cur.snap) t+=' · ดูดติดเส้นแล้ว';
+      return t;
+    }
+    function renderBar(){
+      var n=pts.length;
+      bar.innerHTML='<div class="xh-st"><span id="xhSt">'+esc(stText())+'</span></div>'
+        +'<div class="xh-btns">'
+        +'<button class="xh-b" data-xh="undo"'+(n?'':' disabled')+' title="ย้อนจุดล่าสุด">↶</button>'
+        +'<button class="xh-b pri" data-xh="place">'+(shape==="point"?'วางที่นี่':'วางจุด')+'</button>'
+        +(shape==="poly"?'<button class="xh-b ok" data-xh="done"'+(n>=3?'':' disabled')+'>เสร็จ</button>':'')
+        +'<button class="xh-b" data-xh="cancel" title="'+(n?'ล้างจุดที่วาง':'เลิกวาด')+'">✕</button>'
+        +'</div>'
+        +'<button class="xh-alt" data-xh="finger">ใช้นิ้วลากวาดแทน</button>';
+      lastSt=stText();
+    }
+    function tick(){ cur=center(); preview(); var t=stText(); if(t!==lastSt){ lastSt=t; var el=document.getElementById("xhSt"); if(el) el.textContent=t; } }
+    function finish(){
+      var P=pts.slice(); pts.length=0; state.xhKey=null; showSnap(null); g.innerHTML="";
+      function bbox(){ var xs=P.map(function(p){return p.x;}), ys=P.map(function(p){return p.y;});
+        var x1=Math.min.apply(null,xs), x2=Math.max.apply(null,xs), y1=Math.min.apply(null,ys), y2=Math.max.apply(null,ys);
+        var w=Math.max(1e-4,x2-x1), h=Math.max(1e-4,y2-y1);
+        return {x1:x1,y1:y1,x2:x2,y2:y2,pts:P.map(function(p){ return [(p.x-x1)/w,(p.y-y1)/h]; })}; }
+      if(isZone){
+        if(shape==="poly"){ var bz=bbox(); finishDrawZone({kind:"poly", x1:bz.x1, y1:bz.y1, x2:bz.x2, y2:bz.y2, pts:bz.pts}); }
+        else finishDrawZone({kind:(shape==="oval"?"oval":"rect"), x1:P[0].x, y1:P[0].y, x2:P[1].x, y2:P[1].y});
+        return;
+      }
+      if(shape==="point") finishDraw({kind:"point", x:P[0].x, y:P[0].y});
+      else if(shape==="line") finishDraw({kind:"line", x1:P[0].x, y1:P[0].y, x2:P[1].x, y2:P[1].y});
+      else if(shape==="poly"){ var b=bbox(); finishDraw({kind:"poly", x1:b.x1, y1:b.y1, x2:b.x2, y2:b.y2, pts:b.pts, fill:state.fillColor, fillA:state.fillAlpha, strokeW:state.strokeW}); }
+      else finishDraw({kind:shape, x1:P[0].x, y1:P[0].y, x2:P[1].x, y2:P[1].y, fill:state.fillColor, fillA:state.fillAlpha, strokeW:state.strokeW});
+      if(state.tool==="draw" && state.selMemberId){ state.selMemberId=null; state.selMulti=[]; state.mSheet=null; render(); }   // วาดต่อได้ทันที (แตะชิ้นทีหลังเพื่อแก้สเปก)
+    }
+    function act(a){
+      if(a==="finger"){ state.xhair=false; state.xhPts=[]; render(); toast("วาดด้วยการลากนิ้ว — กด “ใช้เป้ากลางจอ” ด้านบนเพื่อกลับ"); return; }
+      if(a==="undo"){ pts.pop(); tick(); renderBar(); return; }
+      if(a==="cancel"){ if(pts.length){ pts.length=0; tick(); renderBar(); } else { state.tool="select"; state.xhPts=[]; showSnap(null); render(); } return; }
+      if(a==="done"){ if(shape==="poly" && pts.length>=3) finish(); return; }
+      if(a!=="place") return;
+      var c=center(); cur=c;
+      if(!c.inside){ toast("เป้าอยู่นอกแปลน — เลื่อนแปลนให้เป้าอยู่บนแบบก่อน",true); return; }
+      var r=overlay.getBoundingClientRect(), p={x:c.x, y:c.y};
+      try{ if(navigator.vibrate) navigator.vibrate(12); }catch(e){}
+      if(shape==="point"){ pts.push(p); finish(); return; }
+      if(shape==="poly"){
+        if(pts.length>=3 && Math.hypot((p.x-pts[0].x)*r.width,(p.y-pts[0].y)*r.height)<14){ finish(); return; }   // วางที่จุดแรก = ปิดรูป
+        pts.push(p); tick(); renderBar(); return;
+      }
+      if(!pts.length){ pts.push(p); tick(); renderBar(); return; }
+      var a0=pts[0];
+      if(Math.abs(p.x-a0.x)*r.width<6 && Math.abs(p.y-a0.y)*r.height<6){ toast("จุดที่สองใกล้จุดแรกเกินไป — เลื่อนแปลนออกไปอีก",true); return; }
+      pts.push(p); finish();
+    }
+    bar.addEventListener("click",function(ev){ var b=ev.target.closest("[data-xh]"); if(!b || b.disabled) return; ev.stopPropagation(); act(b.getAttribute("data-xh")); });
+    bar.addEventListener("pointerdown",function(ev){ ev.stopPropagation(); });
+    // นิ้วเดียว = เลื่อนแปลน (สองนิ้ว = ซูม ใช้ตัวจัดการ pinch เดิม)
+    var pan=null;
+    function pm(ev){
+      if(!pan || ev.pointerId!==pan.id) return;
+      if(window.__planPinch){ pan.x=ev.clientX; pan.y=ev.clientY; pan.px=state.panX; pan.py=state.panY; return; }   // ระหว่างซูมสองนิ้ว → ตั้งฐานใหม่ ไม่กระโดด
+      if(ev.cancelable) ev.preventDefault();
+      state.panX=pan.px+(ev.clientX-pan.x); state.panY=pan.py+(ev.clientY-pan.y);
+      planClampPan(); planApplyTransform(); tick();
+    }
+    function pu(ev){
+      if(pan && ev.pointerId!==pan.id) return;
+      pan=null;
+      window.removeEventListener("pointermove",pm,true); window.removeEventListener("pointerup",pu,true); window.removeEventListener("pointercancel",pu,true);
+      try{ scheduleEnsure(); }catch(e){}
+    }
+    stage.addEventListener("pointerdown",function(ev){
+      if(ev.button!=null && ev.button!==0) return;
+      if(pan) return;
+      ev.preventDefault();
+      pan={id:ev.pointerId, x:ev.clientX, y:ev.clientY, px:state.panX, py:state.panY};
+      window.addEventListener("pointermove",pm,true); window.addEventListener("pointerup",pu,true); window.addEventListener("pointercancel",pu,true);
+    });
+    renderBar(); tick();
+    var iv=setInterval(function(){   // ตามการซูมสองนิ้ว/ปุ่มซูม/ปรับขนาดจอ
+      if(!document.body.contains(bar)){ clearInterval(iv); return; }
+      var k=state.panX+","+state.panY+","+state.zoom; if(k!==lastK){ lastK=k; tick(); }
+    },90);
+  }
+  if(window.__xhOn){ _bindCrosshair(); return; }
+  if(isMobile() && (state.tool==="draw"||state.tool==="drawZone") && state.xhair===false){   // ใช้นิ้วลากวาดอยู่ → ปุ่มกลับไปใช้เป้า
+    var _xb=document.querySelector(".m-body");
+    if(_xb){ var _bk=document.createElement("button"); _bk.className="xh-back"; _bk.textContent="⊕ ใช้เป้ากลางจอ";
+      _bk.addEventListener("click",function(e){ e.stopPropagation(); state.xhair=true; render(); }); _xb.appendChild(_bk); }
+  }
 
   var kind=drawKind(state.catType);
 
